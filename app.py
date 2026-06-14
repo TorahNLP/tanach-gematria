@@ -331,9 +331,11 @@ class VerseInput:
     parsha: str
     text: str                                  # cantillated text (+markers)
     kri_text: Optional[str] = None             # full Kri reading (cantillated/plain)
-    # Esther-style doublet: replace `doublet_from` with `doublet_to` in consonants.
+    # Textual variant fork: replace `doublet_from` with `doublet_to` in consonants.
     doublet_from: Optional[str] = None
     doublet_to: Optional[str] = None
+    variant_note: Optional[str] = None      # human-readable explanation
+    variant_category: Optional[str] = None  # "Ittur Sopherim" | "Doublet" | etc.
 
 
 @dataclass
@@ -344,7 +346,7 @@ class VerseFork:
     chapter: int
     verse: int
     parsha: str
-    variant_track: str          # 'Ksiv' | 'Kri' | 'Esther_Doublet'
+    variant_track: str          # 'Ksiv' | 'Kri' | 'TextVariant' | 'Aggregate'
     full_consonants: str
     first_half: str
     second_half: str
@@ -362,7 +364,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
 
     * Always emits a 'Ksiv' track from the physical written text.
     * Emits a 'Kri' track when kri_text is supplied (and differs).
-    * Emits an 'Esther_Doublet' track when a doublet substitution is supplied.
+    * Emits a 'TextVariant' track when a textual-variant substitution is supplied.
     """
     forks: List[VerseFork] = []
     marker = detect_paragraph_marker(v.text)
@@ -407,8 +409,8 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
                 dfh = doub_cons[:fh_len]
                 dsh = doub_cons[fh_len:]
             forks.append(VerseFork(
-                sub_id=f"{bid}_Doublet", book=v.book, chapter=v.chapter,
-                verse=v.verse, parsha=v.parsha, variant_track="Esther_Doublet",
+                sub_id=f"{bid}_Variant", book=v.book, chapter=v.chapter,
+                verse=v.verse, parsha=v.parsha, variant_track="TextVariant",
                 full_consonants=doub_cons, first_half=dfh, second_half=dsh,
                 paragraph_marker=marker,
                 words=[w.replace(v.doublet_from, v.doublet_to, 1)
@@ -481,6 +483,105 @@ SAMPLE_CORPUS: List[VerseInput] = [
                "דְּע֗וּ כִּֽי־יְהוָה֮ ה֤וּא אֱלֹ֫הִ֥ים ה֣וּא עָ֭שָׂנוּ וְלֹ֣א אֲנַ֑חְנוּ",
                kri_text="דְּע֗וּ כִּֽי־יְהוָה֮ ה֤וּא אֱלֹ֫הִ֥ים ה֣וּא עָ֭שָׂנוּ וְל֣וֹ אֲנַ֑חְנוּ"),
 ]
+
+
+# ---------------------------------------------------------------------------
+# SECTION 4b.  MASORETIC TEXTUAL VARIANT REGISTRY
+# ---------------------------------------------------------------------------
+#
+# Canonical list of documented Masoretic textual variants whose fork can be
+# computed automatically. Keys are (book, chapter, verse) as they appear in
+# tanach_corpus.jsonl (English names). Each spec provides consonant-level
+# doublet_from / doublet_to for the fork engine.
+#
+# Sources verified: BT Nedarim 37b (Itture Sopherim), Mekhilta / Yalkut
+# Shimoni / Sifre (Tiqqune Sopherim), Masoretic tradition (Esther doublets).
+
+TEXTUAL_VARIANT_SPECS: dict = {
+    # --- Itture Sopherim (BT Nedarim 37b) —
+    #     Five places where scribes omitted a conjunctive vav.
+    #     TextVariant restores the vav (+6 Absolute).
+    ("Genesis", 18, 5): {
+        "from": "אחר", "to": "ואחר",
+        "category": "Ittur Sopherim",
+        "note": "Received text: אַחַר. Traditional reading adds a vav: וְאַחַר. (BT Nedarim 37b)",
+    },
+    ("Genesis", 24, 55): {
+        "from": "אחר", "to": "ואחר",
+        "category": "Ittur Sopherim",
+        "note": "Received text: אַחַר. Traditional reading adds a vav: וְאַחַר. (BT Nedarim 37b)",
+    },
+    ("Numbers", 31, 2): {
+        "from": "אחר", "to": "ואחר",
+        "category": "Ittur Sopherim",
+        "note": "Received text: אַחַר. Traditional reading adds a vav: וְאַחַר. (BT Nedarim 37b)",
+    },
+    ("Psalms", 36, 7): {
+        "from": "משפטך", "to": "ומשפטך",
+        "category": "Ittur Sopherim",
+        "note": "Received text: מִשְׁפָּטֶךָ. Traditional reading: וּמִשְׁפָּטֶךָ. (BT Nedarim 37b)",
+    },
+    ("Psalms", 68, 26): {
+        "from": "אחר", "to": "ואחר",
+        "category": "Ittur Sopherim",
+        "note": "Received text: אַחַר. Traditional reading adds a vav: וְאַחַר. (BT Nedarim 37b)",
+    },
+    # --- Esther doublets (Masoretic plene/defective variants) ---
+    ("Esther", 8, 11): {
+        "from": "להשמיד", "to": "ולהשמיד",
+        "category": "Doublet",
+        "note": "Some manuscripts read וְלְהַשְׁמִיד (with vav); received Masoretic text lacks it.",
+    },
+    ("Esther", 9, 27): {
+        "from": "וקבל", "to": "וקבלו",
+        "category": "Doublet",
+        "note": "Kethiv: וְקִבֵּל. Qere: וְקִבְּלוּ. Both attested in Masoretic manuscripts.",
+    },
+}
+
+# Documentation-only tables surfaced in the Guide tab (not engine-active).
+TIQQUNE_SOPHERIM = [
+    {"Ref": "Genesis 18:22",    "Received text": "אַבְרָהָם עוֹדֶנּוּ עֹמֵד לִפְנֵי ה׳", "Traditional original": "ה׳ עוֹדֶנּוּ עֹמֵד לִפְנֵי אַבְרָהָם", "Note": "Scribes reversed subject/object to avoid saying God 'stood before' Abraham.", "Source": "Mekhilta; Sifre Num. §84; Tanḥuma"},
+    {"Ref": "Numbers 11:15",    "Received text": "בְּרָעָתִי", "Traditional original": "בְּרָעָתֶךָ", "Note": "Moses's rebuke softened from 'Your evil' to 'my evil'.", "Source": "ibid."},
+    {"Ref": "Numbers 12:12",    "Received text": "אִמֵּנוּ / בְּשָׂרֵנוּ", "Traditional original": "אִמּוֹ / בְּשָׂרוֹ", "Note": "Plural changed to third-person singular to reduce directness.", "Source": "ibid."},
+    {"Ref": "I Samuel 3:13",    "Received text": "מְקַלְלִים לָהֶם", "Traditional original": "מְקַלְלִים לִי / לֵאלֹהִים", "Note": "Offense against God softened by pronoun change.", "Source": "ibid."},
+    {"Ref": "II Samuel 16:12",  "Received text": "בְּעֹנִי / בְּעֵינִי", "Traditional original": "בְּעֵינֵי ה׳", "Note": "Divine reference removed.", "Source": "ibid."},
+    {"Ref": "II Samuel 20:1",   "Received text": "לְאֹהָלָיו", "Traditional original": "לֵאלֹהָיו", "Note": "Scribes changed 'his gods' to 'his tents' (idolatry connotation avoided).", "Source": "ibid."},
+    {"Ref": "I Kings 12:16",    "Received text": "לְאֹהָלָיו", "Traditional original": "לֵאלֹהָיו", "Note": "Same as II Sam 20:1.", "Source": "ibid."},
+    {"Ref": "Jeremiah 2:11",    "Received text": "כְּבוֹדָם", "Traditional original": "כְּבוֹדִי", "Note": "Israel's 'glory' substituted for God's 'glory'.", "Source": "ibid."},
+    {"Ref": "Ezekiel 8:17",     "Received text": "אַפָּם", "Traditional original": "אַפִּי", "Note": "Pronoun changed from divine first-person to human third-person.", "Source": "ibid."},
+    {"Ref": "Hosea 4:7",        "Received text": "כְּבוֹדָם", "Traditional original": "כְּבוֹדִי", "Note": "Their glory substituted for My glory (reverence correction).", "Source": "ibid."},
+    {"Ref": "Habakkuk 1:12",    "Received text": "לֹא נָמוּת", "Traditional original": "לֹא תָמוּת", "Note": "1st-person plural substituted for 2nd-person to avoid asserting God's mortality.", "Source": "ibid."},
+    {"Ref": "Zechariah 2:12",   "Received text": "עֵינוֹ", "Traditional original": "עֵינִי", "Note": "His eye / My eye pronoun shift.", "Source": "ibid."},
+    {"Ref": "Malachi 1:13",     "Received text": "אוֹתוֹ", "Traditional original": "אוֹתִי", "Note": "Object pronoun shifted away from first-person divine.", "Source": "ibid."},
+    {"Ref": "Psalms 106:20",    "Received text": "כְּבוֹדָם", "Traditional original": "כְּבוֹדִי", "Note": "Same correction as Hosea 4:7.", "Source": "ibid."},
+    {"Ref": "Job 7:20",         "Received text": "עָלֶיךָ / עָלַי", "Traditional original": "(variant; list differs by source)", "Note": "Pronoun shift to reduce theological offence.", "Source": "ibid."},
+    {"Ref": "Job 32:3",         "Received text": "אֶת אִיּוֹב", "Traditional original": "אֶת ה׳", "Note": "God replaced by Job as object of condemnation.", "Source": "ibid."},
+    {"Ref": "Lamentations 3:20", "Received text": "תָּשִׁיחַ עָלַי", "Traditional original": "(variant)", "Note": "Divine subject softened.", "Source": "ibid."},
+    {"Ref": "Numbers 11:15 / Job 7:20 (lists vary)", "Received text": "—", "Traditional original": "—", "Note": "The 18th entry varies across sources (Mekhilta, Sifre, Yalkut Shimoni, Masorah Magna do not agree on a single unified list).", "Source": "Midrash Rabbah; Yalkut Shimoni"},
+]
+
+DOUBLET_PASSAGES = [
+    {"Passage A": "Psalms 14",       "Passage B": "Psalms 53",            "Note": "Nearly word-for-word; divine name differs (YHWH vs Elohim). One of the most striking intra-biblical doublets.",               "Source": "BHS apparatus; Goshen-Gottstein"},
+    {"Passage A": "Isaiah 36–39",    "Passage B": "II Kings 18:13–20:19", "Note": "Parallel narrative; Kings contains one additional verse (II Kgs 18:14–16) absent from Isaiah.",                                 "Source": "BHS apparatus"},
+    {"Passage A": "II Samuel 22",    "Passage B": "Psalms 18",            "Note": "The 'Song of David' appears in both books with minor textual differences — a rare intra-canonical variant passage.",              "Source": "BHS apparatus; Talmon (1960)"},
+]
+
+
+def apply_textual_variants(verses: List[VerseInput]) -> List[VerseInput]:
+    """Inject Masoretic textual-variant fork data from TEXTUAL_VARIANT_SPECS.
+
+    Safe to call on both the JSONL and SAMPLE_CORPUS paths; skips any verse
+    that already has doublet_from set (manual SAMPLE_CORPUS entries win).
+    """
+    for v in verses:
+        spec = TEXTUAL_VARIANT_SPECS.get((v.book, v.chapter, v.verse))
+        if spec and not v.doublet_from:
+            v.doublet_from = spec["from"]
+            v.doublet_to = spec["to"]
+            v.variant_note = spec.get("note", "")
+            v.variant_category = spec.get("category", "")
+    return verses
 
 
 def load_from_sefaria(refs: List[str], timeout: int = 20) -> List[VerseInput]:
@@ -943,9 +1044,9 @@ def run_selftest() -> None:
     forks_811 = fork_verse(SAMPLE_CORPUS[9])
     tracks = {f.variant_track for f in forks_811}
     print(f"  Esther 8:11 tracks  : {sorted(tracks)}")
-    assert "Esther_Doublet" in tracks
+    assert "TextVariant" in tracks
     ksiv_v = next(f for f in forks_811 if f.variant_track == "Ksiv")
-    doub_v = next(f for f in forks_811 if f.variant_track == "Esther_Doublet")
+    doub_v = next(f for f in forks_811 if f.variant_track == "TextVariant")
     assert (g_absolute(doub_v.full_consonants)
             - g_absolute(ksiv_v.full_consonants) == g_absolute("ו"))
     print(f"    Ksiv abs={g_absolute(ksiv_v.full_consonants)}  "
@@ -996,6 +1097,7 @@ def run_app() -> None:
         # if the file isn't present (e.g. development without the data file).
         bundled = load_from_jsonl()
         verses = bundled if bundled else list(SAMPLE_CORPUS)
+        verses = apply_textual_variants(verses)
         fetched_ok = True
         if extra_refs_key:
             refs = [r.strip() for r in extra_refs_key.split(";") if r.strip()]
@@ -1113,11 +1215,12 @@ def run_app() -> None:
                 for rv in run:
                     st.markdown(f"- {rv.book} {rv.chapter}:{rv.verse} — {rv.text}")
 
-    tab1, tab2, tab3, tab4 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "1 · Phrase & Name Matcher",
         "2 · Scriptural Structural Explorer",
         "3 · Textual Echoes & Anomalies",
         "4 · Macro Statistical Dashboard",
+        "📖 Guide & Sources",
     ])
 
     # ======================= TAB 1: PHRASE MATCHER =======================
@@ -1138,8 +1241,8 @@ def run_app() -> None:
         cc1, cc2 = st.columns(2)
         with cc1:
             tracks = st.multiselect(
-                "Variant tracks", ["Ksiv", "Kri", "Esther_Doublet", "Aggregate"],
-                default=["Ksiv", "Kri", "Esther_Doublet"])
+                "Variant tracks", ["Ksiv", "Kri", "TextVariant", "Aggregate"],
+                default=["Ksiv", "Kri", "TextVariant"])
         with cc2:
             bounds = st.multiselect(
                 "Boundary types",
@@ -1287,6 +1390,125 @@ def run_app() -> None:
                 st.caption("These integer ranges have zero verse representation in "
                            "the loaded corpus — statistical uniqueness rises near "
                            "wide dead zones.")
+
+    # ===================== TAB 5: GUIDE & SOURCES ========================
+    with tab5:
+        st.subheader("📖 Guide & Sources")
+        st.caption(
+            "Every cipher, variant track, boundary type, and rule used by this engine "
+            "— with its traditional name and scholarly source. Cipher rules are exact "
+            "(verified against the engine code). Historical attributions are traditional "
+            "and noted where uncertain."
+        )
+
+        with st.expander("The 11 gematria ciphers", expanded=True):
+            st.dataframe(pd.DataFrame([
+                {"Cipher": "Absolute",
+                 "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
+                 "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
+                 "Earliest Source": "Biblical era (attested in use). Rabbinic formulation: BT Nedarim 32a interprets the '318 servants' of Gen. 14:14 as the name אֱלִיעֶזֶר (=318) — the earliest clear Talmudic use. The term 'gematriot' appears as a category of wisdom in Mishnah Avot 3:18. BT Sanhedrin 22a discusses the practice explicitly."},
+                {"Cipher": "Katan",
+                 "Hebrew": "מספר קטן (Mispar Katan)",
+                 "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
+                 "Earliest Source": "Medieval. No Talmudic source for this specific reduction. Formalized in Hasidei Ashkenaz tradition (12th–13th c.), appearing in works such as Sefer Gematriot (attr. R. Yehuda he-Hasid, d. 1217)."},
+                {"Cipher": "Gadol",
+                 "Hebrew": "מספר גדול (Mispar Gadol)",
+                 "Rule": "Like Absolute, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
+                 "Earliest Source": "The 27-letter sequence including finals is described in Sefer Yetzirah 2:2 (dated 3rd–6th c. CE by scholarship; earlier by tradition). Practical use with the higher values in gematria appears in Sefer ha-Bahir (12th c.) and the Zohar (13th c.)."},
+                {"Cipher": "Atbash",
+                 "Hebrew": "אתב\"ש (At-Bash)",
+                 "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Absolute values of the swapped letters.",
+                 "Earliest Source": "The oldest attested gematria cipher — it appears in the Hebrew Bible itself. 'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
+                {"Cipher": "Albam",
+                 "Hebrew": "אלב\"ם (Al-Bam)",
+                 "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
+                 "Earliest Source": "Classical temurah described in Sefer Yetzirah ch. 2 (3rd–6th c. CE). Elaborated in Sefer Yetzirah commentaries by Rav Saadia Gaon (882–942 CE) and R. Dunash ibn Tamim (10th c.)."},
+                {"Cipher": "Atbah",
+                 "Hebrew": "אטב\"ח (At-Bach)",
+                 "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
+                 "Earliest Source": "Attributed to Rabbi Eliezer ben Yose ha-Gelili, a 2nd-century Tanna. The full name 'Atbah of R. Eliezer' appears in the Baraita of 32 Hermeneutical Rules (Tannaic era, transmitted in medieval compilations) and in Midrashic literature."},
+                {"Cipher": "Avgad",
+                 "Hebrew": "אבג\"ד (Av-Gad)",
+                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute values of the shifted letters.",
+                 "Earliest Source": "Classical cyclic temurah. The concept of cyclic letter shifting appears within the temurah tradition of Sefer Yetzirah (3rd–6th c. CE). The specific Avgad cipher is named and elaborated in medieval Kabbalistic works."},
+                {"Cipher": "Siduri",
+                 "Hebrew": "מספר סידורי (Mispar Siduri)",
+                 "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
+                 "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria cipher, widely attested in Midrashic literature and medieval biblical commentary."},
+                {"Cipher": "Ribua",
+                 "Hebrew": "מספר מרובע (Mispar Meruba Pratti)",
+                 "Rule": "Square each letter's Absolute value, then sum all squares (Σ v²).",
+                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in Sefer ha-Bahir (Provence, 12th c.) and later Zoharic and Lurianic literature."},
+                {"Cipher": "Kidmi",
+                 "Hebrew": "מספר קדמי / משולש (Mispar Kidmi)",
+                 "Rule": "Triangular cumulative: each letter's value = sum of all Absolute values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
+                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in later Kabbalistic computational texts; the triangular-number principle is implicit in Pythagorean numerology as absorbed into medieval Jewish mysticism."},
+                {"Cipher": "Achbi",
+                 "Hebrew": "אכב\"י (Ach-Bi)",
+                 "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
+                 "Earliest Source": "Classical temurah variant. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE). A less common scheme; named and discussed in medieval Kabbalistic commentaries."},
+            ]), use_container_width=True, hide_index=True)
+
+        with st.expander("Variant tracks"):
+            st.markdown("""
+**Ksiv (כְּתִיב — "Written")** — The consonantal text exactly as written in the Torah scroll. The default track; every verse is recorded here. The Masoretes went to extraordinary lengths to preserve this text letter-perfect.
+
+**Kri (קְרֵי — "Read")** — The text as traditionally *read aloud*, sometimes differing from the written form. Marginal notes mark every divergence. Different consonants → different gematria totals. Example: Psalms 100:3 written לֹא (alef), read לוֹ (vav), difference = 1 Absolute.
+
+*Qere Perpetuum* — A subset of Kri: substitutions so consistent they receive only one marginal note for all occurrences. Chief example: in the Torah, הִיא ("she") is written as הוּא ("he") 33 times; a single note at Genesis 3:20 covers all (cf. BT Yevamot). Implemented via the Kri track.
+
+**TextVariant (Masoretic Textual Variants)** — Documented variant readings of a specific word or phrase, forked as an alternate gematria row for the same verse. Two sub-categories are engine-active:
+""")
+            st.markdown("**Itture Sopherim — Five scribal omissions (BT Nedarim 37b)**")
+            st.dataframe(pd.DataFrame([
+                {"Reference": f"{b} {c}:{v}", "Received (Masoretic)": spec["from"],
+                 "TextVariant (with vav)": spec["to"], "Note": spec["note"]}
+                for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
+                if spec["category"] == "Ittur Sopherim"
+            ]), use_container_width=True, hide_index=True)
+            st.markdown("**Esther doublets**")
+            st.dataframe(pd.DataFrame([
+                {"Reference": f"{b} {c}:{v}", "Received": spec["from"],
+                 "Variant": spec["to"], "Note": spec["note"]}
+                for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
+                if spec["category"] == "Doublet"
+            ]), use_container_width=True, hide_index=True)
+            st.markdown("""
+**Aggregate** — Structural totals (Perek/Parsha sums from Ksiv verses). Not a text variant; a statistical macro-unit.
+
+---
+**Tiqqune Sopherim (תיקוני סופרים) — 18 scribal corrections (documented, not engine-forked)**
+
+These 18 places are where the Masoretic tradition records that scribes emended the text — mainly to remove anthropomorphisms or avoid theological offence. The received Masoretic text already contains the corrected reading. The "original" wording is preserved in rabbinic literature (Mekhilta, Sifre Num. §84, Yalkut Shimoni, Tanḥuma). Note: the exact list of 18 varies across sources.
+""")
+            st.dataframe(pd.DataFrame(TIQQUNE_SOPHERIM), use_container_width=True, hide_index=True)
+            st.markdown("""
+**Doublet passages (documented, not engine-forked)**
+
+These are separate references that share nearly identical text — two distinct verses in two different books, not two readings of one verse. The fork engine doesn't apply here; they are best studied by comparing the two passages directly.
+""")
+            st.dataframe(pd.DataFrame(DOUBLET_PASSAGES), use_container_width=True, hide_index=True)
+
+        with st.expander("Boundary types"):
+            st.dataframe(pd.DataFrame([
+                {"Boundary": "Word (תיבה)",      "Meaning": "Single word token, split on space and maqaf (־).",                                             "Why meaningful": "Smallest meaning-bearing unit; classic gematria target (name totals, first/last words)."},
+                {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Atnach-bearing word (inclusive).",                                     "Why meaningful": "The Atnach (֑) is the verse's primary cantillation pause — its main syntactic division."},
+                {"Boundary": "SecondHalf",        "Meaning": "From after the Atnach to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
+                {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
+                {"Boundary": "Petucha (פ)",       "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",        "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
+                {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
+                {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
+                {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},
+            ]), use_container_width=True, hide_index=True)
+
+        with st.expander("The Rule of the Colel (כּוֹלֵל)"):
+            st.markdown("""
+The *Colel* (כּוֹלֵל, "the inclusive / the whole") permits adding or subtracting **1** to a gematria total — conventionally counting "the word itself" or "the number as a unit" as one extra. A match within ±1 of the target is treated as equivalent.
+
+This principle appears throughout Kabbalistic and Hasidic commentary and is invoked by various authorities (including the Vilna Gaon and Baal HaTurim–style annotations). Its precise origin is diffuse; present it as a traditional/widely-used principle rather than pinning it to a single text.
+
+**How the toggle works in this engine:** when enabled, `search_value` matches `target−1`, `target`, and `target+1` (SQL `BETWEEN`), and results are ordered by proximity (`ABS(cipher − value)`). The internal-balance detector likewise flags half-verses equal within ±1 as `colel±1`.
+""")
 
 
 # ---------------------------------------------------------------------------
