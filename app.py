@@ -1237,7 +1237,7 @@ def run_app() -> None:
                        initial_sidebar_state="collapsed")
     sns.set_theme(style="whitegrid")
 
-    @st.cache_resource(show_spinner="Building gematria database…")
+    @st.cache_resource(show_spinner="Loading gematria database…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         # Primary corpus: bundled full Tanach. Falls back to SAMPLE_CORPUS
         # if the file isn't present (e.g. development without the data file).
