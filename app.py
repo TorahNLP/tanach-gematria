@@ -129,6 +129,25 @@ ATBAH_VALUE = {
 }
 
 
+# Nikud (vowel-point) dot counts for Mispar HaNikud.
+# Only the 12 standard vowel points (U+05B0–U+05BB) are counted; dagesh,
+# meteg and shin/sin dots are excluded. A string without nikud scores 0.
+NIKUD_DOTS: Dict[str, int] = {
+    "ְ": 2,  # Sheva — two stacked dots
+    "ֱ": 3,  # Hataf Segol — sheva-pair + one segol-dot
+    "ֲ": 3,  # Hataf Patah — sheva-pair + patah stroke
+    "ֳ": 3,  # Hataf Kamatz — sheva-pair + kamatz stroke
+    "ִ": 1,  # Hiriq — single dot
+    "ֵ": 2,  # Tsere — two horizontal dots
+    "ֶ": 3,  # Segol — three dots in triangle
+    "ַ": 1,  # Patah — one horizontal stroke
+    "ָ": 2,  # Kamatz — horizontal + vertical = two strokes
+    "ֹ": 1,  # Holam — single dot above
+    "ֺ": 1,  # Holam haser for vav — single dot
+    "ֻ": 3,  # Kubutz — three diagonal dots
+}
+
+
 def _katan_digit(value: int) -> int:
     """Reduce a standard letter value to a single significant digit.
 
@@ -222,8 +241,19 @@ def g_achbi(s: str) -> int:
     return _temurah_value(s, ACHBI_MAP)
 
 
+def g_nikud(text: str) -> int:
+    """Mispar HaNikud - count the dots in each vowel-point (nikud) mark.
+
+    Operates on raw (cantillated / vocalised) text, not stripped consonants.
+    Returns 0 for consonant-only strings — correct behaviour.
+    """
+    return sum(NIKUD_DOTS.get(ch, 0) for ch in text)
+
+
 # Ordered registry of every cipher. The order here is the column order used
 # throughout the database and the UI.
+# NOTE: HaNikud operates on cantillated text; all others take consonants.
+# compute_all_ciphers handles the dispatch so callers use a uniform API.
 CIPHERS: Dict[str, Callable[[str], int]] = {
     "Absolute": g_absolute,     # Mispar Hechrachi / Yaschar      (required)
     "Katan": g_katan,           # Mispar Katan (reduced)          (required)
@@ -236,13 +266,60 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Ribua": g_ribua,           # Mispar Meruba Prati (squared)   (researched)
     "Kidmi": g_kidmi,           # Mispar Kidmi / Meshulash        (researched)
     "Achbi": g_achbi,           # א"כ ב"י temurah variant         (researched)
+    "HaNikud": g_nikud,         # Mispar HaNikud (nikud dots)     (researched)
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
+# Human-readable one-liners shown next to each cipher selector in the UI.
+CIPHER_BLURB: Dict[str, str] = {
+    "Absolute": "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
+    "Katan":    "Reduced values — drop trailing zeros (ק→1, מ→4), then sum.",
+    "Gadol":    "Like Absolute, but final forms count higher: ך=500 … ץ=900.",
+    "Atbash":   "Mirror swap: א↔ת, ב↔ש, ג↔ר … then Absolute of swapped letters.",
+    "Albam":    "ROT-11 swap: א↔ל, ב↔מ, ג↔נ … then Absolute of swapped letters.",
+    "Atbah":    "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
+    "Avgad":    "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute of shifted letters.",
+    "Siduri":   "Ordinal position: א=1, ב=2, ג=3 … ת=22. Sequence, not value.",
+    "Ribua":    "Sum of squared values: Σ v² per letter.",
+    "Kidmi":    "Triangular cumulative: each letter = sum of all Absolutes up to it. א=1, ב=3 … ת=1495.",
+    "Achbi":    "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Absolute.",
+    "HaNikud":  "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
+}
 
-def compute_all_ciphers(consonants: str) -> Dict[str, int]:
-    """Return {cipher_name: value} for a cleaned consonant string."""
-    return {name: fn(consonants) for name, fn in CIPHERS.items()}
+# Friendly display labels for variant tracks and boundary types in the UI.
+TRACK_LABELS: Dict[str, str] = {
+    "Ksiv":        "Written text (Ksiv)",
+    "Kri":         "Read tradition (Kri)",
+    "TextVariant": "Variant reading",
+    "Aggregate":   "Structural total",
+}
+BOUNDARY_LABELS: Dict[str, str] = {
+    "Word":       "Word",
+    "FirstHalf":  "First half-verse",
+    "SecondHalf": "Second half-verse",
+    "Verse":      "Verse",
+    "Perek":      "Chapter (Perek)",
+    "Parsha":     "Torah portion (Parsha)",
+    "Petucha":    "Open paragraph (Petucha פ)",
+    "Setuma":     "Closed paragraph (Setuma ס)",
+}
+
+
+def compute_all_ciphers(consonants: str, cantillated: str = "") -> Dict[str, int]:
+    """Return {cipher_name: value} for a cleaned consonant string.
+
+    HaNikud is dispatched to `cantillated` (if provided) rather than
+    consonants, so it reflects the actual vowel-dot count. When
+    `cantillated` is empty, HaNikud returns 0 (correct for consonant-only
+    strings).
+    """
+    result = {}
+    for name, fn in CIPHERS.items():
+        if name == "HaNikud":
+            result[name] = fn(cantillated)
+        else:
+            result[name] = fn(consonants)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -353,6 +430,7 @@ class VerseFork:
     second_half: str
     paragraph_marker: Optional[str]
     words: List[str] = field(default_factory=list)
+    cantillated_text: str = ""  # full cantillated verse (for HaNikud)
 
 
 def _base_id(v: VerseInput) -> str:
@@ -379,6 +457,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
         full_consonants=strip_to_consonants(v.text),
         first_half=fh, second_half=sh, paragraph_marker=marker,
         words=tokenize_words(v.text),
+        cantillated_text=v.text,
     ))
 
     # --- Track B: Kri (vocalised / read tradition) ---
@@ -391,9 +470,10 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
                 parsha=v.parsha, variant_track="Kri",
                 full_consonants=kri_full, first_half=kfh, second_half=ksh,
                 paragraph_marker=marker, words=tokenize_words(v.kri_text),
+                cantillated_text=v.kri_text,
             ))
 
-    # --- Doublet: Esther 8:11 / 9:27 alternative reading ---
+    # --- Doublet: textual-variant alternative reading ---
     if v.doublet_from and v.doublet_to:
         base_cons = forks[0].full_consonants
         if v.doublet_from in base_cons:
@@ -416,6 +496,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
                 paragraph_marker=marker,
                 words=[w.replace(v.doublet_from, v.doublet_to, 1)
                        if v.doublet_from in w else w for w in forks[0].words],
+                cantillated_text=doub_text,
             ))
     return forks
 
@@ -696,8 +777,8 @@ CIPHER_PLACEHOLDERS = ", ".join(["?"] * len(CIPHER_NAMES))
 CIPHER_INSERT_COLS = ", ".join(CIPHER_NAMES)
 
 
-def _cipher_tuple(consonants: str) -> Tuple[int, ...]:
-    vals = compute_all_ciphers(consonants)
+def _cipher_tuple(consonants: str, cantillated: str = "") -> Tuple[int, ...]:
+    vals = compute_all_ciphers(consonants, cantillated)
     return tuple(vals[c] for c in CIPHER_NAMES)
 
 
@@ -723,7 +804,8 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         )
     """)
 
-    def insert(sub_id, book, chapter, verse, parsha, boundary, track, cons, disp=None):
+    def insert(sub_id, book, chapter, verse, parsha, boundary, track, cons,
+               disp=None, cantillated=""):
         if not cons:
             return
         cur.execute(
@@ -732,7 +814,7 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                  variant_track, consonants, text_display, {CIPHER_INSERT_COLS})
                 VALUES (?,?,?,?,?,?,?,?,?,{CIPHER_PLACEHOLDERS})""",
             (sub_id, book, chapter, verse, parsha, boundary, track, cons,
-             disp or cons, *_cipher_tuple(cons)),
+             disp or cons, *_cipher_tuple(cons, cantillated)),
         )
 
     # ---- Micro structures: words, half-verses, full verses (per fork) ----
@@ -750,8 +832,11 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         all_forks.extend(fork_verse(v))
 
     for f in all_forks:
+        # Pass cantillated_text for Verse rows so HaNikud gets the vowel count.
+        # Sub-unit rows (halves, words) only have consonants → HaNikud = 0 there.
         insert(f.sub_id, f.book, f.chapter, f.verse, f.parsha,
-               "Verse", f.variant_track, f.full_consonants)
+               "Verse", f.variant_track, f.full_consonants,
+               cantillated=f.cantillated_text)
         insert(f"{f.sub_id}_FH", f.book, f.chapter, f.verse, f.parsha,
                "FirstHalf", f.variant_track, f.first_half)
         insert(f"{f.sub_id}_SH", f.book, f.chapter, f.verse, f.parsha,
@@ -762,7 +847,7 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         if f.paragraph_marker:
             insert(f"{f.sub_id}_{f.paragraph_marker}", f.book, f.chapter,
                    f.verse, f.parsha, f.paragraph_marker, f.variant_track,
-                   f.full_consonants)
+                   f.full_consonants, cantillated=f.cantillated_text)
 
     # ---- Macro structures: Perek, Parsha (Ksiv track aggregation) ----
     ksiv = [f for f in all_forks if f.variant_track == "Ksiv"]
@@ -997,6 +1082,61 @@ def density_gaps(conn: sqlite3.Connection, cipher: str = "Absolute",
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# SECTION 8b.  CIPHER BREAKDOWN HELPER (for in-UI letter-by-letter display)
+# ---------------------------------------------------------------------------
+
+def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, int]]]:
+    """Return [(display_label, letter_value)] for equation display in the UI.
+
+    Each element is one letter (or swap arrow for temurah ciphers) plus its
+    value contribution. Returns None for HaNikud (not letter-based) or empty
+    input — callers should show a note instead.
+    """
+    if cipher == "HaNikud" or not consonants:
+        return None
+    result: List[Tuple[str, int]] = []
+    for ch in consonants:
+        base = _normalize_final(ch)
+        if cipher == "Absolute":
+            result.append((ch, STANDARD.get(base, 0)))
+        elif cipher == "Katan":
+            result.append((ch, _katan_digit(STANDARD.get(base, 0))))
+        elif cipher == "Gadol":
+            val = GADOL_FINALS.get(ch, STANDARD.get(base, 0))
+            result.append((ch, val))
+        elif cipher == "Atbash":
+            swapped = ATBASH_MAP.get(base, base)
+            val = STANDARD.get(_normalize_final(swapped), 0)
+            result.append((f"{ch}→{swapped}", val))
+        elif cipher == "Albam":
+            swapped = ALBAM_MAP.get(base, base)
+            val = STANDARD.get(_normalize_final(swapped), 0)
+            result.append((f"{ch}→{swapped}", val))
+        elif cipher == "Avgad":
+            swapped = AVGAD_MAP.get(base, base)
+            val = STANDARD.get(_normalize_final(swapped), 0)
+            result.append((f"{ch}→{swapped}", val))
+        elif cipher == "Atbah":
+            partner = ATBAH_MAP.get(base, base)
+            val = ATBAH_VALUE.get(base, 0)
+            result.append((f"{ch}↔{partner}", val))
+        elif cipher == "Achbi":
+            swapped = ACHBI_MAP.get(base, base)
+            val = STANDARD.get(_normalize_final(swapped), 0)
+            result.append((f"{ch}→{swapped}", val))
+        elif cipher == "Siduri":
+            result.append((ch, ORDINAL.get(base, 0)))
+        elif cipher == "Ribua":
+            v2 = STANDARD.get(base, 0)
+            result.append((f"{ch}²", v2 * v2))
+        elif cipher == "Kidmi":
+            result.append((ch, KIDMI.get(base, 0)))
+        else:
+            result.append((ch, 0))
+    return result
+
+
 # SECTION 9.  SELF-TEST  (python app.py selftest)
 # ---------------------------------------------------------------------------
 
@@ -1024,7 +1164,12 @@ def run_selftest() -> None:
     assert g_gadol("ם") == 600 and g_absolute("ם") == 40
     assert g_ribua("אב") == 5 and g_kidmi("ג") == 6
     assert g_katan("ר") == 2 and g_katan("י") == 1
-    print("  All 11 ciphers pass spot-checks  OK")
+    # HaNikud: consonant-only string → 0; cantillated בְּרֵאשִׁ֖ית → 5
+    # (sheva=2 + tsere=2 + hiriq=1; dagesh and taamim excluded)
+    assert g_nikud("שלום") == 0, g_nikud("שלום")
+    assert g_nikud("בְּרֵאשִׁ֖ית") == 5, g_nikud("בְּרֵאשִׁ֖ית")
+    assert g_nikud(SAMPLE_CORPUS[0].text) > 0
+    print("  All 12 ciphers pass spot-checks  OK")
 
     fh, sh = split_halves_by_atnach(SAMPLE_CORPUS[0].text)
     print(f"  Gen 1:1 first half  : {fh}")
@@ -1123,21 +1268,20 @@ def run_app() -> None:
 
     st.title("Tanach Gematria Search & Structural Pattern Engine")
     st.caption(
-        "Multi-cipher gematria engine over the complete Masoretic text — "
+        "Multi-method gematria engine over the complete Masoretic text — "
         "23,206 cantillated verses sourced from Sefaria. "
-        "All cipher values are computed from consonants only; "
-        "nikud and ta'amim are stripped before counting. "
-        "Individual references can be appended via the sidebar."
+        "Eleven methods compute values from consonants only (nikud and ta'amim stripped); "
+        "HaNikud counts vowel-point dots from the full cantillated text."
     )
 
     with st.sidebar:
         st.header("⚙️ Corpus")
         st.caption("23,206 Masoretic verses — loaded from bundled corpus.")
         st.divider()
-        st.subheader("Active ciphers (11)")
+        st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
-        st.caption("Required: Absolute, Katan, Gadol, Atbash, Albam, Atbah, "
-                   "Avgad.  Researched additions: Siduri, Ribua, Kidmi, Achbi.")
+        st.caption("Traditional: Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad. "
+                   "Researched additions: Siduri, Ribua, Kidmi, Achbi, HaNikud.")
 
     conn, n_loaded, verse_index = get_connection("")
 
@@ -1183,14 +1327,16 @@ def run_app() -> None:
             return "".join(result)
         return cantillated
 
-    def render_verse_detail(book, chapter, verse, boundary, matched_text=None):
+    def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
+                            active_method=None):
         if boundary not in DETAIL_BOUNDARIES:
             return
         v = verse_index.get((book, int(chapter), int(verse)))
         if v is None:
             st.info("Source text not available for this unit.")
             return
-        st.markdown(f"**{book} {chapter}:{verse}** · _{boundary}_")
+        friendly_boundary = BOUNDARY_LABELS.get(boundary, boundary)
+        st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
         sub_unit = boundary in ("Word", "FirstHalf", "SecondHalf")
         if sub_unit and v.text:
             matched_cons = strip_to_consonants(matched_text) if matched_text else None
@@ -1198,15 +1344,29 @@ def run_app() -> None:
             st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
         else:
             st.markdown(f"**Cantillated:** {v.text}")
-        # Cipher values: matched sub-unit when available, full verse otherwise
+        # Values: matched sub-unit when available, full verse otherwise
         if sub_unit and matched_text:
             cons = strip_to_consonants(matched_text)
             st.markdown(f"**Matched consonants:** `{cons}`")
         else:
             cons = strip_to_consonants(v.text)
             st.markdown(f"**Consonants:** `{cons}`")
-        vals = {name: fn(cons) for name, fn in CIPHERS.items()}
+        # Compute values — pass cantillated text for HaNikud
+        cantillated_src = matched_text if (sub_unit and matched_text) else v.text
+        vals = compute_all_ciphers(cons, cantillated_src)
         st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
+        # Letter-by-letter breakdown for the active method
+        if active_method and active_method in CIPHERS:
+            if active_method == "HaNikud":
+                nikud_val = g_nikud(cantillated_src)
+                st.caption(f"**{active_method}:** {CIPHER_BLURB.get(active_method, '')} "
+                           f"Dot count = {nikud_val}")
+            else:
+                breakdown = cipher_breakdown(active_method, cons)
+                if breakdown:
+                    parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown)
+                    total = sum(val for _, val in breakdown)
+                    st.caption(f"**{active_method}:** {parts} = {total}")
         if boundary in ("Petucha", "Setuma"):
             run = _paragraph_run(book, chapter, verse)
             if run and len(run) > 1:
@@ -1240,24 +1400,28 @@ def run_app() -> None:
         cc1, cc2 = st.columns(2)
         with cc1:
             tracks = st.multiselect(
-                "Variant tracks", ["Ksiv", "Kri", "TextVariant", "Aggregate"],
-                default=["Ksiv", "Kri", "TextVariant"])
+                "Reading tracks",
+                ["Ksiv", "Kri", "TextVariant", "Aggregate"],
+                default=["Ksiv", "Kri", "TextVariant"],
+                format_func=lambda t: TRACK_LABELS.get(t, t))
         with cc2:
             bounds = st.multiselect(
-                "Boundary types",
+                "Text units",
                 ["Word", "FirstHalf", "SecondHalf", "Verse",
                  "Perek", "Parsha", "Petucha", "Setuma"],
-                default=["Word", "Verse", "FirstHalf", "SecondHalf"])
+                default=["Word", "Verse", "FirstHalf", "SecondHalf"],
+                format_func=lambda b: BOUNDARY_LABELS.get(b, b))
 
         if cons:
             payload = search_phrase(conn, cons, colel=colel,
                                     tracks=tracks or None, boundaries=bounds or None)
             vals = payload["values"]
-            st.markdown("#### Computed values across all ciphers")
+            st.markdown("#### Computed values across all methods")
             st.dataframe(pd.DataFrame([vals]), use_container_width=True,
                          hide_index=True)
 
-            cipher = st.selectbox("Show matches for cipher", CIPHER_NAMES, index=0)
+            cipher = st.selectbox("Show matches for method", CIPHER_NAMES, index=0)
+            st.caption(CIPHER_BLURB.get(cipher, ""))
             res = payload["results"][cipher]
             tgt = vals[cipher]
             st.markdown(
@@ -1277,26 +1441,28 @@ def run_app() -> None:
                     with st.expander("📜 Verse detail", expanded=True):
                         render_verse_detail(
                             row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
-                            matched_text=row.get("Text"))
+                            matched_text=row.get("Text"), active_method=cipher)
         else:
             st.warning("Enter a Hebrew or transliterable phrase to search.")
 
     # ===================== TAB 2: STRUCTURAL EXPLORER =====================
     with tab2:
         st.subheader("Scriptural Structural Explorer")
-        kind = st.radio("Browse by", ["Perek", "Parsha", "Petucha", "Setuma",
-                                       "Verse"], horizontal=True)
+        kind = st.radio(
+            "Browse by",
+            ["Perek", "Parsha", "Petucha", "Setuma", "Verse"],
+            horizontal=True,
+            format_func=lambda b: BOUNDARY_LABELS.get(b, b))
         df = structure_frame(conn, kind)
         if df.empty:
-            st.info(f"No '{kind}' units in the loaded corpus yet. "
-                    "Load full chapters from Sefaria to populate macro structures.")
+            st.info(f"No {BOUNDARY_LABELS.get(kind, kind)} units in the loaded corpus yet.")
         else:
-            display_cols = (["book", "chapter", "verse", "parsha", "sub_id",
+            display_cols = (["book", "chapter", "verse", "parsha",
                              "variant_track"] + CIPHER_NAMES)
             show = df[[c for c in display_cols if c in df.columns]].rename(
                 columns={"book": "Book", "chapter": "Chapter", "verse": "Verse",
-                         "parsha": "Parsha", "sub_id": "ID",
-                         "variant_track": "Track"})
+                         "parsha": "Parsha", "variant_track": "Track"})
+            show["Track"] = show["Track"].map(lambda t: TRACK_LABELS.get(t, t))
             q = st.text_input("Filter (book / parsha contains)", "")
             if q:
                 mask = (show["Book"].str.contains(q, case=False, na=False) |
@@ -1305,8 +1471,8 @@ def run_app() -> None:
             event2 = st.dataframe(
                 show, use_container_width=True, hide_index=True,
                 on_select="rerun", selection_mode="single-row", key="t2_sel")
-            st.caption(f"{len(show)} '{kind}' unit(s). Every cipher column is an "
-                       "indexed gematria total for that structural block.")
+            st.caption(f"{len(show)} {BOUNDARY_LABELS.get(kind, kind)} unit(s). "
+                       "Every method column is an indexed gematria total for that block.")
             if kind in DETAIL_BOUNDARIES and event2.selection.rows:
                 row2 = show.iloc[event2.selection.rows[0]]
                 with st.expander("📜 Verse detail", expanded=True):
@@ -1328,7 +1494,7 @@ def run_app() -> None:
             }
             PATTERN_DESC = {
                 "InternalBalance": "The two halves of a verse (split at the Atnach cantillation mark) share the same gematria value, or differ by only 1 (Colel). The verse's major syntactic pause divides it into numerically balanced units.",
-                "ProximityEcho":   "Two consecutive verses share the same gematria value in a given cipher. A numerical 'rhyme' between neighboring verses.",
+                "ProximityEcho":   "Two consecutive verses share the same gematria value under a given method. A numerical 'rhyme' between neighboring verses.",
                 "MacroMicro":      "A single verse's gematria value equals the total for its containing chapter (Perek) or Torah portion (Parsha). The part mirrors the whole.",
             }
 
@@ -1345,7 +1511,9 @@ def run_app() -> None:
             if ptype_raw and ptype_raw in PATTERN_DESC:
                 st.caption(PATTERN_DESC[ptype_raw])
 
-            cfilter = st.selectbox("Cipher", ["(all)"] + CIPHER_NAMES)
+            cfilter = st.selectbox("Gematria method", ["(all)"] + CIPHER_NAMES)
+            if cfilter != "(all)":
+                st.caption(CIPHER_BLURB.get(cfilter, ""))
             view = pat.copy()
             if ptype_raw:
                 view = view[view.pattern_type == ptype_raw]
@@ -1354,7 +1522,7 @@ def run_app() -> None:
             view["pattern_type"] = view["pattern_type"].map(
                 lambda t: PATTERN_LABELS.get(t, t))
             view = view.rename(columns={
-                "pattern_type": "Pattern", "cipher": "Cipher", "value_a": "Value A",
+                "pattern_type": "Pattern", "cipher": "Method", "value_a": "Value A",
                 "value_b": "Value B", "ref_a": "Reference A", "ref_b": "Reference B",
                 "detail": "Detail"}).drop(columns=["pattern_id"])
             event3 = st.dataframe(
@@ -1373,13 +1541,15 @@ def run_app() -> None:
                         "FROM units WHERE sub_id = ?", conn, params=(sub_id,))
                     return r.iloc[0] if not r.empty else None
 
+                active_m = cfilter if cfilter != "(all)" else None
                 with st.expander("📜 Referenced verses", expanded=True):
                     if "Internal Balance" in pat_type:
                         # ref_a = FirstHalf, ref_b = SecondHalf of the same verse
                         u = _lookup_unit(ref_a_raw)
                         if u is not None:
                             render_verse_detail(u["book"], u["chapter"], u["verse"],
-                                                u["boundary_type"], matched_text=u["consonants"])
+                                                u["boundary_type"], matched_text=u["consonants"],
+                                                active_method=active_m)
                     elif "Proximity Echo" in pat_type:
                         # two distinct verses
                         for label, sub_id in [("Verse A", ref_a_raw), ("Verse B", ref_b_raw)]:
@@ -1387,120 +1557,161 @@ def run_app() -> None:
                             if u is not None:
                                 st.markdown(f"**{label}**")
                                 render_verse_detail(u["book"], u["chapter"], u["verse"],
-                                                    u["boundary_type"], matched_text=u["consonants"])
+                                                    u["boundary_type"], matched_text=u["consonants"],
+                                                    active_method=active_m)
                     else:
                         # MacroMicro: ref_a = verse, ref_b = block (Perek/Parsha — render_verse_detail skips it)
                         for sub_id in [ref_a_raw, ref_b_raw]:
                             u = _lookup_unit(sub_id)
                             if u is not None:
                                 render_verse_detail(u["book"], u["chapter"], u["verse"],
-                                                    u["boundary_type"], matched_text=u["consonants"])
+                                                    u["boundary_type"], matched_text=u["consonants"],
+                                                    active_method=active_m)
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
     with tab4:
         st.subheader("Macro Statistical Dashboard")
 
-        st.markdown("#### Extremes ticker")
+        st.markdown("#### Highs & lows by structure")
         ext = extremes_table(conn, ["Verse", "Perek", "Parsha",
                                     "Petucha", "Setuma", "Word"])
         if not ext.empty:
             st.dataframe(ext, use_container_width=True, hide_index=True)
 
-        st.markdown("#### Distribution histograms (verse totals)")
+        st.markdown("#### Value distributions across verses")
         # Each verse appears exactly once. The per-verse Petucha/Setuma rows are
         # the SAME verses re-tagged, so including them would double-count any
         # marker-bearing verse and skew the distribution; paragraph-level stats
-        # live in the extremes ticker above instead.
+        # live in the extremes table above instead.
         plot_df = structure_frame(conn, "Verse")
 
         if plot_df.empty:
             st.info("Not enough structural data to plot. Load chapters from Sefaria.")
         else:
-            # Stack vertically (one chart per row) so each is legible on a phone;
-            # a tall figure scales to the screen width on mobile and desktop alike.
+            # Stack vertically so each chart is legible on a phone screen.
             fig, axes = plt.subplots(3, 1, figsize=(7, 11))
             for ax, c, color in zip(axes, ["Absolute", "Katan", "Atbash"],
                                     ["#2c6fbb", "#bb572c", "#3aa66f"]):
                 series = plot_df[c].dropna()
                 kde = series.nunique() > 2
                 sns.histplot(series, kde=kde, ax=ax, color=color, bins=20)
-                ax.set_title(f"{c} totals")
+                ax.set_title(f"{c} — value distribution")
                 ax.set_xlabel("Gematria value")
             fig.tight_layout()
             st.pyplot(fig)
             plt.close(fig)
             st.caption(f"{len(plot_df)} verse(s), each counted once (Ksiv track).")
 
-            st.markdown("#### Density 'dead zones' (Absolute, verses)")
+            # ---- Method correlation heatmap ----
+            st.markdown("#### How the methods relate to each other")
+            st.caption("Pearson correlation across all verse totals. "
+                       "Methods with high correlation produce similar rankings; "
+                       "low or negative correlation highlights structurally distinct searches.")
+            numeric_cols = [c for c in CIPHER_NAMES if c in plot_df.columns]
+            corr = plot_df[numeric_cols].corr()
+            fig_corr, ax_corr = plt.subplots(
+                figsize=(max(7, len(numeric_cols) * 0.8),
+                         max(5, len(numeric_cols) * 0.7)))
+            sns.heatmap(corr, ax=ax_corr, cmap="vlag", center=0,
+                        annot=len(numeric_cols) <= 12,
+                        fmt=".2f" if len(numeric_cols) <= 12 else "",
+                        linewidths=0.4, square=True,
+                        cbar_kws={"shrink": 0.8})
+            ax_corr.set_title("Method correlation (verse totals)")
+            fig_corr.tight_layout()
+            st.pyplot(fig_corr)
+            plt.close(fig_corr)
+
+            # ---- Book fingerprint heatmap ----
+            st.markdown("#### Book fingerprint — average Absolute value per book")
+            st.caption("Mean Absolute gematria per book, giving a rough textual 'fingerprint'. "
+                       "Books with longer or rarer words tend to score higher.")
+            if "book" in plot_df.columns and "Absolute" in plot_df.columns:
+                book_means = (plot_df.groupby("book")["Absolute"]
+                              .mean().sort_values(ascending=False))
+                fig_bk, ax_bk = plt.subplots(figsize=(7, max(4, len(book_means) * 0.35)))
+                colors_bk = sns.color_palette("YlOrBr", len(book_means))[::-1]
+                ax_bk.barh(book_means.index[::-1], book_means.values[::-1],
+                           color=colors_bk[::-1])
+                ax_bk.set_xlabel("Mean Absolute value per verse")
+                ax_bk.set_title("Average verse value by book (Absolute)")
+                fig_bk.tight_layout()
+                st.pyplot(fig_bk)
+                plt.close(fig_bk)
+
+            st.markdown("#### Unrepresented value ranges (Absolute)")
             dz = density_gaps(conn, "Absolute", "Verse")
             st.write(f"Observed range **{dz['min']}–{dz['max']}**, "
                      f"**{len(dz['present'])}** distinct values present, "
-                     f"**{len(dz['gaps'])}** unrepresented gap-band(s).")
+                     f"**{len(dz['gaps'])}** unrepresented range(s).")
             if dz["gaps"]:
                 gap_df = pd.DataFrame(
-                    [{"Gap start": g[0], "Gap end": g[1],
+                    [{"Range start": g[0], "Range end": g[1],
                       "Width": g[1] - g[0] + 1} for g in dz["gaps"][:50]])
                 st.dataframe(gap_df, use_container_width=True, hide_index=True)
-                st.caption("These integer ranges have zero verse representation in "
-                           "the loaded corpus — statistical uniqueness rises near "
-                           "wide dead zones.")
+                st.caption("Integer ranges with no verse in the loaded corpus. "
+                           "Values near wide gaps are statistically rarer.")
 
     # ===================== TAB 5: GUIDE & SOURCES ========================
     with tab5:
         st.subheader("📖 Guide & Sources")
         st.caption(
-            "Every cipher, variant track, boundary type, and rule used by this engine "
-            "— with its traditional name and scholarly source. Cipher rules are exact "
+            "Every gematria method, variant track, boundary type, and rule used by this engine "
+            "— with its traditional name and scholarly source. All method rules are exact "
             "(verified against the engine code). Historical attributions are traditional "
             "and noted where uncertain."
         )
 
-        with st.expander("The 11 gematria ciphers", expanded=True):
+        with st.expander("The 12 gematria methods", expanded=True):
             st.dataframe(pd.DataFrame([
-                {"Cipher": "Absolute",
+                {"Method": "Absolute",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
                  "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
                  "Earliest Source": "Biblical era (attested in use). Rabbinic formulation: BT Nedarim 32a interprets the '318 servants' of Gen. 14:14 as the name אֱלִיעֶזֶר (=318) — the earliest clear Talmudic use. The term 'gematriot' appears as a category of wisdom in Mishnah Avot 3:18. BT Sanhedrin 22a discusses the practice explicitly."},
-                {"Cipher": "Katan",
+                {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
                  "Earliest Source": "Medieval. No Talmudic source for this specific reduction. Formalized in Hasidei Ashkenaz tradition (12th–13th c.), appearing in works such as Sefer Gematriot (attr. R. Yehuda he-Hasid, d. 1217)."},
-                {"Cipher": "Gadol",
+                {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Absolute, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
                  "Earliest Source": "The 27-letter sequence including finals is described in Sefer Yetzirah 2:2 (dated 3rd–6th c. CE by scholarship; earlier by tradition). Practical use with the higher values in gematria appears in Sefer ha-Bahir (12th c.) and the Zohar (13th c.)."},
-                {"Cipher": "Atbash",
+                {"Method": "Atbash",
                  "Hebrew": "אתב\"ש (At-Bash)",
                  "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Absolute values of the swapped letters.",
-                 "Earliest Source": "The oldest attested gematria cipher — it appears in the Hebrew Bible itself. 'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
-                {"Cipher": "Albam",
+                 "Earliest Source": "The oldest attested gematria method — appears in the Hebrew Bible itself. 'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
+                {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
                  "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
                  "Earliest Source": "Classical temurah described in Sefer Yetzirah ch. 2 (3rd–6th c. CE). Elaborated in Sefer Yetzirah commentaries by Rav Saadia Gaon (882–942 CE) and R. Dunash ibn Tamim (10th c.)."},
-                {"Cipher": "Atbah",
+                {"Method": "Atbah",
                  "Hebrew": "אטב\"ח (At-Bach)",
                  "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
                  "Earliest Source": "Attributed to Rabbi Eliezer ben Yose ha-Gelili, a 2nd-century Tanna. The full name 'Atbah of R. Eliezer' appears in the Baraita of 32 Hermeneutical Rules (Tannaic era, transmitted in medieval compilations) and in Midrashic literature."},
-                {"Cipher": "Avgad",
+                {"Method": "Avgad",
                  "Hebrew": "אבג\"ד (Av-Gad)",
                  "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute values of the shifted letters.",
                  "Earliest Source": "Classical cyclic temurah. The concept of cyclic letter shifting appears within the temurah tradition of Sefer Yetzirah (3rd–6th c. CE). The specific Avgad cipher is named and elaborated in medieval Kabbalistic works."},
-                {"Cipher": "Siduri",
+                {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
                  "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
-                 "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria cipher, widely attested in Midrashic literature and medieval biblical commentary."},
-                {"Cipher": "Ribua",
+                 "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria method, widely attested in Midrashic literature and medieval biblical commentary."},
+                {"Method": "Ribua",
                  "Hebrew": "מספר מרובע (Mispar Meruba Pratti)",
                  "Rule": "Square each letter's Absolute value, then sum all squares (Σ v²).",
                  "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in Sefer ha-Bahir (Provence, 12th c.) and later Zoharic and Lurianic literature."},
-                {"Cipher": "Kidmi",
+                {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי / משולש (Mispar Kidmi)",
                  "Rule": "Triangular cumulative: each letter's value = sum of all Absolute values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
                  "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in later Kabbalistic computational texts; the triangular-number principle is implicit in Pythagorean numerology as absorbed into medieval Jewish mysticism."},
-                {"Cipher": "Achbi",
+                {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
                  "Earliest Source": "Classical temurah variant. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE). A less common scheme; named and discussed in medieval Kabbalistic commentaries."},
+                {"Method": "HaNikud",
+                 "Hebrew": "מספר הנקוד (Mispar HaNikud)",
+                 "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
+                 "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Based on visual dot-count analysis used in modern Kabbalistic study software. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
             ]), use_container_width=True, hide_index=True)
 
         with st.expander("Variant tracks"):

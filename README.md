@@ -7,18 +7,19 @@ sdk: docker
 pinned: false
 ---
 
-Multi-cipher Hebrew gematria search engine, structural pattern database, and
+Multi-method Hebrew gematria search engine, structural pattern database, and
 statistical dashboard over the Tanach.
 
-**11 ciphers:** Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad, Siduri,
-Ribua, Kidmi, Achbi.
+**12 gematria methods:** Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad, Siduri,
+Ribua, Kidmi, Achbi, HaNikud (vowel-point dot count).
 
 **Full corpus:** 23,206 cantillated Masoretic verses, bundled (sourced from Sefaria).
 
 **Features:** Atnach-based half-verse splitting · Ksiv/Kri + Masoretic textual
 variant forking (Itture Sopherim, Esther doublets) · Colel (±1) search ·
 pattern detection (internal balance, proximity echoes, macro-micro resonances) ·
-statistical dashboards · Guide & Sources tab with cipher sources and variant docs.
+correlation & fingerprint heatmaps · letter-by-letter breakdown visualization ·
+Guide & Sources tab with method sources and variant docs.
 
 See `HANDOFF.md` for architecture and maintenance notes.
 
