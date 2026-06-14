@@ -1,6 +1,6 @@
 ---
 title: Tanach Gematria Engine
-emoji: 🔯
+emoji: 📜
 colorFrom: indigo
 colorTo: gray
 sdk: docker
@@ -13,10 +13,12 @@ statistical dashboard over the Tanach.
 **11 ciphers:** Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad, Siduri,
 Ribua, Kidmi, Achbi.
 
-**Features:** Atnach-based half-verse splitting · Ksiv/Kri variant forking ·
-Esther doublet tracks · Colel (±1) search · Sefaria live loader · pattern
-detection (internal balance, proximity echoes, macro-micro resonances) ·
-statistical dashboards.
+**Full corpus:** 23,206 cantillated Masoretic verses, bundled (sourced from Sefaria).
+
+**Features:** Atnach-based half-verse splitting · Ksiv/Kri + Masoretic textual
+variant forking (Itture Sopherim, Esther doublets) · Colel (±1) search ·
+pattern detection (internal balance, proximity echoes, macro-micro resonances) ·
+statistical dashboards · Guide & Sources tab with cipher sources and variant docs.
 
 See `HANDOFF.md` for architecture and maintenance notes.
 

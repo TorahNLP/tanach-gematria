@@ -1088,7 +1088,7 @@ def run_app() -> None:
     import streamlit as st
 
     st.set_page_config(page_title="Tanach Gematria Engine",
-                       page_icon="🔯", layout="wide",
+                       page_icon="📜", layout="wide",
                        initial_sidebar_state="collapsed")
     sns.set_theme(style="whitegrid")
 
