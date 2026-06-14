@@ -300,7 +300,7 @@ BOUNDARY_LABELS: Dict[str, str] = {
     "Verse":      "Verse (Pasuk פסוק)",
     "Perek":      "Chapter (Perek פרק)",
     "Parsha":     "Torah portion (Parsha פרשה)",
-    "Petucha":    "Open paragraph (Pesukha פ)",
+    "Petucha":    "Open paragraph (Pesucha פ)",
     "Setuma":     "Closed paragraph (Setuma ס)",
 }
 
@@ -1870,7 +1870,7 @@ These are separate references that share nearly identical text — two distinct 
                 {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Atnach-bearing word (inclusive).",                                     "Why meaningful": "The Atnach (֑) is the verse's primary cantillation pause — its main syntactic division."},
                 {"Boundary": "SecondHalf",        "Meaning": "From after the Atnach to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
                 {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
-                {"Boundary": "Pesukha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
+                {"Boundary": "Pesucha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
                 {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
                 {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
                 {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},
