@@ -8,24 +8,25 @@ A self-contained Streamlit application implementing:
   * A complete, correct multi-cipher gematria engine (11 ciphers).
   * Real consonant-cleaning (strips nikud + ta'amim, keeps the 22 base letters).
   * Atnach-based half-verse splitting and Petucha/Setuma paragraph parsing.
-  * A Ksiv/Kri + Esther-doublet variant-forking engine.
+  * A Ksiv/Kri + Masoretic textual-variant forking engine (Itture Sopherim,
+    Esther doublets — see TEXTUAL_VARIANT_SPECS).
   * An in-memory, fully indexed SQLite store.
   * Proximity / internal-balance / macro-micro pattern recognition.
   * A Colel ("plus/minus one") aware search engine.
   * Pandas/Matplotlib/Seaborn macro-statistical dashboards.
 
-HONEST DATA NOTE
-----------------
-The Masoretic text of the Tanach runs to 23,204 verses. This file does NOT
-hard-code all of them from memory: doing so would silently introduce textual
-errors (wrong letters => wrong gematria => a beautiful but worthless tool).
-Instead the *engine* is complete and exact, and the *text* is supplied two ways:
+CORPUS NOTE
+-----------
+The Masoretic text of the Tanach runs to 23,206 verses. Scripture is never
+hard-coded from memory (wrong letters → wrong gematria → a beautiful but
+worthless tool). The text is supplied in order of priority:
 
-  (1) A small, verified offline SAMPLE_CORPUS so the app runs with zero network
-      (Genesis 1:1-5, the Shema, the Esther doublets, an illustrative Ksiv/Kri).
-  (2) An optional Sefaria-API loader (load_from_sefaria) that ingests the real
-      Masoretic text with ta'amim at runtime, cached to SQLite. The parsing /
-      cipher / forking logic below is identical for sample and full corpus.
+  (1) tanach_corpus.jsonl — 23,206 cantillated verses pre-fetched from
+      Sefaria and bundled with the app. Loaded automatically at startup.
+  (2) SAMPLE_CORPUS — a small verified fallback (Genesis 1:1-5, the Shema,
+      variant examples) used only when the JSONL file is absent.
+  (3) load_from_sefaria() — appends individual references on demand.
+      Same parsing/cipher/forking pipeline as paths (1) and (2).
 
 Run:  streamlit run app.py
 Self-test (no Streamlit UI):  python app.py selftest
@@ -589,7 +590,7 @@ def load_from_sefaria(refs: List[str], timeout: int = 20) -> List[VerseInput]:
 
     This is intentionally network-gated and best-effort: it returns whatever it
     can fetch and is skipped automatically when offline. The parsing / cipher /
-    forking pipeline is identical to the sample path.
+    forking pipeline is identical to the bundled-corpus path.
 
     `refs` are Sefaria references, e.g. ["Genesis 1", "Psalms 23"].
     """
@@ -1114,7 +1115,7 @@ def run_app() -> None:
         conn, n, ok, verse_index = _build_connection(extra_refs_key, nonce)
         if not ok:
             st.warning("Couldn't fetch the requested Sefaria refs "
-                       "(offline or rate-limited). Showing the sample corpus only.")
+                       "(offline or rate-limited). Showing the base corpus without them.")
             if st.button("Retry Sefaria fetch"):
                 st.session_state["sefaria_retry_nonce"] = nonce + 1
                 st.rerun()
