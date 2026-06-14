@@ -1493,23 +1493,28 @@ def run_app() -> None:
                 "MacroMicro":      "Macro–Micro Resonance",
             }
             PATTERN_DESC = {
-                "InternalBalance": "The two halves of a verse (split at the Atnach cantillation mark) share the same gematria value, or differ by only 1 (Colel). The verse's major syntactic pause divides it into numerically balanced units.",
-                "ProximityEcho":   "Two consecutive verses share the same gematria value under a given method. A numerical 'rhyme' between neighboring verses.",
-                "MacroMicro":      "A single verse's gematria value equals the total for its containing chapter (Perek) or Torah portion (Parsha). The part mirrors the whole.",
+                "InternalBalance": "The two halves of a verse (split at the Atnach cantillation mark) share the same gematria value, or differ by only 1 (Colel). The major syntactic pause divides the verse into numerically balanced units.",
+                "ProximityEcho":   "Two consecutive verses share the same gematria value under a given method — a numerical 'rhyme' between neighboring verses.",
+                "MacroMicro":      "A single verse's gematria value equals the total for its containing chapter (Perek). The part mirrors the whole.",
             }
 
             counts = pat["pattern_type"].value_counts().to_dict()
             m1, m2, m3 = st.columns(3)
-            m1.metric("Internal Balance", counts.get("InternalBalance", 0))
-            m2.metric("Proximity Echo", counts.get("ProximityEcho", 0))
-            m3.metric("Macro–Micro Resonance", counts.get("MacroMicro", 0))
+            with m1:
+                st.metric("Internal Balance", counts.get("InternalBalance", 0))
+                st.caption(PATTERN_DESC["InternalBalance"])
+            with m2:
+                st.metric("Proximity Echo", counts.get("ProximityEcho", 0))
+                st.caption(PATTERN_DESC["ProximityEcho"])
+            with m3:
+                st.metric("Macro–Micro Resonance", counts.get("MacroMicro", 0))
+                st.caption(PATTERN_DESC["MacroMicro"])
 
+            st.divider()
             raw_types = sorted(pat["pattern_type"].unique())
             label_opts = ["(all)"] + [PATTERN_LABELS.get(t, t) for t in raw_types]
-            plabel = st.selectbox("Pattern type", label_opts)
+            plabel = st.selectbox("Filter by pattern type", label_opts)
             ptype_raw = None if plabel == "(all)" else raw_types[label_opts.index(plabel) - 1]
-            if ptype_raw and ptype_raw in PATTERN_DESC:
-                st.caption(PATTERN_DESC[ptype_raw])
 
             cfilter = st.selectbox("Gematria method", ["(all)"] + CIPHER_NAMES)
             if cfilter != "(all)":
@@ -1529,43 +1534,56 @@ def run_app() -> None:
                 view, use_container_width=True, hide_index=True,
                 on_select="rerun", selection_mode="single-row", key="t3_sel")
 
+            import re as _re
+
+            def _parse_pattern_ref(ref_str: str):
+                """Parse a pattern ref string → (book, chapter, verse, boundary) or None.
+
+                Handles three formats stored by build_pattern_log:
+                  "Book ch:v 1st-half [Track]"  → FirstHalf
+                  "Book ch:v 2nd-half [Track]"  → SecondHalf
+                  "Book ch:v"                   → Verse
+                  "Perek Book ch"               → None (not in DETAIL_BOUNDARIES)
+                """
+                m = _re.match(r'^(.+?)\s+(\d+):(\d+)\s+(1st|2nd)-half', ref_str)
+                if m:
+                    boundary = "FirstHalf" if m.group(4) == "1st" else "SecondHalf"
+                    return m.group(1), int(m.group(2)), int(m.group(3)), boundary
+                m = _re.match(r'^(.+?)\s+(\d+):(\d+)\s*', ref_str)
+                if m:
+                    return m.group(1), int(m.group(2)), int(m.group(3)), "Verse"
+                return None
+
             if event3.selection.rows:
                 sel = view.iloc[event3.selection.rows[0]]
                 pat_type = sel["Pattern"]
-                ref_a_raw = str(sel["Reference A"]).replace("verse:", "")
-                ref_b_raw = str(sel["Reference B"]).replace("verse:", "").replace("block:", "")
-
-                def _lookup_unit(sub_id):
-                    r = pd.read_sql_query(
-                        "SELECT book, chapter, verse, boundary_type, consonants "
-                        "FROM units WHERE sub_id = ?", conn, params=(sub_id,))
-                    return r.iloc[0] if not r.empty else None
-
+                ref_a_str = str(sel["Reference A"])
+                ref_b_str = str(sel["Reference B"])
                 active_m = cfilter if cfilter != "(all)" else None
+
                 with st.expander("📜 Referenced verses", expanded=True):
                     if "Internal Balance" in pat_type:
-                        # ref_a = FirstHalf, ref_b = SecondHalf of the same verse
-                        u = _lookup_unit(ref_a_raw)
-                        if u is not None:
-                            render_verse_detail(u["book"], u["chapter"], u["verse"],
-                                                u["boundary_type"], matched_text=u["consonants"],
+                        # Both halves of the same verse — show once with both halves highlighted
+                        parsed = _parse_pattern_ref(ref_a_str)
+                        if parsed:
+                            book, chap, vs, boundary = parsed
+                            render_verse_detail(book, chap, vs, boundary,
                                                 active_method=active_m)
                     elif "Proximity Echo" in pat_type:
-                        # two distinct verses
-                        for label, sub_id in [("Verse A", ref_a_raw), ("Verse B", ref_b_raw)]:
-                            u = _lookup_unit(sub_id)
-                            if u is not None:
+                        for label, ref_str in [("Verse A", ref_a_str), ("Verse B", ref_b_str)]:
+                            parsed = _parse_pattern_ref(ref_str)
+                            if parsed:
+                                book, chap, vs, boundary = parsed
                                 st.markdown(f"**{label}**")
-                                render_verse_detail(u["book"], u["chapter"], u["verse"],
-                                                    u["boundary_type"], matched_text=u["consonants"],
+                                render_verse_detail(book, chap, vs, boundary,
                                                     active_method=active_m)
                     else:
-                        # MacroMicro: ref_a = verse, ref_b = block (Perek/Parsha — render_verse_detail skips it)
-                        for sub_id in [ref_a_raw, ref_b_raw]:
-                            u = _lookup_unit(sub_id)
-                            if u is not None:
-                                render_verse_detail(u["book"], u["chapter"], u["verse"],
-                                                    u["boundary_type"], matched_text=u["consonants"],
+                        # MacroMicro: ref_a = verse, ref_b = Perek (skipped by DETAIL_BOUNDARIES gate)
+                        for ref_str in [ref_a_str, ref_b_str]:
+                            parsed = _parse_pattern_ref(ref_str)
+                            if parsed:
+                                book, chap, vs, boundary = parsed
+                                render_verse_detail(book, chap, vs, boundary,
                                                     active_method=active_m)
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
