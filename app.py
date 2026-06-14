@@ -288,18 +288,18 @@ CIPHER_BLURB: Dict[str, str] = {
 
 # Friendly display labels for variant tracks and boundary types in the UI.
 TRACK_LABELS: Dict[str, str] = {
-    "Ksiv":        "כְּתִיב Ksiv — the written Torah text",
-    "Kri":         "קְרֵי Kri — the traditional reading (marginal notes)",
-    "TextVariant": "Textual variant — documented alternate reading",
-    "Aggregate":   "Chapter / Parsha total — full section sum, not a text reading",
+    "Ksiv":        "Written (כְּתִיב)",
+    "Kri":         "Read (קְרֵי)",
+    "TextVariant": "Textual variant",
+    "Aggregate":   "Chapter / Parsha total",
 }
 BOUNDARY_LABELS: Dict[str, str] = {
     "Word":       "Word (תיבה)",
     "FirstHalf":  "First half-verse (before Asnachta)",
     "SecondHalf": "Second half-verse (after Asnachta)",
-    "Verse":      "Verse (Pasuk פסוק)",
-    "Perek":      "Chapter (Perek פרק)",
-    "Parsha":     "Torah portion (Parsha פרשה)",
+    "Verse":      "Verse (פסוק)",
+    "Perek":      "Chapter (פרק)",
+    "Parsha":     "Torah portion (פרשה)",
     "Petucha":    "Open paragraph (Pesucha פ)",
     "Setuma":     "Closed paragraph (Setuma ס)",
 }
