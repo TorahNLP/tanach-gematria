@@ -1004,18 +1004,19 @@ def run_app() -> None:
                 verses += fetched
             elif refs:
                 fetched_ok = False
-        return build_database(verses), len(verses), fetched_ok
+        verse_index = {(v.book, v.chapter, v.verse): v for v in verses}
+        return build_database(verses), len(verses), fetched_ok, verse_index
 
     def get_connection(extra_refs_key: str):
         nonce = st.session_state.get("sefaria_retry_nonce", 0)
-        conn, n, ok = _build_connection(extra_refs_key, nonce)
+        conn, n, ok, verse_index = _build_connection(extra_refs_key, nonce)
         if not ok:
             st.warning("Couldn't fetch the requested Sefaria refs "
                        "(offline or rate-limited). Showing the sample corpus only.")
             if st.button("Retry Sefaria fetch"):
                 st.session_state["sefaria_retry_nonce"] = nonce + 1
                 st.rerun()
-        return conn, n
+        return conn, n, verse_index
 
     st.title("🔯 Tanach Gematria Search & Structural Pattern Engine")
     st.caption(
@@ -1037,7 +1038,80 @@ def run_app() -> None:
         st.caption("Required: Absolute, Katan, Gadol, Atbash, Albam, Atbah, "
                    "Avgad.  Researched additions: Siduri, Ribua, Kidmi, Achbi.")
 
-    conn, n_loaded = get_connection(extra)
+    conn, n_loaded, verse_index = get_connection(extra)
+
+    DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
+
+    def _paragraph_run(book, chapter, verse):
+        """Return all VerseInputs in the same Petucha/Setuma block as (book, chapter, verse)."""
+        seq = sorted(
+            (v for v in verse_index.values() if v.book == book),
+            key=lambda v: (v.chapter, v.verse),
+        )
+        block, target = [], (int(chapter), int(verse))
+        for v in seq:
+            block.append(v)
+            if detect_paragraph_marker(v.text):
+                if any((b.chapter, b.verse) == target for b in block):
+                    return block
+                block = []
+        return block or None
+
+    def _highlight_in_verse(cantillated: str, boundary: str, matched_cons) -> str:
+        """Return cantillated text as HTML with the matched sub-unit wrapped in <mark>."""
+        import re as _re
+        if boundary in ("FirstHalf", "SecondHalf") and ATNACH in cantillated:
+            idx = cantillated.index(ATNACH)
+            end = cantillated.find(" ", idx)
+            split = end if end != -1 else len(cantillated)
+            first, rest = cantillated[:split], cantillated[split:]
+            if boundary == "FirstHalf":
+                return f"<mark>{first}</mark>{rest}"
+            return f"{first}<mark>{rest}</mark>"
+        if boundary == "Word" and matched_cons:
+            # Split on whitespace AND maqaf so sub-tokens align with tokenize_words;
+            # maqaf-joined pairs (עַל־פְּנֵי) are two DB words, not one space-token.
+            parts = _re.split(r"([\s־]+)", cantillated)
+            result, found = [], False
+            for part in parts:
+                if not found and part and strip_to_consonants(part) == matched_cons:
+                    result.append(f"<mark>{part}</mark>")
+                    found = True
+                else:
+                    result.append(part)
+            return "".join(result)
+        return cantillated
+
+    def render_verse_detail(book, chapter, verse, boundary, matched_text=None):
+        if boundary not in DETAIL_BOUNDARIES:
+            return
+        v = verse_index.get((book, int(chapter), int(verse)))
+        if v is None:
+            st.info("Source text not available for this unit.")
+            return
+        st.markdown(f"**{book} {chapter}:{verse}** · _{boundary}_")
+        sub_unit = boundary in ("Word", "FirstHalf", "SecondHalf")
+        if sub_unit and v.text:
+            matched_cons = strip_to_consonants(matched_text) if matched_text else None
+            highlighted = _highlight_in_verse(v.text, boundary, matched_cons)
+            st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
+        else:
+            st.markdown(f"**Cantillated:** {v.text}")
+        # Cipher values: matched sub-unit when available, full verse otherwise
+        if sub_unit and matched_text:
+            cons = strip_to_consonants(matched_text)
+            st.markdown(f"**Matched consonants:** `{cons}`")
+        else:
+            cons = strip_to_consonants(v.text)
+            st.markdown(f"**Consonants:** `{cons}`")
+        vals = {name: fn(cons) for name, fn in CIPHERS.items()}
+        st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
+        if boundary in ("Petucha", "Setuma"):
+            run = _paragraph_run(book, chapter, verse)
+            if run and len(run) > 1:
+                st.markdown("**Full paragraph block:**")
+                for rv in run:
+                    st.markdown(f"- {rv.book} {rv.chapter}:{rv.verse} — {rv.text}")
 
     tab1, tab2, tab3, tab4 = st.tabs([
         "1 · Phrase & Name Matcher",
@@ -1092,7 +1166,16 @@ def run_app() -> None:
                 st.info("No structural unit in the loaded corpus matches this value. "
                         "Load more chapters from Sefaria to widen the search space.")
             else:
-                st.dataframe(res, use_container_width=True, hide_index=True)
+                event = st.dataframe(
+                    res, use_container_width=True, hide_index=True,
+                    on_select="rerun", selection_mode="single-row", key="t1_sel")
+                sel = event.selection.rows
+                if sel:
+                    row = res.iloc[sel[0]]
+                    with st.expander("📜 Verse detail", expanded=True):
+                        render_verse_detail(
+                            row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
+                            matched_text=row.get("Text"))
         else:
             st.warning("Enter a Hebrew or transliterable phrase to search.")
 
@@ -1117,9 +1200,15 @@ def run_app() -> None:
                 mask = (show["Book"].str.contains(q, case=False, na=False) |
                         show["Parsha"].str.contains(q, case=False, na=False))
                 show = show[mask]
-            st.dataframe(show, use_container_width=True, hide_index=True)
+            event2 = st.dataframe(
+                show, use_container_width=True, hide_index=True,
+                on_select="rerun", selection_mode="single-row", key="t2_sel")
             st.caption(f"{len(show)} '{kind}' unit(s). Every cipher column is an "
                        "indexed gematria total for that structural block.")
+            if kind in DETAIL_BOUNDARIES and event2.selection.rows:
+                row2 = show.iloc[event2.selection.rows[0]]
+                with st.expander("📜 Verse detail", expanded=True):
+                    render_verse_detail(row2["Book"], row2["Chapter"], row2["Verse"], kind)
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
     with tab3:
