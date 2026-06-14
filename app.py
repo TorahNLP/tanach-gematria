@@ -1321,22 +1321,40 @@ def run_app() -> None:
                     "proximity-echo and macro-micro detectors run automatically on "
                     "load — add more chapters to surface more anomalies.")
         else:
+            PATTERN_LABELS = {
+                "InternalBalance": "Internal Balance",
+                "ProximityEcho":   "Proximity Echo",
+                "MacroMicro":      "Macro–Micro Resonance",
+            }
+            PATTERN_DESC = {
+                "InternalBalance": "The two halves of a verse (split at the Atnach cantillation mark) share the same gematria value, or differ by only 1 (Colel). The verse's major syntactic pause divides it into numerically balanced units.",
+                "ProximityEcho":   "Two consecutive verses share the same gematria value in a given cipher. A numerical 'rhyme' between neighboring verses.",
+                "MacroMicro":      "A single verse's gematria value equals the total for its containing chapter (Perek) or Torah portion (Parsha). The part mirrors the whole.",
+            }
+
             counts = pat["pattern_type"].value_counts().to_dict()
             m1, m2, m3 = st.columns(3)
-            m1.metric("Internal balances", counts.get("InternalBalance", 0))
-            m2.metric("Proximity echoes", counts.get("ProximityEcho", 0))
-            m3.metric("Macro–micro resonances", counts.get("MacroMicro", 0))
+            m1.metric("Internal Balance", counts.get("InternalBalance", 0))
+            m2.metric("Proximity Echo", counts.get("ProximityEcho", 0))
+            m3.metric("Macro–Micro Resonance", counts.get("MacroMicro", 0))
 
-            ptype = st.selectbox("Anomaly type",
-                                 ["(all)"] + sorted(pat["pattern_type"].unique()))
+            raw_types = sorted(pat["pattern_type"].unique())
+            label_opts = ["(all)"] + [PATTERN_LABELS.get(t, t) for t in raw_types]
+            plabel = st.selectbox("Pattern type", label_opts)
+            ptype_raw = None if plabel == "(all)" else raw_types[label_opts.index(plabel) - 1]
+            if ptype_raw and ptype_raw in PATTERN_DESC:
+                st.caption(PATTERN_DESC[ptype_raw])
+
             cfilter = st.selectbox("Cipher", ["(all)"] + CIPHER_NAMES)
             view = pat.copy()
-            if ptype != "(all)":
-                view = view[view.pattern_type == ptype]
+            if ptype_raw:
+                view = view[view.pattern_type == ptype_raw]
             if cfilter != "(all)":
                 view = view[view.cipher == cfilter]
+            view["pattern_type"] = view["pattern_type"].map(
+                lambda t: PATTERN_LABELS.get(t, t))
             view = view.rename(columns={
-                "pattern_type": "Type", "cipher": "Cipher", "value_a": "Value A",
+                "pattern_type": "Pattern", "cipher": "Cipher", "value_a": "Value A",
                 "value_b": "Value B", "ref_a": "Reference A", "ref_b": "Reference B",
                 "detail": "Detail"}).drop(columns=["pattern_id"])
             st.dataframe(view, use_container_width=True, hide_index=True)
