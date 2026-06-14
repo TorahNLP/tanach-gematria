@@ -1374,12 +1374,12 @@ def run_app() -> None:
                 for rv in run:
                     st.markdown(f"- {rv.book} {rv.chapter}:{rv.verse} — {rv.text}")
 
-    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
+        "📖 Guide & Sources",
         "1 · Phrase & Name Matcher",
         "2 · Scriptural Structural Explorer",
         "3 · Textual Echoes & Anomalies",
         "4 · Macro Statistical Dashboard",
-        "📖 Guide & Sources",
     ])
 
     # ======================= TAB 1: PHRASE MATCHER =======================
@@ -1671,7 +1671,7 @@ def run_app() -> None:
                            "Values near wide gaps are statistically rarer.")
 
     # ===================== TAB 5: GUIDE & SOURCES ========================
-    with tab5:
+    with tab_guide:
         st.subheader("📖 Guide & Sources")
         st.caption(
             "Every gematria method, variant track, boundary type, and rule used by this engine "
