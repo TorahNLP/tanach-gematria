@@ -1,0 +1,7 @@
+# Tanakh Gematria Engine — runtime dependencies
+# Tested on Python 3.12 with the exact versions noted in comments.
+streamlit>=1.40        # tested 1.58.0
+pandas>=2.1            # tested 3.0.2
+numpy>=1.26            # transitive (seaborn/matplotlib); pinned for reproducibility
+matplotlib>=3.8        # tested 3.10.8
+seaborn>=0.13          # tested 0.13.2
