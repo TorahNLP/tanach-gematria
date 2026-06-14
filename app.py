@@ -1674,54 +1674,85 @@ def run_app() -> None:
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
-            st.markdown("""
-**📖 Guide & Sources** *(this tab)*
-Start here. Explains all gematria methods with their earliest Talmudic or medieval sources,
-variant reading tracks, boundary types, and the Rule of the Colel. Also lists the full
-Masoretic textual variant registry used by the engine.
+            import streamlit.components.v1 as _components
+            _components.html("""<!DOCTYPE html>
+<html><head><style>
+* { box-sizing: border-box; }
+body {
+  font-family: "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14px; line-height: 1.6; color: #262730;
+  margin: 0; padding: 2px 0; background: transparent;
+}
+.sec-btn {
+  background: none; border: none; padding: 0; margin: 0 0 5px 0;
+  font-size: 15px; font-weight: 700; color: #ff4b4b;
+  cursor: pointer; text-align: left; display: block;
+}
+.sec-btn:hover { text-decoration: underline; }
+.body { margin: 0 0 6px 0; }
+ul { margin: 3px 0 4px 18px; padding: 0; }
+li { margin-bottom: 2px; }
+hr { border: none; border-top: 1px solid #e0e0e0; margin: 10px 0; }
+.guide-note { font-style: italic; color: #555; margin-bottom: 6px; }
+</style></head><body>
 
----
+<div class="guide-note">📖 <strong>Guide &amp; Sources</strong> (this tab) — Start here.
+Explains all 12 gematria methods with earliest Talmudic or medieval sources, reading tracks,
+boundary types, and the Rule of the Colel. Also contains the full Masoretic variant registry.</div>
+<hr>
 
-**1 · Phrase & Name Matcher**
-Type any Hebrew word, name, or phrase. The engine strips nikud and ta'amim down to
-the 22 consonants and computes its value across all 12 methods simultaneously.
-Select a method to see every structural unit in the Tanach that shares that value —
-word, half-verse, full verse, paragraph, or chapter. Click any result row to open the
-full cantillated verse with the matched portion highlighted and a letter-by-letter
-value breakdown for the chosen method.
+<button class="sec-btn" onclick="goToTab('Phrase')">1 · Phrase &amp; Name Matcher</button>
+<div class="body">
+  Type any Hebrew word, name, or phrase. The engine strips vowel marks and cantillation
+  down to the 22 consonants and computes values across all 12 methods simultaneously.
+  Select a method to see every matching structural unit in the Tanach — word, half-verse,
+  verse, paragraph, or chapter. Click any result row to open the full cantillated verse
+  with the matched portion highlighted and a letter-by-letter breakdown for the chosen method.
+  <br>Toggle <strong>Rule of the Colel (±1)</strong> to also match values one above or below —
+  a standard leniency in traditional gematria practice.
+</div>
+<hr>
 
-Toggle **Rule of the Colel (±1)** to also match values one above or below — a standard
-leniency in traditional gematria practice.
+<button class="sec-btn" onclick="goToTab('Structural')">2 · Scriptural Structural Explorer</button>
+<div class="body">
+  Browse the entire Tanach by structural unit: Chapter (Perek), Torah portion (Parsha),
+  open paragraph (Petucha), closed paragraph (Setuma), or individual verse. Every row shows
+  gematria totals under all 12 methods for that block. Filter by book or parsha name.
+  Click a row to open the verse detail panel.
+</div>
+<hr>
 
----
+<button class="sec-btn" onclick="goToTab('Echoes')">3 · Textual Echoes &amp; Anomalies</button>
+<div class="body">
+  The engine automatically scans the corpus for three structural patterns:
+  <ul>
+    <li><strong>Internal Balance</strong> — a verse whose two halves (split at the Atnach mark)
+      share the same gematria value, or differ by only 1 (Colel).</li>
+    <li><strong>Proximity Echo</strong> — two consecutive verses sharing the same value
+      under a given method.</li>
+    <li><strong>Macro–Micro Resonance</strong> — a verse whose value divides evenly into
+      its chapter total — the part mirrors the whole.</li>
+  </ul>
+  Filter by pattern type or method, then click a row to see the referenced verses.
+</div>
+<hr>
 
-**2 · Scriptural Structural Explorer**
-Browse the entire Tanach by structural unit: Chapter (Perek), Torah portion (Parsha),
-open paragraph (Petucha), closed paragraph (Setuma), or individual verse. Every row
-shows the gematria total under all 12 methods for that block. Filter by book or parsha
-name. Click a row to open the verse detail panel.
+<button class="sec-btn" onclick="goToTab('Statistical')">4 · Macro Statistical Dashboard</button>
+<div class="body">
+  High-level statistics across the full corpus: highest and lowest values by structure,
+  value-distribution histograms, a 12-method correlation heatmap, a per-book fingerprint
+  chart, and integer ranges with no verse representation.
+</div>
 
----
-
-**3 · Textual Echoes & Anomalies**
-The engine automatically scans the corpus for three categories of structural pattern:
-
-- **Internal Balance** — a verse whose two halves (split at the Atnach cantillation mark)
-  share the same gematria value, or differ by only 1 (Colel).
-- **Proximity Echo** — two consecutive verses that share the same value under a given method.
-- **Macro–Micro Resonance** — a single verse whose value divides evenly into its
-  chapter's total — the part mirrors the whole.
-
-Filter by pattern type or method, then click a row to see the referenced verses.
-
----
-
-**4 · Macro Statistical Dashboard**
-High-level statistics across the full corpus: highest and lowest values by structure,
-value-distribution histograms for three key methods, a correlation heatmap showing how
-closely the 12 methods agree with each other, a per-book fingerprint chart, and a table
-of integer ranges with no verse representation.
-""")
+<script>
+function goToTab(kw) {
+  var tabs = window.parent.document.querySelectorAll('[role="tab"]');
+  for (var i = 0; i < tabs.length; i++) {
+    if (tabs[i].textContent.indexOf(kw) !== -1) { tabs[i].click(); return; }
+  }
+}
+</script>
+</body></html>""", height=490, scrolling=False)
 
         st.divider()
         st.subheader("📖 Reference material")
