@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Tanakh Gematria Search Engine, Structural Pattern Database & Statistical Visualizer
+Tanach Gematria Search Engine, Structural Pattern Database & Statistical Visualizer
 ===================================================================================
 
 A self-contained Streamlit application implementing:
@@ -16,7 +16,7 @@ A self-contained Streamlit application implementing:
 
 HONEST DATA NOTE
 ----------------
-The Masoretic text of the Tanakh runs to 23,204 verses. This file does NOT
+The Masoretic text of the Tanach runs to 23,204 verses. This file does NOT
 hard-code all of them from memory: doing so would silently introduce textual
 errors (wrong letters => wrong gematria => a beautiful but worthless tool).
 Instead the *engine* is complete and exact, and the *text* is supplied two ways:
@@ -955,7 +955,7 @@ def run_app() -> None:
     import seaborn as sns
     import streamlit as st
 
-    st.set_page_config(page_title="Tanakh Gematria Engine",
+    st.set_page_config(page_title="Tanach Gematria Engine",
                        page_icon="🔯", layout="wide",
                        initial_sidebar_state="collapsed")
     sns.set_theme(style="whitegrid")
@@ -984,7 +984,7 @@ def run_app() -> None:
                 st.rerun()
         return conn, n
 
-    st.title("🔯 Tanakh Gematria Search & Structural Pattern Engine")
+    st.title("🔯 Tanach Gematria Search & Structural Pattern Engine")
     st.caption(
         "Exact multi-cipher engine over a verified offline sample. "
         "The full 23,204-verse Masoretic corpus is *not* hard-coded from memory "

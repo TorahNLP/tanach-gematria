@@ -1,7 +1,7 @@
-# Tanakh Gematria Engine — Handoff
+# Tanach Gematria Engine — Handoff
 
 A single-file Streamlit app: a multi-cipher Hebrew gematria search engine, a
-structural pattern database, and a statistics dashboard over the Tanakh.
+structural pattern database, and a statistics dashboard over the Tanach.
 
 This document is written so that **Claude Code** (or any developer) can run it,
 deploy it to a public phone-accessible URL, and pick up the open work.
@@ -99,7 +99,7 @@ git push. Outbound internet is allowed, so the Sefaria loader works there.
 1. Put these files in a **public GitHub repo** (`app.py`, `requirements.txt`,
    `runtime.txt`, `HANDOFF.md`). From this folder:
    ```bash
-   git init && git add . && git commit -m "Tanakh gematria engine"
+   git init && git add . && git commit -m "Tanach gematria engine"
    git branch -M main
    git remote add origin https://github.com/<you>/<repo>.git
    git push -u origin main

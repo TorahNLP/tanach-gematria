@@ -1,5 +1,5 @@
 ---
-title: Tanakh Gematria Engine
+title: Tanach Gematria Engine
 emoji: 🔯
 colorFrom: indigo
 colorTo: gray
@@ -8,7 +8,7 @@ pinned: false
 ---
 
 Multi-cipher Hebrew gematria search engine, structural pattern database, and
-statistical dashboard over the Tanakh.
+statistical dashboard over the Tanach.
 
 **11 ciphers:** Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad, Siduri,
 Ribua, Kidmi, Achbi.

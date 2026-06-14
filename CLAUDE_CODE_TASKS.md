@@ -1,4 +1,4 @@
-# Claude Code — Task Brief: test & deploy the Tanakh Gematria Engine
+# Claude Code — Task Brief: test & deploy the Tanach Gematria Engine
 
 Hand this whole file to Claude Code (it's in the project root next to `app.py`).
 Work top to bottom. Stop and report if any **Acceptance check** fails.
@@ -94,7 +94,7 @@ Sefaria's v3 schema is assumed to be `versions[0].text` = list of verse strings
 ```bash
 git init
 git add .
-git commit -m "Tanakh gematria engine: tested, Sefaria loader verified"
+git commit -m "Tanach gematria engine: tested, Sefaria loader verified"
 git branch -M main
 ```
 
@@ -143,7 +143,7 @@ front-matter. Create it, then push:
 ```bash
 cat > README.md <<'MD'
 ---
-title: Tanakh Gematria Engine
+title: Tanach Gematria Engine
 emoji: 🔯
 colorFrom: indigo
 colorTo: gray
@@ -153,7 +153,7 @@ python_version: "3.12"
 pinned: false
 ---
 
-Multi-cipher Tanakh gematria search, structural pattern database, and stats
+Multi-cipher Tanach gematria search, structural pattern database, and stats
 dashboard. See HANDOFF.md for architecture and maintenance notes.
 MD
 
