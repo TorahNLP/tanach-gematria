@@ -288,19 +288,19 @@ CIPHER_BLURB: Dict[str, str] = {
 
 # Friendly display labels for variant tracks and boundary types in the UI.
 TRACK_LABELS: Dict[str, str] = {
-    "Ksiv":        "Written text (Ksiv)",
-    "Kri":         "Read tradition (Kri)",
-    "TextVariant": "Variant reading",
-    "Aggregate":   "Structural total",
+    "Ksiv":        "כְּתִיב Ksiv — the written Torah text",
+    "Kri":         "קְרֵי Kri — the traditional reading (marginal notes)",
+    "TextVariant": "Textual variant — documented alternate reading",
+    "Aggregate":   "Chapter / Parsha total — full section sum, not a text reading",
 }
 BOUNDARY_LABELS: Dict[str, str] = {
-    "Word":       "Word",
-    "FirstHalf":  "First half-verse",
-    "SecondHalf": "Second half-verse",
-    "Verse":      "Verse",
-    "Perek":      "Chapter (Perek)",
-    "Parsha":     "Torah portion (Parsha)",
-    "Petucha":    "Open paragraph (Petucha פ)",
+    "Word":       "Word (תיבה)",
+    "FirstHalf":  "First half-verse (before Atnach)",
+    "SecondHalf": "Second half-verse (after Atnach)",
+    "Verse":      "Verse (Pasuk פסוק)",
+    "Perek":      "Chapter (Perek פרק)",
+    "Parsha":     "Torah portion (Parsha פרשה)",
+    "Petucha":    "Open paragraph (Pesukha פ)",
     "Setuma":     "Closed paragraph (Setuma ס)",
 }
 
@@ -1394,7 +1394,7 @@ def run_app() -> None:
             tracks = st.multiselect(
                 "Reading tracks",
                 ["Ksiv", "Kri", "TextVariant", "Aggregate"],
-                default=["Ksiv", "Kri", "TextVariant"],
+                default=["Ksiv"],
                 format_func=lambda t: TRACK_LABELS.get(t, t))
         with cc2:
             bounds = st.multiselect(
@@ -1504,18 +1504,27 @@ def run_app() -> None:
 
             st.divider()
             raw_types = sorted(pat["pattern_type"].unique())
-            label_opts = ["(all)"] + [PATTERN_LABELS.get(t, t) for t in raw_types]
-            plabel = st.selectbox("Filter by pattern type", label_opts)
-            ptype_raw = None if plabel == "(all)" else raw_types[label_opts.index(plabel) - 1]
-
-            cfilter = st.selectbox("Gematria method", ["(all)"] + CIPHER_NAMES)
-            if cfilter != "(all)":
-                st.caption(CIPHER_BLURB.get(cfilter, ""))
+            fc1, fc2 = st.columns(2)
+            with fc1:
+                sel_type_labels = st.multiselect(
+                    "Pattern type",
+                    [PATTERN_LABELS.get(t, t) for t in raw_types],
+                    placeholder="All types")
+                sel_ptypes = {raw_types[i] for i, lbl in
+                              enumerate([PATTERN_LABELS.get(t, t) for t in raw_types])
+                              if lbl in sel_type_labels}
+            with fc2:
+                sel_methods = st.multiselect(
+                    "Gematria method", CIPHER_NAMES, placeholder="All methods")
+                if sel_methods:
+                    for m in sel_methods:
+                        st.caption(CIPHER_BLURB.get(m, ""))
             view = pat.copy()
-            if ptype_raw:
-                view = view[view.pattern_type == ptype_raw]
-            if cfilter != "(all)":
-                view = view[view.cipher == cfilter]
+            if sel_ptypes:
+                view = view[view.pattern_type.isin(sel_ptypes)]
+            if sel_methods:
+                view = view[view.cipher.isin(sel_methods)]
+            cfilter = sel_methods[0] if len(sel_methods) == 1 else None
             view["pattern_type"] = view["pattern_type"].map(
                 lambda t: PATTERN_LABELS.get(t, t))
             view = view.rename(columns={
@@ -1551,7 +1560,7 @@ def run_app() -> None:
                 pat_type = sel["Pattern"]
                 ref_a_str = str(sel["Reference A"])
                 ref_b_str = str(sel["Reference B"])
-                active_m = cfilter if cfilter != "(all)" else None
+                active_m = cfilter  # None when 0 or 2+ methods selected
 
                 with st.expander("📜 Referenced verses", expanded=True):
                     if "Internal Balance" in pat_type:
@@ -1598,56 +1607,58 @@ def run_app() -> None:
         if plot_df.empty:
             st.info("Not enough structural data to plot. Load chapters from Sefaria.")
         else:
-            # Stack vertically so each chart is legible on a phone screen.
-            fig, axes = plt.subplots(3, 1, figsize=(7, 11))
-            for ax, c, color in zip(axes, ["Absolute", "Katan", "Atbash"],
-                                    ["#2c6fbb", "#bb572c", "#3aa66f"]):
-                series = plot_df[c].dropna()
-                kde = series.nunique() > 2
-                sns.histplot(series, kde=kde, ax=ax, color=color, bins=20)
-                ax.set_title(f"{c} — value distribution")
-                ax.set_xlabel("Gematria value")
-            fig.tight_layout()
-            st.pyplot(fig)
-            plt.close(fig)
-            st.caption(f"{len(plot_df)} verse(s), each counted once (Ksiv track).")
+            import plotly.express as px
+            import plotly.figure_factory as ff
+            import plotly.graph_objects as go
 
-            # ---- Method correlation heatmap ----
+            # ---- Distribution histograms (interactive) ----
+            hist_cols = ["Absolute", "Katan", "Atbash"]
+            hist_colors = ["#2c6fbb", "#bb572c", "#3aa66f"]
+            for c, color in zip(hist_cols, hist_colors):
+                fig_h = px.histogram(
+                    plot_df, x=c, nbins=40, color_discrete_sequence=[color],
+                    title=f"{c} — value distribution across all verses",
+                    labels={c: "Gematria value", "count": "Verses"})
+                fig_h.update_layout(bargap=0.05, height=320,
+                                    margin=dict(t=40, b=30, l=40, r=20))
+                st.plotly_chart(fig_h, use_container_width=True)
+            st.caption(f"{len(plot_df)} verse(s), each counted once (כְּתִיב Ksiv track). "
+                       "Hover for exact counts; click legend to toggle; drag to zoom.")
+
+            # ---- Method correlation heatmap (interactive) ----
             st.markdown("#### How the methods relate to each other")
             st.caption("Pearson correlation across all verse totals. "
                        "Methods with high correlation produce similar rankings; "
-                       "low or negative correlation highlights structurally distinct searches.")
+                       "low/negative correlation highlights structurally distinct searches. "
+                       "Hover any cell to see the exact value.")
             numeric_cols = [c for c in CIPHER_NAMES if c in plot_df.columns]
-            corr = plot_df[numeric_cols].corr()
-            fig_corr, ax_corr = plt.subplots(
-                figsize=(max(7, len(numeric_cols) * 0.8),
-                         max(5, len(numeric_cols) * 0.7)))
-            sns.heatmap(corr, ax=ax_corr, cmap="vlag", center=0,
-                        annot=len(numeric_cols) <= 12,
-                        fmt=".2f" if len(numeric_cols) <= 12 else "",
-                        linewidths=0.4, square=True,
-                        cbar_kws={"shrink": 0.8})
-            ax_corr.set_title("Method correlation (verse totals)")
-            fig_corr.tight_layout()
-            st.pyplot(fig_corr)
-            plt.close(fig_corr)
+            corr = plot_df[numeric_cols].corr().round(2)
+            fig_corr = px.imshow(
+                corr, text_auto=True, color_continuous_scale="RdBu_r",
+                zmin=-1, zmax=1, aspect="auto",
+                title="Method correlation (verse totals)")
+            fig_corr.update_layout(height=480,
+                                   margin=dict(t=50, b=30, l=120, r=20))
+            st.plotly_chart(fig_corr, use_container_width=True)
 
-            # ---- Book fingerprint heatmap ----
-            st.markdown("#### Book fingerprint — average Absolute value per book")
-            st.caption("Mean Absolute gematria per book, giving a rough textual 'fingerprint'. "
-                       "Books with longer or rarer words tend to score higher.")
+            # ---- Book fingerprint (interactive) ----
+            st.markdown("#### Book fingerprint — average Absolute value per pasuk")
+            st.caption("Mean Absolute gematria per book. "
+                       "Books with longer or less-common words tend to score higher. "
+                       "Hover for exact values.")
             if "book" in plot_df.columns and "Absolute" in plot_df.columns:
                 book_means = (plot_df.groupby("book")["Absolute"]
-                              .mean().sort_values(ascending=False))
-                fig_bk, ax_bk = plt.subplots(figsize=(7, max(4, len(book_means) * 0.35)))
-                colors_bk = sns.color_palette("YlOrBr", len(book_means))[::-1]
-                ax_bk.barh(book_means.index[::-1], book_means.values[::-1],
-                           color=colors_bk[::-1])
-                ax_bk.set_xlabel("Mean Absolute value per verse")
-                ax_bk.set_title("Average verse value by book (Absolute)")
-                fig_bk.tight_layout()
-                st.pyplot(fig_bk)
-                plt.close(fig_bk)
+                              .mean().round(1).sort_values(ascending=True)
+                              .reset_index())
+                book_means.columns = ["Book", "Mean Absolute"]
+                fig_bk = px.bar(
+                    book_means, x="Mean Absolute", y="Book", orientation="h",
+                    color="Mean Absolute", color_continuous_scale="YlOrBr",
+                    title="Average verse (pasuk) value by book — Absolute method")
+                fig_bk.update_layout(height=max(350, len(book_means) * 18),
+                                     showlegend=False, coloraxis_showscale=False,
+                                     margin=dict(t=50, b=30, l=140, r=20))
+                st.plotly_chart(fig_bk, use_container_width=True)
 
             st.markdown("#### Unrepresented value ranges (Absolute)")
             dz = density_gaps(conn, "Absolute", "Verse")
@@ -1859,7 +1870,7 @@ These are separate references that share nearly identical text — two distinct 
                 {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Atnach-bearing word (inclusive).",                                     "Why meaningful": "The Atnach (֑) is the verse's primary cantillation pause — its main syntactic division."},
                 {"Boundary": "SecondHalf",        "Meaning": "From after the Atnach to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
                 {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
-                {"Boundary": "Petucha (פ)",       "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",        "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
+                {"Boundary": "Pesukha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
                 {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
                 {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
                 {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},

@@ -5,3 +5,4 @@ pandas>=2.1            # tested 3.0.2
 numpy>=1.26            # transitive (seaborn/matplotlib); pinned for reproducibility
 matplotlib>=3.8        # tested 3.10.8
 seaborn>=0.13          # tested 0.13.2
+plotly>=5.18           # interactive charts in Tab 4
