@@ -33,6 +33,8 @@ Self-test (no Streamlit UI):  python app.py selftest
 
 from __future__ import annotations
 
+import json
+import pathlib
 import re
 import sqlite3
 import sys
@@ -541,6 +543,34 @@ def load_from_sefaria(refs: List[str], timeout: int = 20) -> List[VerseInput]:
     return out
 
 
+CORPUS_FILE = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
+
+
+def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
+    """Load the pre-fetched full Tanach corpus from a local JSONL file.
+
+    Each line: {"book": str, "chapter": int, "verse": int, "text": str}
+    Returns an empty list if the file does not exist.
+    """
+    if not path.exists():
+        return []
+    verses = []
+    with open(path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            row = json.loads(line)
+            verses.append(VerseInput(
+                book=row["book"],
+                chapter=int(row["chapter"]),
+                verse=int(row["verse"]),
+                parsha=row["book"],
+                text=row["text"],
+            ))
+    return verses
+
+
 def build_sefaria_url(ref: str) -> str:
     """Return the exact (well-formed, percent-encoded) URL the loader requests.
 
@@ -962,7 +992,10 @@ def run_app() -> None:
 
     @st.cache_resource(show_spinner="Building gematria database…")
     def _build_connection(extra_refs_key: str, _nonce: int):
-        verses = list(SAMPLE_CORPUS)
+        # Primary corpus: bundled full Tanach. Falls back to SAMPLE_CORPUS
+        # if the file isn't present (e.g. development without the data file).
+        bundled = load_from_jsonl()
+        verses = bundled if bundled else list(SAMPLE_CORPUS)
         fetched_ok = True
         if extra_refs_key:
             refs = [r.strip() for r in extra_refs_key.split(";") if r.strip()]
