@@ -1266,14 +1266,6 @@ def run_app() -> None:
                 st.rerun()
         return conn, n, verse_index
 
-    st.title("Tanach Gematria Search & Structural Pattern Engine")
-    st.caption(
-        "Multi-method gematria engine over the complete Masoretic text — "
-        "23,206 cantillated verses sourced from Sefaria. "
-        "Eleven methods compute values from consonants only (nikud and ta'amim stripped); "
-        "HaNikud counts vowel-point dots from the full cantillated text."
-    )
-
     with st.sidebar:
         st.header("⚙️ Corpus")
         st.caption("23,206 Masoretic verses — loaded from bundled corpus.")
@@ -1672,12 +1664,70 @@ def run_app() -> None:
 
     # ===================== TAB 5: GUIDE & SOURCES ========================
     with tab_guide:
-        st.subheader("📖 Guide & Sources")
+        st.title("Tanach Gematria Search & Structural Pattern Engine")
+        st.markdown(
+            "A multi-method Hebrew gematria engine over the complete Masoretic text — "
+            "23,206 cantillated verses sourced from Sefaria. "
+            "Search for phrases and names, explore structural patterns, and analyse the "
+            "statistical fingerprint of the Tanach across 12 gematria methods."
+        )
+        st.divider()
+
+        with st.expander("How to use this app", expanded=True):
+            st.markdown("""
+**📖 Guide & Sources** *(this tab)*
+Start here. Explains all gematria methods with their earliest Talmudic or medieval sources,
+variant reading tracks, boundary types, and the Rule of the Colel. Also lists the full
+Masoretic textual variant registry used by the engine.
+
+---
+
+**1 · Phrase & Name Matcher**
+Type any Hebrew word, name, or phrase. The engine strips nikud and ta'amim down to
+the 22 consonants and computes its value across all 12 methods simultaneously.
+Select a method to see every structural unit in the Tanach that shares that value —
+word, half-verse, full verse, paragraph, or chapter. Click any result row to open the
+full cantillated verse with the matched portion highlighted and a letter-by-letter
+value breakdown for the chosen method.
+
+Toggle **Rule of the Colel (±1)** to also match values one above or below — a standard
+leniency in traditional gematria practice.
+
+---
+
+**2 · Scriptural Structural Explorer**
+Browse the entire Tanach by structural unit: Chapter (Perek), Torah portion (Parsha),
+open paragraph (Petucha), closed paragraph (Setuma), or individual verse. Every row
+shows the gematria total under all 12 methods for that block. Filter by book or parsha
+name. Click a row to open the verse detail panel.
+
+---
+
+**3 · Textual Echoes & Anomalies**
+The engine automatically scans the corpus for three categories of structural pattern:
+
+- **Internal Balance** — a verse whose two halves (split at the Atnach cantillation mark)
+  share the same gematria value, or differ by only 1 (Colel).
+- **Proximity Echo** — two consecutive verses that share the same value under a given method.
+- **Macro–Micro Resonance** — a single verse whose value divides evenly into its
+  chapter's total — the part mirrors the whole.
+
+Filter by pattern type or method, then click a row to see the referenced verses.
+
+---
+
+**4 · Macro Statistical Dashboard**
+High-level statistics across the full corpus: highest and lowest values by structure,
+value-distribution histograms for three key methods, a correlation heatmap showing how
+closely the 12 methods agree with each other, a per-book fingerprint chart, and a table
+of integer ranges with no verse representation.
+""")
+
+        st.divider()
+        st.subheader("📖 Reference material")
         st.caption(
-            "Every gematria method, variant track, boundary type, and rule used by this engine "
-            "— with its traditional name and scholarly source. All method rules are exact "
-            "(verified against the engine code). Historical attributions are traditional "
-            "and noted where uncertain."
+            "All method rules are exact (verified against the engine code). "
+            "Historical attributions are traditional and noted where uncertain."
         )
 
         with st.expander("The 12 gematria methods", expanded=True):
