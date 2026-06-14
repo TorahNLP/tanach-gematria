@@ -1132,18 +1132,14 @@ def run_app() -> None:
 
     with st.sidebar:
         st.header("⚙️ Corpus")
-        st.markdown("Full Tanach loaded from bundled corpus (23,206 verses). "
-                    "Optionally append additional Sefaria references below "
-                    "(requires internet; semicolon-separated):")
-        extra = st.text_input("Sefaria refs", value="",
-                              placeholder="Genesis 1; Psalms 23; Exodus 20")
+        st.caption("23,206 Masoretic verses — loaded from bundled corpus.")
         st.divider()
         st.subheader("Active ciphers (11)")
         st.write(", ".join(CIPHER_NAMES))
         st.caption("Required: Absolute, Katan, Gadol, Atbash, Albam, Atbah, "
                    "Avgad.  Researched additions: Siduri, Ribua, Kidmi, Achbi.")
 
-    conn, n_loaded, verse_index = get_connection(extra)
+    conn, n_loaded, verse_index = get_connection("")
 
     DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
 
