@@ -1120,18 +1120,20 @@ def run_app() -> None:
                 st.rerun()
         return conn, n, verse_index
 
-    st.title("🔯 Tanach Gematria Search & Structural Pattern Engine")
+    st.title("Tanach Gematria Search & Structural Pattern Engine")
     st.caption(
-        "Exact multi-cipher engine over a verified offline sample. "
-        "The full 23,204-verse Masoretic corpus is *not* hard-coded from memory "
-        "(that would introduce textual errors) — load it on demand from Sefaria below."
+        "Multi-cipher gematria engine over the complete Masoretic text — "
+        "23,206 cantillated verses sourced from Sefaria. "
+        "All cipher values are computed from consonants only; "
+        "nikud and ta'amim are stripped before counting. "
+        "Individual references can be appended via the sidebar."
     )
 
     with st.sidebar:
         st.header("⚙️ Corpus")
-        st.write(f"**Sample verses bundled:** {len(SAMPLE_CORPUS)}")
-        st.markdown("Optionally append real chapters from Sefaria "
-                    "(needs internet). Semicolon-separated refs:")
+        st.markdown("Full Tanach loaded from bundled corpus (23,206 verses). "
+                    "Optionally append additional Sefaria references below "
+                    "(requires internet; semicolon-separated):")
         extra = st.text_input("Sefaria refs", value="",
                               placeholder="Genesis 1; Psalms 23; Exodus 20")
         st.divider()
