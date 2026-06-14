@@ -7,7 +7,7 @@ A self-contained Streamlit application implementing:
 
   * A complete, correct multi-cipher gematria engine (11 ciphers).
   * Real consonant-cleaning (strips nikud + ta'amim, keeps the 22 base letters).
-  * Atnach-based half-verse splitting and Petucha/Setuma paragraph parsing.
+  * Asnachta-based half-verse splitting and Petucha/Setuma paragraph parsing.
   * A Ksiv/Kri + Masoretic textual-variant forking engine (Itture Sopherim,
     Esther doublets — see TEXTUAL_VARIANT_SPECS).
   * An in-memory, fully indexed SQLite store.
@@ -295,8 +295,8 @@ TRACK_LABELS: Dict[str, str] = {
 }
 BOUNDARY_LABELS: Dict[str, str] = {
     "Word":       "Word (תיבה)",
-    "FirstHalf":  "First half-verse (before Atnach)",
-    "SecondHalf": "Second half-verse (after Atnach)",
+    "FirstHalf":  "First half-verse (before Asnachta)",
+    "SecondHalf": "Second half-verse (after Asnachta)",
     "Verse":      "Verse (Pasuk פסוק)",
     "Perek":      "Chapter (Perek פרק)",
     "Parsha":     "Torah portion (Parsha פרשה)",
@@ -376,17 +376,17 @@ def tokenize_words(text: str) -> List[str]:
 
 
 def split_halves_by_atnach(text: str) -> Tuple[str, str]:
-    """Split a (vocalised/cantillated) verse into first/second half by Atnach.
+    """Split a (vocalised/cantillated) verse into first/second half by Asnachta.
 
-    First half  = start .. through the word bearing the Atnach mark.
+    First half  = start .. through the word bearing the Asnachta mark.
     Second half = remainder up to Sof Pasuq.
-    If no Atnach is present, the whole verse is treated as the first half.
+    If no Asnachta is present, the whole verse is treated as the first half.
     Returns (first_half_consonants, second_half_consonants).
     """
     idx = text.find(ATNACH)
     if idx == -1:
         return strip_to_consonants(text), ""
-    # Extend the split to the end of the atnach-bearing word so we don't sever
+    # Extend the split to the end of the Asnachta-bearing word so we don't sever
     # a word in the middle.
     end = idx
     while end < len(text) and text[end] not in (" ", "\t", MAQAF, SOF_PASUQ):
@@ -480,7 +480,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
             doub_cons = base_cons.replace(v.doublet_from, v.doublet_to, 1)
             # Re-derive halves from the substituted source text so that
             # first_half + second_half == doub_cons even when the substitution
-            # word straddles the Atnach boundary.
+            # word straddles the Asnachta boundary.
             doub_text = v.text.replace(v.doublet_from, v.doublet_to, 1)
             dfh, dsh = split_halves_by_atnach(doub_text)
             if dfh + dsh != doub_cons:
@@ -506,7 +506,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
 # ---------------------------------------------------------------------------
 #
 # Each verse below is a real, verified Masoretic verse carrying nikud + ta'amim
-# (so half-verse splitting on the Atnach is genuine). Paragraph markers shown in
+# (so half-verse splitting on the Asnachta is genuine). Paragraph markers shown in
 # {פ}/{ס} braces are illustrative anchors for the parser; the full scribal layout
 # is populated when you load the complete corpus from Sefaria.
 
@@ -1485,7 +1485,7 @@ def run_app() -> None:
                 "MacroMicro":      "Macro–Micro Resonance",
             }
             PATTERN_DESC = {
-                "InternalBalance": "The two halves of a verse (split at the Atnach cantillation mark) share the same gematria value, or differ by only 1 (Colel). The major syntactic pause divides the verse into numerically balanced units.",
+                "InternalBalance": "The two halves of a verse (split at the Asnachta cantillation mark) share the same gematria value, or differ by only 1 (Colel). The major syntactic pause divides the verse into numerically balanced units.",
                 "ProximityEcho":   "Two consecutive verses share the same gematria value under a given method — a numerical 'rhyme' between neighboring verses.",
                 "MacroMicro":      "A single verse's gematria value equals the total for its containing chapter (Perek). The part mirrors the whole.",
             }
@@ -1737,7 +1737,7 @@ boundary types, and the Rule of the Colel. Also contains the full Masoretic vari
 <div class="body">
   The engine automatically scans the corpus for three structural patterns:
   <ul>
-    <li><strong>Internal Balance</strong> — a verse whose two halves (split at the Atnach mark)
+    <li><strong>Internal Balance</strong> — a verse whose two halves (split at the Asnachta mark)
       share the same gematria value, or differ by only 1 (Colel).</li>
     <li><strong>Proximity Echo</strong> — two consecutive verses sharing the same value
       under a given method.</li>
@@ -1867,8 +1867,8 @@ These are separate references that share nearly identical text — two distinct 
         with st.expander("Boundary types"):
             st.dataframe(pd.DataFrame([
                 {"Boundary": "Word (תיבה)",      "Meaning": "Single word token, split on space and maqaf (־).",                                             "Why meaningful": "Smallest meaning-bearing unit; classic gematria target (name totals, first/last words)."},
-                {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Atnach-bearing word (inclusive).",                                     "Why meaningful": "The Atnach (֑) is the verse's primary cantillation pause — its main syntactic division."},
-                {"Boundary": "SecondHalf",        "Meaning": "From after the Atnach to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
+                {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Asnachta-bearing word (inclusive).",                                     "Why meaningful": "The Asnachta (֑) is the verse's primary cantillation pause — its main syntactic division."},
+                {"Boundary": "SecondHalf",        "Meaning": "From after the Asnachta to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
                 {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
                 {"Boundary": "Pesucha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
                 {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
