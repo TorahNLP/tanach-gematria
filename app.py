@@ -1357,7 +1357,44 @@ def run_app() -> None:
                 "pattern_type": "Pattern", "cipher": "Cipher", "value_a": "Value A",
                 "value_b": "Value B", "ref_a": "Reference A", "ref_b": "Reference B",
                 "detail": "Detail"}).drop(columns=["pattern_id"])
-            st.dataframe(view, use_container_width=True, hide_index=True)
+            event3 = st.dataframe(
+                view, use_container_width=True, hide_index=True,
+                on_select="rerun", selection_mode="single-row", key="t3_sel")
+
+            if event3.selection.rows:
+                sel = view.iloc[event3.selection.rows[0]]
+                pat_type = sel["Pattern"]
+                ref_a_raw = str(sel["Reference A"]).replace("verse:", "")
+                ref_b_raw = str(sel["Reference B"]).replace("verse:", "").replace("block:", "")
+
+                def _lookup_unit(sub_id):
+                    r = pd.read_sql_query(
+                        "SELECT book, chapter, verse, boundary_type, consonants "
+                        "FROM units WHERE sub_id = ?", conn, params=(sub_id,))
+                    return r.iloc[0] if not r.empty else None
+
+                with st.expander("📜 Referenced verses", expanded=True):
+                    if "Internal Balance" in pat_type:
+                        # ref_a = FirstHalf, ref_b = SecondHalf of the same verse
+                        u = _lookup_unit(ref_a_raw)
+                        if u is not None:
+                            render_verse_detail(u["book"], u["chapter"], u["verse"],
+                                                u["boundary_type"], matched_text=u["consonants"])
+                    elif "Proximity Echo" in pat_type:
+                        # two distinct verses
+                        for label, sub_id in [("Verse A", ref_a_raw), ("Verse B", ref_b_raw)]:
+                            u = _lookup_unit(sub_id)
+                            if u is not None:
+                                st.markdown(f"**{label}**")
+                                render_verse_detail(u["book"], u["chapter"], u["verse"],
+                                                    u["boundary_type"], matched_text=u["consonants"])
+                    else:
+                        # MacroMicro: ref_a = verse, ref_b = block (Perek/Parsha — render_verse_detail skips it)
+                        for sub_id in [ref_a_raw, ref_b_raw]:
+                            u = _lookup_unit(sub_id)
+                            if u is not None:
+                                render_verse_detail(u["book"], u["chapter"], u["verse"],
+                                                    u["boundary_type"], matched_text=u["consonants"])
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
     with tab4:
