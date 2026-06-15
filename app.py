@@ -1626,11 +1626,10 @@ def run_app() -> None:
             def _parse_pattern_ref(ref_str: str):
                 """Parse a pattern ref string → (book, chapter, verse, boundary) or None.
 
-                Handles three formats stored by build_pattern_log:
+                Handles formats stored by build_pattern_log:
                   "Book ch:v 1st-half [Track]"  → FirstHalf
                   "Book ch:v 2nd-half [Track]"  → SecondHalf
                   "Book ch:v"                   → Verse
-                  "Perek Book ch"               → None (not in DETAIL_BOUNDARIES)
                 """
                 m = _re.match(r'^(.+?)\s+(\d+):(\d+)\s+(1st|2nd)-half', ref_str)
                 if m:
