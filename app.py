@@ -1904,27 +1904,26 @@ def run_app() -> None:
 
         with st.expander("How to use this app", expanded=True):
             import streamlit.components.v1 as _components
-            _components.html("""<script>
-function goToTab(kw) {
-  var tabs = window.parent.document.querySelectorAll('[role="tab"]');
-  for (var i = 0; i < tabs.length; i++) {
-    if (tabs[i].textContent.indexOf(kw) !== -1) { tabs[i].click(); return; }
-  }
-}
-</script>
-<style>
-body { margin:0; padding:2px 0 0 0; background:transparent;
-       font-family:"Source Sans Pro",Arial,sans-serif; }
-.tab-btn { background:none; border:none; padding:0 14px 0 0; margin:0;
-           font-size:13px; font-weight:700; color:#ff4b4b;
-           cursor:pointer; display:inline-block; }
-.tab-btn:hover { text-decoration:underline; }
-</style>
-<button class="tab-btn" onclick="goToTab('Phrase')">1 · Phrase &amp; Name Matcher</button>
-<button class="tab-btn" onclick="goToTab('Structural')">2 · Structural Explorer</button>
-<button class="tab-btn" onclick="goToTab('Echoes')">3 · Echoes &amp; Anomalies</button>
-<button class="tab-btn" onclick="goToTab('Statistical')">4 · Dashboard</button>
-""", height=30, scrolling=False)
+
+            def _heading_link(kw, label, define_fn=False):
+                fn = (
+                    "<script>window.parent.goToTab = function(kw){"
+                    "var tabs=window.parent.document.querySelectorAll('[role=\\\"tab\\\"]');"
+                    "for(var i=0;i<tabs.length;i++){"
+                    "if(tabs[i].textContent.indexOf(kw)!==-1){tabs[i].click();return;}}};"
+                    "</script>"
+                ) if define_fn else ""
+                _components.html(
+                    fn
+                    + "<style>body{margin:0;padding:0;background:transparent;}"
+                    "a{font-size:15px;font-weight:700;color:#ff4b4b;text-decoration:none;"
+                    "font-family:\"Source Sans Pro\",Arial,sans-serif;}"
+                    "a:hover{text-decoration:underline;}</style>"
+                    "<a href=\"#\" onclick=\"window.parent.goToTab('" + kw + "');"
+                    "return false;\">" + label + "</a>",
+                    height=26, scrolling=False,
+                )
+
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
                 "Explains all 12 gematria methods with earliest Talmudic or medieval sources, "
@@ -1932,7 +1931,7 @@ body { margin:0; padding:2px 0 0 0; background:transparent;
                 "Also contains the full Masoretic variant registry."
             )
 
-            st.markdown("##### 1 · Phrase & Name Matcher")
+            _heading_link("Phrase", "1 · Phrase &amp; Name Matcher", define_fn=True)
             st.markdown(
                 "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
                 "cantillation down to the 22 consonants and computes values across all 12 methods "
@@ -1947,7 +1946,7 @@ body { margin:0; padding:2px 0 0 0; background:transparent;
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
 
-            st.markdown("##### 2 · Scriptural Structural Explorer")
+            _heading_link("Structural", "2 · Scriptural Structural Explorer")
             st.markdown(
                 "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                 "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
@@ -1956,7 +1955,7 @@ body { margin:0; padding:2px 0 0 0; background:transparent;
                 "Click a row to open the verse detail panel."
             )
 
-            st.markdown("##### 3 · Textual Echoes & Anomalies")
+            _heading_link("Echoes", "3 · Textual Echoes &amp; Anomalies")
             st.markdown(
                 "The engine automatically scans the corpus for three structural patterns:\n"
                 "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
@@ -1970,7 +1969,7 @@ body { margin:0; padding:2px 0 0 0; background:transparent;
                 "Filter by pattern type or method, then click a row to see the referenced verses."
             )
 
-            st.markdown("##### 4 · Macro Statistical Dashboard")
+            _heading_link("Statistical", "4 · Macro Statistical Dashboard")
             st.markdown(
                 "High-level statistics across the full corpus: highest and lowest values by structure, "
                 "value-distribution histograms, a 12-method correlation heatmap, a per-book fingerprint "
