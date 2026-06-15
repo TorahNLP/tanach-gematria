@@ -98,7 +98,7 @@ Search for `# SECTION N` to jump directly:
 | 5 | SQLite build (`_build_connection`) |
 | 6 | Pattern recognition (`build_pattern_log`) — pre-computes InternalBalance + ProximityEcho |
 | 6b | Module-level pattern helpers: `parse_pattern_ref`, `internal_balance_matches`, `proximity_echo_matches`, `whole_unit_echo_matches` |
-| 7 | Search: `search_value`, `count_value`, `boundary_population`, `search_value_all_methods` (UNION ALL across all ciphers), `search_phrase` |
+| 7 | Search: `search_value`, `count_value`, `boundary_population`, `search_value_all_methods` (UNION ALL across all ciphers), `search_phrase`, `_xm_count_matrix` (single-pass 144 CASE WHEN aggregation for Tab 1 coincidence matrix) |
 | 8 | Stats & visualization helpers |
 | 8b | `cipher_breakdown()` — letter-by-letter equation for UI |
 | 9 | `run_selftest()` |
@@ -158,7 +158,7 @@ python app.py selftest
 streamlit run app.py
 ```
 
-`builddb` pre-computes all 12 cipher values for 23,206 verses and saves the result to `tanach.db`. If `tanach.db` is present, startup restores it into memory (~1–2s) instead of recomputing from scratch (~25s). The file is git-ignored; the Docker build runs `builddb` automatically so the pre-built DB is baked into the image.
+`builddb` pre-computes all 12 cipher values for 23,206 verses and saves the result to `tanach.db`. If `tanach.db` is present, startup restores it into memory (~1–2s) instead of recomputing from scratch (~25s). The file is git-ignored; the Docker build runs `builddb` automatically so the pre-built DB is baked into the image. The Dockerfile step is non-fatal (`|| echo "..."`) — if the build environment lacks memory, it falls back to runtime computation.
 
 Run `python app.py selftest` after **any** engine change. It verifies Genesis 1:1 = 2701, all 12 ciphers, the Asnachta split, paragraph marker exclusion, Esther doublet (+vav = 6), Kri fork, DB build, search round-trips, and the Colel window.
 
