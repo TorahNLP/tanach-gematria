@@ -1903,6 +1903,28 @@ def run_app() -> None:
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
+            import streamlit.components.v1 as _components
+            _components.html("""<script>
+function goToTab(kw) {
+  var tabs = window.parent.document.querySelectorAll('[role="tab"]');
+  for (var i = 0; i < tabs.length; i++) {
+    if (tabs[i].textContent.indexOf(kw) !== -1) { tabs[i].click(); return; }
+  }
+}
+</script>
+<style>
+body { margin:0; padding:2px 0 0 0; background:transparent;
+       font-family:"Source Sans Pro",Arial,sans-serif; }
+.tab-btn { background:none; border:none; padding:0 14px 0 0; margin:0;
+           font-size:13px; font-weight:700; color:#ff4b4b;
+           cursor:pointer; display:inline-block; }
+.tab-btn:hover { text-decoration:underline; }
+</style>
+<button class="tab-btn" onclick="goToTab('Phrase')">1 · Phrase &amp; Name Matcher</button>
+<button class="tab-btn" onclick="goToTab('Structural')">2 · Structural Explorer</button>
+<button class="tab-btn" onclick="goToTab('Echoes')">3 · Echoes &amp; Anomalies</button>
+<button class="tab-btn" onclick="goToTab('Statistical')">4 · Dashboard</button>
+""", height=30, scrolling=False)
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
                 "Explains all 12 gematria methods with earliest Talmudic or medieval sources, "
@@ -1958,7 +1980,6 @@ def run_app() -> None:
                 "(row method) equals the second half (column method)."
             )
 
-            st.caption("Use the tabs at the top of the page to navigate between sections.")
 
         st.divider()
         st.subheader("📖 Reference material")
