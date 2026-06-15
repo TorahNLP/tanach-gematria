@@ -23,16 +23,16 @@ The corpus is sourced from Sefaria (cantillated Masoretic text) and bundled as `
 
 | Name | Hebrew | Description |
 |------|--------|-------------|
-| Absolute | מספר הכרחי | Standard values: א=1 … ת=400. Finals = base form. |
+| Standard | מספר הכרחי | Standard values: א=1 … ת=400. Finals = base form. |
 | Katan | מספר קטן | Drop trailing zeros (ק→1, מ→4), then sum. |
-| Gadol | מספר גדול | Like Absolute but finals carry 500–900. |
-| Atbash | אתב"ש | Mirror swap א↔ת, ב↔ש … then Absolute. Oldest attested — appears in Jeremiah. |
+| Gadol | מספר גדול | Like Standard but finals carry 500–900. |
+| Atbash | אתב"ש | Mirror swap א↔ת, ב↔ש … then Standard values. Oldest attested — appears in Jeremiah. |
 | Albam | אלב"ם | ROT-11 swap across two 11-letter groups. |
 | Atbah | אטב"ח | Pairs summing to 10/100/1000; finals carry 600–900. Attributed to R. Eliezer b. Yose. |
-| Avgad | אבג"ד | +1 cyclic shift (א→ב … ת→א), then Absolute. |
+| Avgad | אבג"ד | +1 cyclic shift (א→ב … ת→א), then Standard values. |
 | Siduri | מספר סידורי | Ordinal position: א=1 … ת=22. |
-| Ribua | מספר מרובע | Sum of squared Absolute values per letter (Σv²). |
-| Kidmi | מספר קדמי | Triangular cumulative: each letter = Σ Absolutes from א up to it. |
+| Ribua | מספר מרובע | Sum of squared Standard values per letter (Σv²). |
+| Kidmi | מספר קדמי | Triangular cumulative: each letter = Σ Standard values from א up to it. |
 | Achbi | אכב"י | Split into two 11-letter groups, reverse each internally. |
 | HaNikud | מספר הנקוד | Counts dots in vowel marks only (Dagesh excluded). Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Returns 0 for consonant-only text. |
 
@@ -72,7 +72,7 @@ Two tables, built at startup and cached per session:
 | `track` | Ksiv / Kri / TextVariant / Aggregate |
 | `text` | Consonants only |
 | `sub_id` | Human-readable ref string, e.g. `"Genesis 1:1 1st-half [Ksiv]"` |
-| `Absolute` … `HaNikud` | All 12 cipher values |
+| `Standard` … `HaNikud` | All 12 cipher values |
 
 **`patterns`** — detected structural patterns:
 
@@ -134,7 +134,7 @@ Three pattern types (multiselect):
 Additional filters: **Min value** (suppress low-value noise; set ≥ 41 to exclude Katan), **Focus** text field (filter results to a book or chapter by string match). **Katan warning** banner appears automatically when Katan is selected without a min-value guard. Metrics (count per pattern type) update with every filter change. Click any result row to render both referenced units with cipher breakdown.
 
 ### 4 · Macro Statistical Dashboard
-Plotly charts: distribution histograms per method, inter-method correlation heatmap, book-level fingerprint (mean Absolute per book). All interactive — hover, zoom, download. **Cross-method half-verse balance heatmap** at the bottom shows, for every method pair, the fraction of verses whose first half (row method) equals the second half (column method).
+Plotly charts: distribution histograms per method, inter-method correlation heatmap, book-level fingerprint (mean Standard per book). All interactive — hover, zoom, download. **Cross-method half-verse balance heatmap** at the bottom shows, for every method pair, the fraction of verses whose first half (row method) equals the second half (column method).
 
 All charts: scroll zoom disabled (`scrollZoom: false`) to prevent accidental zoom on trackpad/mouse. The Plotly toolbar (including reset-axes house icon) appears on hover in the top-right corner.
 
