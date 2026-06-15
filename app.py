@@ -1202,6 +1202,44 @@ def normalize_query(raw: str) -> str:
     return strip_to_consonants(raw)
 
 
+def _xm_count_matrix(
+    conn: sqlite3.Connection,
+    a_vals: Dict[str, int],
+    colel: bool,
+    tracks: Optional[List[str]],
+    boundaries: Optional[List[str]],
+) -> pd.DataFrame:
+    """Build the 12×12 cross-method count matrix in a single SQL pass.
+
+    Replaces 144 individual COUNT queries with one query containing 144
+    CASE WHEN expressions, scanning the units table once.
+    """
+    where, params = [], []
+    if tracks:
+        where.append("variant_track IN (%s)" % ",".join("?" * len(tracks)))
+        params += tracks
+    if boundaries:
+        where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
+        params += boundaries
+    where_clause = ("WHERE " + " AND ".join(where)) if where else ""
+    cases = []
+    for ma in CIPHER_NAMES:
+        v = int(a_vals[ma])
+        for mb in CIPHER_NAMES:
+            cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}" if colel
+                    else f"{mb} = {v}")
+            cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
+    sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
+    row = pd.read_sql_query(sql, conn, params=params).iloc[0]
+    n = len(CIPHER_NAMES)
+    matrix_rows = {}
+    for i, ma in enumerate(CIPHER_NAMES):
+        matrix_rows[f"{ma} ({a_vals[ma]})"] = [
+            int(row.iloc[i * n + j]) for j in range(n)
+        ]
+    return pd.DataFrame.from_dict(matrix_rows, orient="index", columns=CIPHER_NAMES)
+
+
 # ---------------------------------------------------------------------------
 # SECTION 8.  STATISTICS & VISUALIZATION HELPERS
 # ---------------------------------------------------------------------------
@@ -1618,19 +1656,11 @@ def run_app() -> None:
                 xm_sparse = st.toggle(
                     "Only show notable coincidences (rate < 5%)", key="xm_sparse"
                 )
-                matrix_rows = {}
-                for ma in CIPHER_NAMES:
-                    cells = []
-                    for mb in CIPHER_NAMES:
-                        cnt = count_value(
-                            conn, mb, a_vals[ma], colel=colel,
-                            tracks=tracks or None, boundaries=bounds or None,
-                        )
-                        cells.append(0 if (xm_sparse and cnt / pop >= 0.05) else cnt)
-                    matrix_rows[f"{ma} ({a_vals[ma]})"] = cells
-                xm_df = pd.DataFrame.from_dict(
-                    matrix_rows, orient="index", columns=CIPHER_NAMES
+                xm_df = _xm_count_matrix(
+                    conn, a_vals, colel, tracks or None, bounds or None
                 )
+                if xm_sparse:
+                    xm_df = xm_df.where(xm_df / pop < 0.05, 0)
                 rate_mat = xm_df / pop
                 st.dataframe(
                     xm_df.style.background_gradient(

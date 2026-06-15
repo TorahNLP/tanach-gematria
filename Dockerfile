@@ -9,7 +9,7 @@ COPY . .
 
 # Pre-build the gematria database so cold starts skip the cipher computation.
 # tanach.db is baked into the image; startup restores it into memory (~1-2s).
-RUN python app.py builddb
+RUN python app.py builddb || echo "Pre-build skipped — will compute at runtime"
 
 EXPOSE 7860
 
