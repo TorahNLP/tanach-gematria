@@ -98,7 +98,7 @@ Search for `# SECTION N` to jump directly:
 | 5 | SQLite build (`_build_connection`) |
 | 6 | Pattern recognition (`build_pattern_log`) — pre-computes InternalBalance + ProximityEcho |
 | 6b | Module-level pattern helpers: `parse_pattern_ref`, `internal_balance_matches`, `proximity_echo_matches`, `whole_unit_echo_matches` |
-| 7 | Search with Colel window |
+| 7 | Search: `search_value`, `count_value`, `boundary_population`, `search_value_all_methods` (UNION ALL across all ciphers), `search_phrase` |
 | 8 | Stats & visualization helpers |
 | 8b | `cipher_breakdown()` — letter-by-letter equation for UI |
 | 9 | `run_selftest()` |
@@ -117,7 +117,9 @@ Search any Hebrew phrase or name across all 12 methods simultaneously. Colel (±
 **Cross-method coincidences** expander: a 12×12 matrix showing, for every cipher value of the input, how many corpus units match under every other method. Colored by coincidence rate (rarer = warmer). Drill-down selectboxes let you inspect any method-pair in detail.
 
 ### 2 · Scriptural Structural Explorer
-Browse every verse/word/chapter total by boundary type. Extremes table (highest/lowest/mean/median per boundary). Density gap analysis — value ranges with no verse representation. Click any row → **🔀 Cross-method lookup** expander: pick any method value from the row and search the full corpus by any other method.
+Browse every verse/word/chapter total by boundary type. Extremes table (highest/lowest/mean/median per boundary). Density gap analysis — value ranges with no verse representation.
+
+**Cell-click match lookup:** click any gematria number cell → the table below immediately shows every unit in the corpus that carries that same number under any of the 12 methods, with a Method column indicating which cipher matched (up to 50 results per method, single UNION ALL query). Click a match row to open the verse detail panel. Clicking a non-cipher cell (Book / Chapter / etc.) shows the verse detail for that row directly.
 
 ### 3 · Textual Echoes & Anomalies
 Unified pattern interface with live SQL queries — all results auto-update with filter changes.
@@ -134,6 +136,8 @@ Additional filters: **Min value** (suppress low-value noise; set ≥ 41 to exclu
 ### 4 · Macro Statistical Dashboard
 Plotly charts: distribution histograms per method, inter-method correlation heatmap, book-level fingerprint (mean Absolute per book). All interactive — hover, zoom, download. **Cross-method half-verse balance heatmap** at the bottom shows, for every method pair, the fraction of verses whose first half (row method) equals the second half (column method).
 
+All charts: scroll zoom disabled (`scrollZoom: false`) to prevent accidental zoom on trackpad/mouse. The Plotly toolbar (including reset-axes house icon) appears on hover in the top-right corner.
+
 ---
 
 ## Running locally
@@ -144,12 +148,17 @@ python -m venv .venv
 # source .venv/bin/activate     # macOS/Linux
 pip install -r requirements.txt
 
+# Pre-build the database for fast startup (writes tanach.db, ~133 MB, git-ignored)
+python app.py builddb
+
 # Logic check — exits 0 with "=== ALL SELF-TESTS PASSED ==="
 python app.py selftest
 
 # Launch the app
 streamlit run app.py
 ```
+
+`builddb` pre-computes all 12 cipher values for 23,206 verses and saves the result to `tanach.db`. If `tanach.db` is present, startup restores it into memory (~1–2s) instead of recomputing from scratch (~25s). The file is git-ignored; the Docker build runs `builddb` automatically so the pre-built DB is baked into the image.
 
 Run `python app.py selftest` after **any** engine change. It verifies Genesis 1:1 = 2701, all 12 ciphers, the Asnachta split, paragraph marker exclusion, Esther doublet (+vav = 6), Kri fork, DB build, search round-trips, and the Colel window.
 
