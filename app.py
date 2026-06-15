@@ -693,7 +693,7 @@ def load_from_sefaria(refs: List[str], timeout: int = 20) -> List[VerseInput]:
         try:
             url = f"{base}{urllib.parse.quote(ref)}?{query}"
             req = urllib.request.Request(
-                url, headers={"User-Agent": "tanakh-gematria/1.0"})
+                url, headers={"User-Agent": "tanach-gematria/1.0"})
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 data = json.loads(resp.read().decode("utf-8"))
             book = data.get("book", ref.split()[0])
@@ -1019,6 +1019,43 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
     return pd.read_sql_query(sql, conn, params=params)
 
 
+def count_value(conn: sqlite3.Connection, cipher: str, value: int,
+                colel: bool = False,
+                tracks: Optional[List[str]] = None,
+                boundaries: Optional[List[str]] = None) -> int:
+    """Exact match count (no LIMIT) — used for coincidence-rate denominators."""
+    where, params = [], []
+    if colel:
+        where.append(f"{cipher} BETWEEN ? AND ?")
+        params += [value - 1, value + 1]
+    else:
+        where.append(f"{cipher} = ?")
+        params.append(value)
+    if tracks:
+        where.append("variant_track IN (%s)" % ",".join("?" * len(tracks)))
+        params += tracks
+    if boundaries:
+        where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
+        params += boundaries
+    sql = "SELECT COUNT(*) FROM units WHERE " + " AND ".join(where)
+    return int(pd.read_sql_query(sql, conn, params=params).iloc[0, 0])
+
+
+def boundary_population(conn: sqlite3.Connection,
+                        tracks: Optional[List[str]] = None,
+                        boundaries: Optional[List[str]] = None) -> int:
+    """Total units matching the given track/boundary filters — the denominator."""
+    where, params = [], []
+    if tracks:
+        where.append("variant_track IN (%s)" % ",".join("?" * len(tracks)))
+        params += tracks
+    if boundaries:
+        where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
+        params += boundaries
+    sql = "SELECT COUNT(*) FROM units" + (" WHERE " + " AND ".join(where) if where else "")
+    return int(pd.read_sql_query(sql, conn, params=params).iloc[0, 0])
+
+
 def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
                   colel: bool = False, tracks: Optional[List[str]] = None,
                   boundaries: Optional[List[str]] = None) -> Dict[str, object]:
@@ -1060,7 +1097,7 @@ def extremes_table(conn: sqlite3.Connection,
             "Max": int(col.max()), "Min": int(col.min()),
             "Mean": round(float(col.mean()), 1),
             "Median": float(col.median()),
-            "StdDev": round(float(col.std() or 0.0), 1),
+            "StdDev": round(float(sd), 1) if pd.notna(sd := col.std()) else 0.0,
         })
     return pd.DataFrame(rows)
 
@@ -1228,15 +1265,11 @@ def run_selftest() -> None:
 # ---------------------------------------------------------------------------
 
 def run_app() -> None:
-    import matplotlib.pyplot as plt
-    import seaborn as sns
     import streamlit as st
 
     st.set_page_config(page_title="Tanach Gematria Engine",
                        page_icon="📜", layout="wide",
                        initial_sidebar_state="collapsed")
-    sns.set_theme(style="whitegrid")
-
     @st.cache_resource(show_spinner="Loading gematria database…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         # Primary corpus: bundled full Tanach. Falls back to SAMPLE_CORPUS
@@ -1266,16 +1299,16 @@ def run_app() -> None:
                 st.rerun()
         return conn, n, verse_index
 
+    conn, n_loaded, verse_index = get_connection("")
+
     with st.sidebar:
         st.header("⚙️ Corpus")
-        st.caption("23,206 Masoretic verses — loaded from bundled corpus.")
+        st.caption(f"{n_loaded:,} Masoretic verses — loaded from bundled corpus.")
         st.divider()
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
         st.caption("Traditional: Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad. "
                    "Researched additions: Siduri, Ribua, Kidmi, Achbi, HaNikud.")
-
-    conn, n_loaded, verse_index = get_connection("")
 
     DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
 
@@ -1434,6 +1467,80 @@ def run_app() -> None:
                         render_verse_detail(
                             row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
                             matched_text=row.get("Text"), active_method=cipher)
+
+            with st.expander("🔀 Cross-method coincidences", expanded=False):
+                st.caption(
+                    "Rows = your word under **Method A** (value shown); columns = "
+                    "corpus **Method B** searched. Cell = match count, colored by "
+                    "coincidence rate — warmer color = rarer = more notable. "
+                    "Colel, track, and unit filters are shared with the search above."
+                )
+                a_vals = dict(vals)
+                a_vals["HaNikud"] = g_nikud(raw)
+                pop = boundary_population(conn, tracks or None, bounds or None) or 1
+                xm_sparse = st.toggle(
+                    "Only show notable coincidences (rate < 5%)", key="xm_sparse"
+                )
+                matrix_rows = {}
+                for ma in CIPHER_NAMES:
+                    cells = []
+                    for mb in CIPHER_NAMES:
+                        cnt = count_value(
+                            conn, mb, a_vals[ma], colel=colel,
+                            tracks=tracks or None, boundaries=bounds or None,
+                        )
+                        cells.append(0 if (xm_sparse and cnt / pop >= 0.05) else cnt)
+                    matrix_rows[f"{ma} ({a_vals[ma]})"] = cells
+                xm_df = pd.DataFrame.from_dict(
+                    matrix_rows, orient="index", columns=CIPHER_NAMES
+                )
+                rate_mat = xm_df / pop
+                st.dataframe(
+                    xm_df.style.background_gradient(
+                        cmap="YlOrRd_r", axis=None,
+                        gmap=rate_mat.to_numpy(),
+                    ),
+                    use_container_width=True,
+                )
+                st.caption(
+                    "★ The **HaNikud** column is non-zero only for Verse / Petucha / "
+                    "Setuma rows — word and half-verse units store no vowel data."
+                )
+                st.markdown("**Drill into a pair**")
+                dc1, dc2 = st.columns(2)
+                with dc1:
+                    drill_a = st.selectbox(
+                        "Method A", CIPHER_NAMES, key="xm_drill_a"
+                    )
+                with dc2:
+                    drill_b = st.selectbox(
+                        "Method B", CIPHER_NAMES, index=0, key="xm_drill_b"
+                    )
+                drill_val = a_vals[drill_a]
+                st.markdown(
+                    f"**{drill_a}({raw.strip()}) = {drill_val}** "
+                    f"→ corpus units with **{drill_b} = {drill_val}**"
+                    + (" ± 1" if colel else "")
+                )
+                drill_res = search_value(
+                    conn, drill_b, drill_val, colel, tracks or None, bounds or None
+                )
+                if drill_res.empty:
+                    st.info("No corpus unit matches this pair at the current filters.")
+                else:
+                    ev_drill = st.dataframe(
+                        drill_res, use_container_width=True, hide_index=True,
+                        on_select="rerun", selection_mode="single-row",
+                        key="xm_drill_sel",
+                    )
+                    if ev_drill.selection.rows:
+                        rd = drill_res.iloc[ev_drill.selection.rows[0]]
+                        with st.expander("📜 Verse detail", expanded=True):
+                            render_verse_detail(
+                                rd["Book"], rd["Chapter"], rd["Verse"],
+                                rd["Boundary"], matched_text=rd.get("Text"),
+                                active_method=drill_b,
+                            )
         else:
             st.warning("Enter a Hebrew or transliterable phrase to search.")
 
@@ -1516,9 +1623,8 @@ def run_app() -> None:
             with fc2:
                 sel_methods = st.multiselect(
                     "Gematria method", CIPHER_NAMES, placeholder="All methods")
-                if sel_methods:
-                    for m in sel_methods:
-                        st.caption(CIPHER_BLURB.get(m, ""))
+                if len(sel_methods) == 1:
+                    st.caption(CIPHER_BLURB.get(sel_methods[0], ""))
             view = pat.copy()
             if sel_ptypes:
                 view = view[view.pattern_type.isin(sel_ptypes)]
@@ -1560,16 +1666,18 @@ def run_app() -> None:
                 pat_type = sel["Pattern"]
                 ref_a_str = str(sel["Reference A"])
                 ref_b_str = str(sel["Reference B"])
-                active_m = cfilter  # None when 0 or 2+ methods selected
+                active_m = str(sel["Method"]) if "Method" in sel.index else cfilter
 
                 with st.expander("📜 Referenced verses", expanded=True):
                     if "Internal Balance" in pat_type:
-                        # Both halves of the same verse — show once with both halves highlighted
-                        parsed = _parse_pattern_ref(ref_a_str)
-                        if parsed:
-                            book, chap, vs, boundary = parsed
-                            render_verse_detail(book, chap, vs, boundary,
-                                                active_method=active_m)
+                        for label, ref_str in [("First half (before Asnachta)", ref_a_str),
+                                               ("Second half (after Asnachta)", ref_b_str)]:
+                            parsed = _parse_pattern_ref(ref_str)
+                            if parsed:
+                                book, chap, vs, boundary = parsed
+                                st.markdown(f"**{label}**")
+                                render_verse_detail(book, chap, vs, boundary,
+                                                    active_method=active_m)
                     elif "Proximity Echo" in pat_type:
                         for label, ref_str in [("Verse A", ref_a_str), ("Verse B", ref_b_str)]:
                             parsed = _parse_pattern_ref(ref_str)
@@ -1586,6 +1694,72 @@ def run_app() -> None:
                                 book, chap, vs, boundary = parsed
                                 render_verse_detail(book, chap, vs, boundary,
                                                     active_method=active_m)
+
+        st.divider()
+        st.markdown("### Cross-Method Half-Verse Balance")
+        st.caption(
+            "Find verses where the first half under one method equals the second half "
+            "under a different method — a cross-method extension of Internal Balance."
+        )
+        xmhv_c1, xmhv_c2, xmhv_c3 = st.columns([2, 2, 1])
+        with xmhv_c1:
+            xmhv_a = st.selectbox("First half — method", CIPHER_NAMES, key="xmhv_a")
+        with xmhv_c2:
+            xmhv_b = st.selectbox("Second half — method", CIPHER_NAMES,
+                                   index=0, key="xmhv_b")
+        with xmhv_c3:
+            xmhv_colel = st.toggle("Colel (±1)", value=False, key="xmhv_colel")
+
+        total_hv = int(pd.read_sql_query(
+            "SELECT COUNT(*) FROM units u1 JOIN units u2 "
+            "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
+            "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
+            "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv'",
+            conn).iloc[0, 0])
+
+        if xmhv_a == xmhv_b:
+            st.info(
+                "Same method on both halves — this is standard Internal Balance. "
+                "See the pattern table above for the pre-computed results."
+            )
+        else:
+            tol = 1 if xmhv_colel else 0
+            xmhv_sql = (
+                f'SELECT u1.book AS Book, u1.chapter AS Chapter, u1.verse AS Verse, '
+                f'u1.{xmhv_a} AS "First Half ({xmhv_a})", '
+                f'u2.{xmhv_b} AS "Second Half ({xmhv_b})" '
+                "FROM units u1 JOIN units u2 "
+                "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
+                "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
+                "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
+                f"AND ABS(u1.{xmhv_a} - u2.{xmhv_b}) <= {tol} "
+                "ORDER BY u1.book, u1.chapter, u1.verse LIMIT 500"
+            )
+            xmhv_df = pd.read_sql_query(xmhv_sql, conn)
+            n_hv = len(xmhv_df)
+            pct = (n_hv / total_hv * 100) if total_hv else 0.0
+            st.markdown(
+                f"**{n_hv:,} of {total_hv:,} verses ({pct:.1f}%)** show "
+                f"`{xmhv_a}(first half) = {xmhv_b}(second half)`"
+                + (" *(list capped at 500)*" if n_hv >= 500 else "")
+            )
+            if xmhv_df.empty:
+                st.info(
+                    "No verse in the loaded corpus balances under these two methods "
+                    "at the current Colel setting."
+                )
+            else:
+                ev_hv = st.dataframe(
+                    xmhv_df, use_container_width=True, hide_index=True,
+                    on_select="rerun", selection_mode="single-row", key="xmhv_sel",
+                )
+                if ev_hv.selection.rows:
+                    rhv = xmhv_df.iloc[ev_hv.selection.rows[0]]
+                    with st.expander("📜 Verse detail", expanded=True):
+                        render_verse_detail(
+                            rhv["Book"], rhv["Chapter"], rhv["Verse"],
+                            "Verse", active_method=xmhv_a,
+                        )
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
     with tab4:
@@ -1673,7 +1847,51 @@ def run_app() -> None:
                 st.caption("Integer ranges with no verse in the loaded corpus. "
                            "Values near wide gaps are statistically rarer.")
 
-    # ===================== TAB 5: GUIDE & SOURCES ========================
+        st.divider()
+        with st.expander("Cross-method half-verse balance — corpus overview",
+                         expanded=False):
+            import plotly.express as _px_xm
+
+            @st.cache_data(show_spinner="Computing cross-method balance matrix…")
+            def _xm_balance_matrix(_conn):
+                cols = ", ".join(
+                    f'SUM(CASE WHEN ABS(u1.{mx} - u2.{my}) <= 1 THEN 1 ELSE 0 END) '
+                    f'AS "{mx}_vs_{my}"'
+                    for mx in CIPHER_NAMES for my in CIPHER_NAMES
+                )
+                sql = (
+                    f"SELECT COUNT(*) AS total_verses, {cols} "
+                    "FROM units u1 JOIN units u2 "
+                    "ON u1.book=u2.book AND u1.chapter=u2.chapter "
+                    "AND u1.verse=u2.verse "
+                    "WHERE u1.boundary_type='FirstHalf' "
+                    "AND u2.boundary_type='SecondHalf' "
+                    "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv'"
+                )
+                row = pd.read_sql_query(sql, _conn).iloc[0]
+                total = int(row["total_verses"]) or 1
+                data = [[int(row[f"{mx}_vs_{my}"]) / total for my in CIPHER_NAMES]
+                        for mx in CIPHER_NAMES]
+                return pd.DataFrame(data, index=CIPHER_NAMES, columns=CIPHER_NAMES), total
+
+            rate_df, total_verses = _xm_balance_matrix(conn)
+            fig_xm = _px_xm.imshow(
+                rate_df, text_auto=".1%",
+                color_continuous_scale="YlOrRd", aspect="auto",
+                title="Cross-method half-verse balance rate (Colel ±1)",
+                labels=dict(x="Second half — method",
+                            y="First half — method", color="Rate"),
+            )
+            fig_xm.update_layout(height=560, margin=dict(t=50, b=30, l=120, r=20))
+            st.plotly_chart(fig_xm, use_container_width=True)
+            st.caption(
+                f"Based on {total_verses:,} Tanach verses (Ksiv track) that have both "
+                "half-verse units. Each cell = fraction of those verses where the first "
+                "half's [row method] value equals the second half's [column method] "
+                "value (±1). Diagonal = standard Internal Balance."
+            )
+
+    # ===================== TAB 6: GUIDE & SOURCES ========================
     with tab_guide:
         st.title("Tanach Gematria Search & Structural Pattern Engine")
         st.markdown(
@@ -1685,85 +1903,62 @@ def run_app() -> None:
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
-            import streamlit.components.v1 as _components
-            _components.html("""<!DOCTYPE html>
-<html><head><style>
-* { box-sizing: border-box; }
-body {
-  font-family: "Source Sans Pro", "Helvetica Neue", Arial, sans-serif;
-  font-size: 14px; line-height: 1.6; color: #262730;
-  margin: 0; padding: 2px 0; background: transparent;
-}
-.sec-btn {
-  background: none; border: none; padding: 0; margin: 0 0 5px 0;
-  font-size: 15px; font-weight: 700; color: #ff4b4b;
-  cursor: pointer; text-align: left; display: block;
-}
-.sec-btn:hover { text-decoration: underline; }
-.body { margin: 0 0 6px 0; }
-ul { margin: 3px 0 4px 18px; padding: 0; }
-li { margin-bottom: 2px; }
-hr { border: none; border-top: 1px solid #e0e0e0; margin: 10px 0; }
-.guide-note { font-style: italic; color: #555; margin-bottom: 6px; }
-</style></head><body>
+            st.caption(
+                "📖 **Guide & Sources** (this tab) — Start here. "
+                "Explains all 12 gematria methods with earliest Talmudic or medieval sources, "
+                "reading tracks, boundary types, and the Rule of the Colel. "
+                "Also contains the full Masoretic variant registry."
+            )
 
-<div class="guide-note">📖 <strong>Guide &amp; Sources</strong> (this tab) — Start here.
-Explains all 12 gematria methods with earliest Talmudic or medieval sources, reading tracks,
-boundary types, and the Rule of the Colel. Also contains the full Masoretic variant registry.</div>
-<hr>
+            st.markdown("##### 1 · Phrase & Name Matcher")
+            st.markdown(
+                "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
+                "cantillation down to the 22 consonants and computes values across all 12 methods "
+                "simultaneously. Select a method to see every matching structural unit in the "
+                "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
+                "to open the full cantillated verse with the matched portion highlighted and a "
+                "letter-by-letter breakdown for the chosen method. "
+                "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
+                "a standard leniency in traditional gematria practice. "
+                "Open **🔀 Cross-method coincidences** below the results to see a 12×12 matrix "
+                "showing how every cipher value of your input matches every corpus method — "
+                "rare coincidences are highlighted, and you can drill into any pair."
+            )
 
-<button class="sec-btn" onclick="goToTab('Phrase')">1 · Phrase &amp; Name Matcher</button>
-<div class="body">
-  Type any Hebrew word, name, or phrase. The engine strips vowel marks and cantillation
-  down to the 22 consonants and computes values across all 12 methods simultaneously.
-  Select a method to see every matching structural unit in the Tanach — word, half-verse,
-  verse, paragraph, or chapter. Click any result row to open the full cantillated verse
-  with the matched portion highlighted and a letter-by-letter breakdown for the chosen method.
-  <br>Toggle <strong>Rule of the Colel (±1)</strong> to also match values one above or below —
-  a standard leniency in traditional gematria practice.
-</div>
-<hr>
+            st.markdown("##### 2 · Scriptural Structural Explorer")
+            st.markdown(
+                "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
+                "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
+                "closed paragraph (Setuma ס), or individual Verse (פסוק). "
+                "Every row shows gematria totals under all 12 methods for that block. "
+                "Click a row to open the verse detail panel."
+            )
 
-<button class="sec-btn" onclick="goToTab('Structural')">2 · Scriptural Structural Explorer</button>
-<div class="body">
-  Browse the entire Tanach by structural unit: Chapter (Perek), Torah portion (Parsha),
-  open paragraph (Petucha), closed paragraph (Setuma), or individual verse. Every row shows
-  gematria totals under all 12 methods for that block. Filter by book or parsha name.
-  Click a row to open the verse detail panel.
-</div>
-<hr>
+            st.markdown("##### 3 · Textual Echoes & Anomalies")
+            st.markdown(
+                "The engine automatically scans the corpus for three structural patterns:\n"
+                "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
+                "share the same gematria value, or differ by only 1 (Colel).\n"
+                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n"
+                "- **Macro–Micro Resonance** — a verse whose value equals its containing chapter total — "
+                "the part mirrors the whole.\n\n"
+                "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
+                "pick any two methods and find verses where the first half under method X equals "
+                "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
+                "Filter by pattern type or method, then click a row to see the referenced verses."
+            )
 
-<button class="sec-btn" onclick="goToTab('Echoes')">3 · Textual Echoes &amp; Anomalies</button>
-<div class="body">
-  The engine automatically scans the corpus for three structural patterns:
-  <ul>
-    <li><strong>Internal Balance</strong> — a verse whose two halves (split at the Asnachta mark)
-      share the same gematria value, or differ by only 1 (Colel).</li>
-    <li><strong>Proximity Echo</strong> — two consecutive verses sharing the same value
-      under a given method.</li>
-    <li><strong>Macro–Micro Resonance</strong> — a verse whose value divides evenly into
-      its chapter total — the part mirrors the whole.</li>
-  </ul>
-  Filter by pattern type or method, then click a row to see the referenced verses.
-</div>
-<hr>
+            st.markdown("##### 4 · Macro Statistical Dashboard")
+            st.markdown(
+                "High-level statistics across the full corpus: highest and lowest values by structure, "
+                "value-distribution histograms, a 12-method correlation heatmap, a per-book fingerprint "
+                "chart, and integer ranges with no verse representation. All charts are interactive — "
+                "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
+                "bottom shows, for every method pair, the fraction of verses whose first half "
+                "(row method) equals the second half (column method)."
+            )
 
-<button class="sec-btn" onclick="goToTab('Statistical')">4 · Macro Statistical Dashboard</button>
-<div class="body">
-  High-level statistics across the full corpus: highest and lowest values by structure,
-  value-distribution histograms, a 12-method correlation heatmap, a per-book fingerprint
-  chart, and integer ranges with no verse representation.
-</div>
-
-<script>
-function goToTab(kw) {
-  var tabs = window.parent.document.querySelectorAll('[role="tab"]');
-  for (var i = 0; i < tabs.length; i++) {
-    if (tabs[i].textContent.indexOf(kw) !== -1) { tabs[i].click(); return; }
-  }
-}
-</script>
-</body></html>""", height=490, scrolling=False)
+            st.caption("Use the tabs at the top of the page to navigate between sections.")
 
         st.divider()
         st.subheader("📖 Reference material")

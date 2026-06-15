@@ -21,6 +21,6 @@ pattern detection (internal balance, proximity echoes, macro-micro resonances) �
 correlation & fingerprint heatmaps · letter-by-letter breakdown visualization ·
 Guide & Sources tab with method sources and variant docs.
 
-See `HANDOFF.md` for architecture and maintenance notes.
+See `BUILD.md` for architecture and build reference.
 
 Licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
