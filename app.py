@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """
 Tanach Gematria Search Engine, Structural Pattern Database & Statistical Visualizer
 ===================================================================================
@@ -1582,6 +1582,192 @@ def run_app() -> None:
         "4 · Macro Statistical Dashboard",
     ])
 
+    # ===================== TAB GUIDE: GUIDE & SOURCES ==================
+    with tab_guide:
+        st.title("Tanach Gematria Search & Structural Pattern Engine")
+        st.markdown(
+            "A multi-method Hebrew gematria engine over the complete Masoretic text — "
+            "23,206 cantillated verses sourced from Sefaria. "
+            "Search for phrases and names, explore structural patterns, and analyse the "
+            "statistical fingerprint of the Tanach across 12 gematria methods."
+        )
+        st.divider()
+
+        with st.expander("How to use this app", expanded=True):
+            st.caption(
+                "📖 **Guide & Sources** (this tab) — Start here. "
+                "Explains all 12 gematria methods with earliest Talmudic or medieval sources, "
+                "reading tracks, boundary types, and the Rule of the Colel. "
+                "Also contains the full Masoretic variant registry."
+            )
+
+            st.markdown("**1 · Phrase & Name Matcher**")
+            st.markdown(
+                "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
+                "cantillation down to the 22 consonants and computes values across all 12 methods "
+                "simultaneously. Select a method to see every matching structural unit in the "
+                "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
+                "to open the full cantillated verse with the matched portion highlighted and a "
+                "letter-by-letter breakdown for the chosen method. "
+                "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
+                "a standard leniency in traditional gematria practice. "
+                "Open **🔀 Cross-method coincidences** below the results to see a 12×12 matrix "
+                "showing how every cipher value of your input matches every corpus method — "
+                "rare coincidences are highlighted, and you can drill into any pair."
+            )
+
+            st.markdown("**2 · Scriptural Structural Explorer**")
+            st.markdown(
+                "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
+                "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
+                "closed paragraph (Setuma ס), or individual Verse (פסוק). "
+                "Every row shows gematria totals under all 12 methods for that block. "
+                "Click a row to open the verse detail panel."
+            )
+
+            st.markdown("**3 · Textual Echoes & Anomalies**")
+            st.markdown(
+                "The engine automatically scans the corpus for three structural patterns:\n"
+                "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
+                "share the same gematria value, or differ by only 1 (Colel).\n"
+                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n\n"
+                "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
+                "pick any two methods and find verses where the first half under method X equals "
+                "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
+                "Filter by pattern type or method, then click a row to see the referenced verses."
+            )
+
+            st.markdown("**4 · Macro Statistical Dashboard**")
+            st.markdown(
+                "High-level statistics across the full corpus: highest and lowest values by structure, "
+                "value-distribution histograms, a 12-method correlation heatmap, a per-book fingerprint "
+                "chart, and integer ranges with no verse representation. All charts are interactive — "
+                "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
+                "bottom shows, for every method pair, the fraction of verses whose first half "
+                "(row method) equals the second half (column method)."
+            )
+
+
+        st.divider()
+        st.subheader("📖 Reference material")
+        st.caption(
+            "All method rules are exact (verified against the engine code). "
+            "Historical attributions are traditional and noted where uncertain."
+        )
+
+        with st.expander("The 12 gematria methods", expanded=True):
+            st.dataframe(pd.DataFrame([
+                {"Method": "Absolute",
+                 "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
+                 "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
+                 "Earliest Source": "Biblical era (attested in use). Rabbinic formulation: BT Nedarim 32a interprets the '318 servants' of Gen. 14:14 as the name אֱלִיעֶזֶר (=318) — the earliest clear Talmudic use. The term 'gematriot' appears as a category of wisdom in Mishnah Avot 3:18. BT Sanhedrin 22a discusses the practice explicitly."},
+                {"Method": "Katan",
+                 "Hebrew": "מספר קטן (Mispar Katan)",
+                 "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
+                 "Earliest Source": "Medieval. No Talmudic source for this specific reduction. Formalized in Hasidei Ashkenaz tradition (12th–13th c.), appearing in works such as Sefer Gematriot (attr. R. Yehuda he-Hasid, d. 1217)."},
+                {"Method": "Gadol",
+                 "Hebrew": "מספר גדול (Mispar Gadol)",
+                 "Rule": "Like Absolute, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
+                 "Earliest Source": "The 27-letter sequence including finals is described in Sefer Yetzirah 2:2 (dated 3rd–6th c. CE by scholarship; earlier by tradition). Practical use with the higher values in gematria appears in Sefer ha-Bahir (12th c.) and the Zohar (13th c.)."},
+                {"Method": "Atbash",
+                 "Hebrew": "אתב\"ש (At-Bash)",
+                 "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Absolute values of the swapped letters.",
+                 "Earliest Source": "The oldest attested gematria method — appears in the Hebrew Bible itself. 'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
+                {"Method": "Albam",
+                 "Hebrew": "אלב\"ם (Al-Bam)",
+                 "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
+                 "Earliest Source": "Classical temurah described in Sefer Yetzirah ch. 2 (3rd–6th c. CE). Elaborated in Sefer Yetzirah commentaries by Rav Saadia Gaon (882–942 CE) and R. Dunash ibn Tamim (10th c.)."},
+                {"Method": "Atbah",
+                 "Hebrew": "אטב\"ח (At-Bach)",
+                 "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
+                 "Earliest Source": "Attributed to Rabbi Eliezer ben Yose ha-Gelili, a 2nd-century Tanna. The full name 'Atbah of R. Eliezer' appears in the Baraita of 32 Hermeneutical Rules (Tannaic era, transmitted in medieval compilations) and in Midrashic literature."},
+                {"Method": "Avgad",
+                 "Hebrew": "אבג\"ד (Av-Gad)",
+                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute values of the shifted letters.",
+                 "Earliest Source": "Classical cyclic temurah. The concept of cyclic letter shifting appears within the temurah tradition of Sefer Yetzirah (3rd–6th c. CE). The specific Avgad cipher is named and elaborated in medieval Kabbalistic works."},
+                {"Method": "Siduri",
+                 "Hebrew": "מספר סידורי (Mispar Siduri)",
+                 "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
+                 "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria method, widely attested in Midrashic literature and medieval biblical commentary."},
+                {"Method": "Ribua",
+                 "Hebrew": "מספר מרובע (Mispar Meruba Pratti)",
+                 "Rule": "Square each letter's Absolute value, then sum all squares (Σ v²).",
+                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in Sefer ha-Bahir (Provence, 12th c.) and later Zoharic and Lurianic literature."},
+                {"Method": "Kidmi",
+                 "Hebrew": "מספר קדמי / משולש (Mispar Kidmi)",
+                 "Rule": "Triangular cumulative: each letter's value = sum of all Absolute values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
+                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in later Kabbalistic computational texts; the triangular-number principle is implicit in Pythagorean numerology as absorbed into medieval Jewish mysticism."},
+                {"Method": "Achbi",
+                 "Hebrew": "אכב\"י (Ach-Bi)",
+                 "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
+                 "Earliest Source": "Classical temurah variant. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE). A less common scheme; named and discussed in medieval Kabbalistic commentaries."},
+                {"Method": "HaNikud",
+                 "Hebrew": "מספר הנקוד (Mispar HaNikud)",
+                 "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
+                 "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Based on visual dot-count analysis used in modern Kabbalistic study software. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
+            ]), use_container_width=True, hide_index=True)
+
+        with st.expander("Variant tracks"):
+            st.markdown("""
+**Ksiv (כְּתִיב — "Written")** — The consonantal text exactly as written in the Torah scroll. The default track; every verse is recorded here. The Masoretes went to extraordinary lengths to preserve this text letter-perfect.
+
+**Kri (קְרֵי — "Read")** — The text as traditionally *read aloud*, sometimes differing from the written form. Marginal notes mark every divergence. Different consonants → different gematria totals. Example: Psalms 100:3 written לֹא (alef), read לוֹ (vav), difference = 1 Absolute.
+
+*Qere Perpetuum* — A subset of Kri: substitutions so consistent they receive only one marginal note for all occurrences. Chief example: in the Torah, הִיא ("she") is written as הוּא ("he") 33 times; a single note at Genesis 3:20 covers all (cf. BT Yevamot). Implemented via the Kri track.
+
+**TextVariant (Masoretic Textual Variants)** — Documented variant readings of a specific word or phrase, forked as an alternate gematria row for the same verse. Two sub-categories are engine-active:
+""")
+            st.markdown("**Itture Sopherim — Five scribal omissions (BT Nedarim 37b)**")
+            st.dataframe(pd.DataFrame([
+                {"Reference": f"{b} {c}:{v}", "Received (Masoretic)": spec["from"],
+                 "TextVariant (with vav)": spec["to"], "Note": spec["note"]}
+                for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
+                if spec["category"] == "Ittur Sopherim"
+            ]), use_container_width=True, hide_index=True)
+            st.markdown("**Esther doublets**")
+            st.dataframe(pd.DataFrame([
+                {"Reference": f"{b} {c}:{v}", "Received": spec["from"],
+                 "Variant": spec["to"], "Note": spec["note"]}
+                for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
+                if spec["category"] == "Doublet"
+            ]), use_container_width=True, hide_index=True)
+            st.markdown("""
+**Aggregate** — Structural totals (Perek/Parsha sums from Ksiv verses). Not a text variant; a statistical macro-unit.
+
+---
+**Tiqqune Sopherim (תיקוני סופרים) — 18 scribal corrections (documented, not engine-forked)**
+
+These 18 places are where the Masoretic tradition records that scribes emended the text — mainly to remove anthropomorphisms or avoid theological offence. The received Masoretic text already contains the corrected reading. The "original" wording is preserved in rabbinic literature (Mekhilta, Sifre Num. §84, Yalkut Shimoni, Tanḥuma). Note: the exact list of 18 varies across sources.
+""")
+            st.dataframe(pd.DataFrame(TIQQUNE_SOPHERIM), use_container_width=True, hide_index=True)
+            st.markdown("""
+**Doublet passages (documented, not engine-forked)**
+
+These are separate references that share nearly identical text — two distinct verses in two different books, not two readings of one verse. The fork engine doesn't apply here; they are best studied by comparing the two passages directly.
+""")
+            st.dataframe(pd.DataFrame(DOUBLET_PASSAGES), use_container_width=True, hide_index=True)
+
+        with st.expander("Boundary types"):
+            st.dataframe(pd.DataFrame([
+                {"Boundary": "Word (תיבה)",      "Meaning": "Single word token, split on space and maqaf (־).",                                             "Why meaningful": "Smallest meaning-bearing unit; classic gematria target (name totals, first/last words)."},
+                {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Asnachta-bearing word (inclusive).",                                     "Why meaningful": "The Asnachta (֑) is the verse's primary cantillation pause — its main syntactic division."},
+                {"Boundary": "SecondHalf",        "Meaning": "From after the Asnachta to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
+                {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
+                {"Boundary": "Pesucha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
+                {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
+                {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
+                {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},
+            ]), use_container_width=True, hide_index=True)
+
+        with st.expander("The Rule of the Colel (כּוֹלֵל)"):
+            st.markdown("""
+The *Colel* (כּוֹלֵל, "the inclusive / the whole") permits adding or subtracting **1** to a gematria total — conventionally counting "the word itself" or "the number as a unit" as one extra. A match within ±1 of the target is treated as equivalent.
+
+This principle appears throughout Kabbalistic and Hasidic commentary and is invoked by various authorities (including the Vilna Gaon and Baal HaTurim–style annotations). Its precise origin is diffuse; present it as a traditional/widely-used principle rather than pinning it to a single text.
+
+**How the toggle works in this engine:** when enabled, `search_value` matches `target−1`, `target`, and `target+1` (SQL `BETWEEN`), and results are ordered by proximity (`ABS(cipher − value)`). The internal-balance detector likewise flags half-verses equal within ±1 as `colel±1`.
+""")
+
     # ======================= TAB 1: PHRASE MATCHER =======================
     with tab1:
         st.subheader("Phrase & Name Matcher")
@@ -1601,7 +1787,7 @@ def run_app() -> None:
         with cc1:
             tracks = st.multiselect(
                 "Reading tracks",
-                ["Ksiv", "Kri", "TextVariant", "Aggregate"],
+                ["Ksiv", "Kri", "TextVariant"],
                 default=["Ksiv"],
                 format_func=lambda t: TRACK_LABELS.get(t, t))
         with cc2:
@@ -1612,9 +1798,15 @@ def run_app() -> None:
                 default=["Word", "Verse", "FirstHalf", "SecondHalf"],
                 format_func=lambda b: BOUNDARY_LABELS.get(b, b))
 
+        # Perek/Parsha rows are stored under the "Aggregate" track (a DB tag,
+        # not a reading tradition). Auto-include it when those boundaries are selected.
+        effective_tracks = list(tracks)
+        if any(b in (bounds or []) for b in ("Perek", "Parsha")) and "Aggregate" not in effective_tracks:
+            effective_tracks.append("Aggregate")
+
         if cons:
             payload = search_phrase(conn, cons, colel=colel,
-                                    tracks=tracks or None, boundaries=bounds or None)
+                                    tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
             st.markdown("#### Computed values across all methods")
             st.dataframe(pd.DataFrame([vals]), use_container_width=True,
@@ -1652,12 +1844,12 @@ def run_app() -> None:
                 )
                 a_vals = dict(vals)
                 a_vals["HaNikud"] = g_nikud(raw)
-                pop = boundary_population(conn, tracks or None, bounds or None) or 1
+                pop = boundary_population(conn, effective_tracks or None, bounds or None) or 1
                 xm_sparse = st.toggle(
                     "Only show notable coincidences (rate < 5%)", key="xm_sparse"
                 )
                 xm_df = _xm_count_matrix(
-                    conn, a_vals, colel, tracks or None, bounds or None
+                    conn, a_vals, colel, effective_tracks or None, bounds or None
                 )
                 if xm_sparse:
                     xm_df = xm_df.where(xm_df / pop < 0.05, 0)
@@ -1690,7 +1882,7 @@ def run_app() -> None:
                     + (" ± 1" if colel else "")
                 )
                 drill_res = search_value(
-                    conn, drill_b, drill_val, colel, tracks or None, bounds or None
+                    conn, drill_b, drill_val, colel, effective_tracks or None, bounds or None
                 )
                 if drill_res.empty:
                     st.info("No corpus unit matches this pair at the current filters.")
@@ -1739,48 +1931,55 @@ def run_app() -> None:
             event2 = st.dataframe(
                 show, use_container_width=True, hide_index=True,
                 on_select="rerun",
-                selection_mode=["single-row", "single-column"],
+                selection_mode="single-row",
                 key="t2_sel")
             st.caption(f"{len(show)} {BOUNDARY_LABELS.get(kind, kind)} unit(s). "
                        "Every method column is an indexed gematria total for that block.")
 
+            cipher_pick = st.selectbox(
+                "Look up matches for which method's value?",
+                CIPHER_NAMES, index=0, key="t2_cipher_pick",
+                help="Pick a gematria method, then select a row above. The bottom "
+                     "panel lists every corpus unit sharing that row's value under "
+                     "any of the 12 methods.")
+
             sel_rows = event2.selection.rows
-            sel_cols = event2.selection.columns
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
-                clicked_col = sel_cols[0] if sel_cols else None
 
-                if clicked_col and clicked_col in CIPHER_NAMES:
-                    # Cell click on a cipher column → all-methods match
-                    cell_val = int(row2[clicked_col])
-                    st.markdown(
-                        f"**{clicked_col} = {cell_val}** — every unit in the corpus "
-                        f"that shares this value (up to 50 per method):")
-                    match_df = search_value_all_methods(conn, cell_val)
-                    if match_df.empty:
-                        st.info("No corpus unit has this exact value under any method.")
-                    else:
-                        ev_match = st.dataframe(
-                            match_df[["Method", "Book", "Chapter", "Verse",
-                                      "Boundary", "Text", "Value"]],
-                            use_container_width=True, hide_index=True,
-                            on_select="rerun", selection_mode="single-row",
-                            key="t2_match_sel")
-                        st.caption(f"{len(match_df)} match(es) across "
-                                   f"{match_df['Method'].nunique()} method(s).")
-                        if ev_match.selection.rows:
-                            rm = match_df.iloc[ev_match.selection.rows[0]]
-                            with st.expander("📜 Verse detail", expanded=True):
-                                render_verse_detail(
-                                    rm["Book"], rm["Chapter"], rm["Verse"],
-                                    rm["Boundary"], matched_text=rm.get("Text"),
-                                    active_method=str(rm.get("Method", "")))
-                else:
-                    # Row click without cipher column → verse detail
+                # Show this row's values across all 12 methods.
+                summary = {c: int(row2[c]) for c in CIPHER_NAMES if c in row2.index}
+                st.markdown("**Selected unit — values across all 12 methods:**")
+                st.dataframe(pd.DataFrame([summary]),
+                             use_container_width=True, hide_index=True)
+
+                cell_val = int(row2[cipher_pick])
+                st.markdown(
+                    f"**{cipher_pick} = {cell_val}** — every unit in the corpus "
+                    f"that shares this value (up to 50 per method):")
+                match_df = search_value_all_methods(conn, cell_val)
+                if match_df.empty:
+                    st.info("No corpus unit has this exact value under any method.")
                     if kind in DETAIL_BOUNDARIES:
                         with st.expander("📜 Verse detail", expanded=True):
                             render_verse_detail(
                                 row2["Book"], row2["Chapter"], row2["Verse"], kind)
+                else:
+                    ev_match = st.dataframe(
+                        match_df[["Method", "Book", "Chapter", "Verse",
+                                  "Boundary", "Text", "Value"]],
+                        use_container_width=True, hide_index=True,
+                        on_select="rerun", selection_mode="single-row",
+                        key="t2_match_sel")
+                    st.caption(f"{len(match_df)} match(es) across "
+                               f"{match_df['Method'].nunique()} method(s).")
+                    if ev_match.selection.rows:
+                        rm = match_df.iloc[ev_match.selection.rows[0]]
+                        with st.expander("📜 Verse detail", expanded=True):
+                            render_verse_detail(
+                                rm["Book"], rm["Chapter"], rm["Verse"],
+                                rm["Boundary"], matched_text=rm.get("Text"),
+                                active_method=str(rm.get("Method", "")))
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
     with tab3:
@@ -1945,11 +2144,12 @@ def run_app() -> None:
     with tab4:
         st.subheader("Macro Statistical Dashboard")
 
-        st.markdown("#### Highs & lows by structure")
+        st.markdown("#### Highs & lows by structure — Absolute method")
         ext = extremes_table(conn, ["Verse", "Perek", "Parsha",
                                     "Petucha", "Setuma", "Word"])
         if not ext.empty:
             st.dataframe(ext, use_container_width=True, hide_index=True)
+            st.caption("All statistics use the **Absolute** (standard) gematria method.")
 
         st.markdown("#### Value distributions across verses")
         # Each verse appears exactly once. The per-verse Petucha/Setuma rows are
@@ -2075,212 +2275,6 @@ def run_app() -> None:
                 "value (±1). Diagonal = standard Internal Balance."
             )
 
-    # ===================== TAB 6: GUIDE & SOURCES ========================
-    with tab_guide:
-        st.title("Tanach Gematria Search & Structural Pattern Engine")
-        st.markdown(
-            "A multi-method Hebrew gematria engine over the complete Masoretic text — "
-            "23,206 cantillated verses sourced from Sefaria. "
-            "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 12 gematria methods."
-        )
-        st.divider()
-
-        with st.expander("How to use this app", expanded=True):
-            import streamlit.components.v1 as _components
-
-            def _heading_link(kw, label, define_fn=False):
-                fn = (
-                    "<script>window.parent.goToTab = function(kw){"
-                    "var tabs=window.parent.document.querySelectorAll('[role=\\\"tab\\\"]');"
-                    "for(var i=0;i<tabs.length;i++){"
-                    "if(tabs[i].textContent.indexOf(kw)!==-1){tabs[i].click();return;}}};"
-                    "</script>"
-                ) if define_fn else ""
-                _components.html(
-                    fn
-                    + "<style>body{margin:0;padding:0;background:transparent;}"
-                    "a{font-size:15px;font-weight:700;color:#ff4b4b;text-decoration:none;"
-                    "font-family:\"Source Sans Pro\",Arial,sans-serif;}"
-                    "a:hover{text-decoration:underline;}</style>"
-                    "<a href=\"#\" onclick=\"window.parent.goToTab('" + kw + "');"
-                    "return false;\">" + label + "</a>",
-                    height=26, scrolling=False,
-                )
-
-            st.caption(
-                "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 12 gematria methods with earliest Talmudic or medieval sources, "
-                "reading tracks, boundary types, and the Rule of the Colel. "
-                "Also contains the full Masoretic variant registry."
-            )
-
-            _heading_link("Phrase", "1 · Phrase &amp; Name Matcher", define_fn=True)
-            st.markdown(
-                "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
-                "cantillation down to the 22 consonants and computes values across all 12 methods "
-                "simultaneously. Select a method to see every matching structural unit in the "
-                "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
-                "to open the full cantillated verse with the matched portion highlighted and a "
-                "letter-by-letter breakdown for the chosen method. "
-                "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
-                "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a 12×12 matrix "
-                "showing how every cipher value of your input matches every corpus method — "
-                "rare coincidences are highlighted, and you can drill into any pair."
-            )
-
-            _heading_link("Structural", "2 · Scriptural Structural Explorer")
-            st.markdown(
-                "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
-                "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
-                "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                "Every row shows gematria totals under all 12 methods for that block. "
-                "Click a row to open the verse detail panel."
-            )
-
-            _heading_link("Echoes", "3 · Textual Echoes &amp; Anomalies")
-            st.markdown(
-                "The engine automatically scans the corpus for three structural patterns:\n"
-                "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
-                "share the same gematria value, or differ by only 1 (Colel).\n"
-                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n\n"
-                "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
-                "pick any two methods and find verses where the first half under method X equals "
-                "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
-                "Filter by pattern type or method, then click a row to see the referenced verses."
-            )
-
-            _heading_link("Statistical", "4 · Macro Statistical Dashboard")
-            st.markdown(
-                "High-level statistics across the full corpus: highest and lowest values by structure, "
-                "value-distribution histograms, a 12-method correlation heatmap, a per-book fingerprint "
-                "chart, and integer ranges with no verse representation. All charts are interactive — "
-                "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
-                "bottom shows, for every method pair, the fraction of verses whose first half "
-                "(row method) equals the second half (column method)."
-            )
-
-
-        st.divider()
-        st.subheader("📖 Reference material")
-        st.caption(
-            "All method rules are exact (verified against the engine code). "
-            "Historical attributions are traditional and noted where uncertain."
-        )
-
-        with st.expander("The 12 gematria methods", expanded=True):
-            st.dataframe(pd.DataFrame([
-                {"Method": "Absolute",
-                 "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
-                 "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
-                 "Earliest Source": "Biblical era (attested in use). Rabbinic formulation: BT Nedarim 32a interprets the '318 servants' of Gen. 14:14 as the name אֱלִיעֶזֶר (=318) — the earliest clear Talmudic use. The term 'gematriot' appears as a category of wisdom in Mishnah Avot 3:18. BT Sanhedrin 22a discusses the practice explicitly."},
-                {"Method": "Katan",
-                 "Hebrew": "מספר קטן (Mispar Katan)",
-                 "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
-                 "Earliest Source": "Medieval. No Talmudic source for this specific reduction. Formalized in Hasidei Ashkenaz tradition (12th–13th c.), appearing in works such as Sefer Gematriot (attr. R. Yehuda he-Hasid, d. 1217)."},
-                {"Method": "Gadol",
-                 "Hebrew": "מספר גדול (Mispar Gadol)",
-                 "Rule": "Like Absolute, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
-                 "Earliest Source": "The 27-letter sequence including finals is described in Sefer Yetzirah 2:2 (dated 3rd–6th c. CE by scholarship; earlier by tradition). Practical use with the higher values in gematria appears in Sefer ha-Bahir (12th c.) and the Zohar (13th c.)."},
-                {"Method": "Atbash",
-                 "Hebrew": "אתב\"ש (At-Bash)",
-                 "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Absolute values of the swapped letters.",
-                 "Earliest Source": "The oldest attested gematria method — appears in the Hebrew Bible itself. 'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
-                {"Method": "Albam",
-                 "Hebrew": "אלב\"ם (Al-Bam)",
-                 "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
-                 "Earliest Source": "Classical temurah described in Sefer Yetzirah ch. 2 (3rd–6th c. CE). Elaborated in Sefer Yetzirah commentaries by Rav Saadia Gaon (882–942 CE) and R. Dunash ibn Tamim (10th c.)."},
-                {"Method": "Atbah",
-                 "Hebrew": "אטב\"ח (At-Bach)",
-                 "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
-                 "Earliest Source": "Attributed to Rabbi Eliezer ben Yose ha-Gelili, a 2nd-century Tanna. The full name 'Atbah of R. Eliezer' appears in the Baraita of 32 Hermeneutical Rules (Tannaic era, transmitted in medieval compilations) and in Midrashic literature."},
-                {"Method": "Avgad",
-                 "Hebrew": "אבג\"ד (Av-Gad)",
-                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute values of the shifted letters.",
-                 "Earliest Source": "Classical cyclic temurah. The concept of cyclic letter shifting appears within the temurah tradition of Sefer Yetzirah (3rd–6th c. CE). The specific Avgad cipher is named and elaborated in medieval Kabbalistic works."},
-                {"Method": "Siduri",
-                 "Hebrew": "מספר סידורי (Mispar Siduri)",
-                 "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
-                 "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria method, widely attested in Midrashic literature and medieval biblical commentary."},
-                {"Method": "Ribua",
-                 "Hebrew": "מספר מרובע (Mispar Meruba Pratti)",
-                 "Rule": "Square each letter's Absolute value, then sum all squares (Σ v²).",
-                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in Sefer ha-Bahir (Provence, 12th c.) and later Zoharic and Lurianic literature."},
-                {"Method": "Kidmi",
-                 "Hebrew": "מספר קדמי / משולש (Mispar Kidmi)",
-                 "Rule": "Triangular cumulative: each letter's value = sum of all Absolute values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
-                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in later Kabbalistic computational texts; the triangular-number principle is implicit in Pythagorean numerology as absorbed into medieval Jewish mysticism."},
-                {"Method": "Achbi",
-                 "Hebrew": "אכב\"י (Ach-Bi)",
-                 "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
-                 "Earliest Source": "Classical temurah variant. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE). A less common scheme; named and discussed in medieval Kabbalistic commentaries."},
-                {"Method": "HaNikud",
-                 "Hebrew": "מספר הנקוד (Mispar HaNikud)",
-                 "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
-                 "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Based on visual dot-count analysis used in modern Kabbalistic study software. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
-            ]), use_container_width=True, hide_index=True)
-
-        with st.expander("Variant tracks"):
-            st.markdown("""
-**Ksiv (כְּתִיב — "Written")** — The consonantal text exactly as written in the Torah scroll. The default track; every verse is recorded here. The Masoretes went to extraordinary lengths to preserve this text letter-perfect.
-
-**Kri (קְרֵי — "Read")** — The text as traditionally *read aloud*, sometimes differing from the written form. Marginal notes mark every divergence. Different consonants → different gematria totals. Example: Psalms 100:3 written לֹא (alef), read לוֹ (vav), difference = 1 Absolute.
-
-*Qere Perpetuum* — A subset of Kri: substitutions so consistent they receive only one marginal note for all occurrences. Chief example: in the Torah, הִיא ("she") is written as הוּא ("he") 33 times; a single note at Genesis 3:20 covers all (cf. BT Yevamot). Implemented via the Kri track.
-
-**TextVariant (Masoretic Textual Variants)** — Documented variant readings of a specific word or phrase, forked as an alternate gematria row for the same verse. Two sub-categories are engine-active:
-""")
-            st.markdown("**Itture Sopherim — Five scribal omissions (BT Nedarim 37b)**")
-            st.dataframe(pd.DataFrame([
-                {"Reference": f"{b} {c}:{v}", "Received (Masoretic)": spec["from"],
-                 "TextVariant (with vav)": spec["to"], "Note": spec["note"]}
-                for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
-                if spec["category"] == "Ittur Sopherim"
-            ]), use_container_width=True, hide_index=True)
-            st.markdown("**Esther doublets**")
-            st.dataframe(pd.DataFrame([
-                {"Reference": f"{b} {c}:{v}", "Received": spec["from"],
-                 "Variant": spec["to"], "Note": spec["note"]}
-                for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
-                if spec["category"] == "Doublet"
-            ]), use_container_width=True, hide_index=True)
-            st.markdown("""
-**Aggregate** — Structural totals (Perek/Parsha sums from Ksiv verses). Not a text variant; a statistical macro-unit.
-
----
-**Tiqqune Sopherim (תיקוני סופרים) — 18 scribal corrections (documented, not engine-forked)**
-
-These 18 places are where the Masoretic tradition records that scribes emended the text — mainly to remove anthropomorphisms or avoid theological offence. The received Masoretic text already contains the corrected reading. The "original" wording is preserved in rabbinic literature (Mekhilta, Sifre Num. §84, Yalkut Shimoni, Tanḥuma). Note: the exact list of 18 varies across sources.
-""")
-            st.dataframe(pd.DataFrame(TIQQUNE_SOPHERIM), use_container_width=True, hide_index=True)
-            st.markdown("""
-**Doublet passages (documented, not engine-forked)**
-
-These are separate references that share nearly identical text — two distinct verses in two different books, not two readings of one verse. The fork engine doesn't apply here; they are best studied by comparing the two passages directly.
-""")
-            st.dataframe(pd.DataFrame(DOUBLET_PASSAGES), use_container_width=True, hide_index=True)
-
-        with st.expander("Boundary types"):
-            st.dataframe(pd.DataFrame([
-                {"Boundary": "Word (תיבה)",      "Meaning": "Single word token, split on space and maqaf (־).",                                             "Why meaningful": "Smallest meaning-bearing unit; classic gematria target (name totals, first/last words)."},
-                {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Asnachta-bearing word (inclusive).",                                     "Why meaningful": "The Asnachta (֑) is the verse's primary cantillation pause — its main syntactic division."},
-                {"Boundary": "SecondHalf",        "Meaning": "From after the Asnachta to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
-                {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
-                {"Boundary": "Pesucha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
-                {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
-                {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
-                {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},
-            ]), use_container_width=True, hide_index=True)
-
-        with st.expander("The Rule of the Colel (כּוֹלֵל)"):
-            st.markdown("""
-The *Colel* (כּוֹלֵל, "the inclusive / the whole") permits adding or subtracting **1** to a gematria total — conventionally counting "the word itself" or "the number as a unit" as one extra. A match within ±1 of the target is treated as equivalent.
-
-This principle appears throughout Kabbalistic and Hasidic commentary and is invoked by various authorities (including the Vilna Gaon and Baal HaTurim–style annotations). Its precise origin is diffuse; present it as a traditional/widely-used principle rather than pinning it to a single text.
-
-**How the toggle works in this engine:** when enabled, `search_value` matches `target−1`, `target`, and `target+1` (SQL `BETWEEN`), and results are ordered by proximity (`ABS(cipher − value)`). The internal-balance detector likewise flags half-verses equal within ±1 as `colel±1`.
-""")
 
 
 # ---------------------------------------------------------------------------
