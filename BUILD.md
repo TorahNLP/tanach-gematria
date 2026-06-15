@@ -12,7 +12,7 @@ A single-file Streamlit app (`app.py`) that brings together:
 
 - **12 gematria ciphers** over the full 23,206-verse Masoretic Tanakh
 - **Structural analysis** — half-verse splits at the Asnachta, Pesucha/Setuma paragraph detection, Ksiv/Kri variant forking
-- **Pattern database** — internal half-verse balance, proximity echoes, macro–micro resonances
+- **Pattern database** — internal half-verse balance, proximity echoes, cross-method echoes
 - **Interactive dashboards** — Plotly histograms, correlation heatmaps, book fingerprints
 
 The corpus is sourced from Sefaria (cantillated Masoretic text) and bundled as `tanach_corpus.jsonl`. Scripture is never typed from memory — wrong letters corrupt every total.
@@ -56,7 +56,7 @@ _build_connection()         ← @st.cache_resource; builds in-memory SQLite
         ├─ split_halves_by_atnach()  ← Asnachta split for half-verse rows
         ├─ detect_paragraph_marker() ← Pesucha פ / Setuma ס
         ├─ compute_all_ciphers()    ← all 12 values; HaNikud gets cantillated_text
-        └─ build_pattern_log()     ← InternalBalance / ProximityEcho / MacroMicro
+        └─ build_pattern_log()     ← InternalBalance / ProximityEcho (pre-computed at startup)
 ```
 
 ### SQLite schema
@@ -78,10 +78,10 @@ Two tables, built at startup and cached per session:
 
 | Column | Notes |
 |--------|-------|
-| `pattern_type` | InternalBalance / ProximityEcho / MacroMicro |
+| `pattern_type` | InternalBalance / ProximityEcho (pre-computed; Cross-Method Echo is queried live) |
 | `cipher` | Which method triggered the match |
 | `value_a`, `value_b` | The matching values |
-| `ref_a`, `ref_b` | Human-readable ref strings (parsed by `_parse_pattern_ref`) |
+| `ref_a`, `ref_b` | Human-readable ref strings (parsed by module-level `parse_pattern_ref`) |
 | `detail` | Colel flag or other context |
 
 ### Code sections inside `app.py`
@@ -96,36 +96,43 @@ Search for `# SECTION N` to jump directly:
 | 3 | Variant fork engine (Ksiv/Kri/Esther doublets) |
 | 4 | `SAMPLE_CORPUS` + `load_from_sefaria` + `load_corpus_jsonl` |
 | 5 | SQLite build (`_build_connection`) |
-| 6 | Pattern recognition (`build_pattern_log`) |
+| 6 | Pattern recognition (`build_pattern_log`) — pre-computes InternalBalance + ProximityEcho |
+| 6b | Module-level pattern helpers: `parse_pattern_ref`, `internal_balance_matches`, `proximity_echo_matches`, `whole_unit_echo_matches` |
 | 7 | Search with Colel window |
 | 8 | Stats & visualization helpers |
 | 8b | `cipher_breakdown()` — letter-by-letter equation for UI |
 | 9 | `run_selftest()` |
-| 10 | Streamlit UI (`run_app()`), 5 tabs |
+| 10 | Streamlit UI (`run_app()`), 4 tabs |
 
 ---
 
-## The 5 tabs
+## The 4 tabs
 
 ### Guide & Sources
-Project overview, per-tab descriptions, full cipher reference table with Hebrew names and primary sources, variant (Ksiv/Kri) documentation.
+Project overview, per-tab descriptions, full cipher reference table with Hebrew names and primary sources, variant (Ksiv/Kri) documentation. Section headings are clickable links that jump to the relevant tab.
 
 ### 1 · Phrase & Name Matcher
 Search any Hebrew phrase or name across all 12 methods simultaneously. Colel (±1) toggle. Filter by reading track (Written/Read) and boundary type. Click any result row for a full verse detail with letter-by-letter breakdown equation.
 
+**Cross-method coincidences** expander: a 12×12 matrix showing, for every cipher value of the input, how many corpus units match under every other method. Colored by coincidence rate (rarer = warmer). Drill-down selectboxes let you inspect any method-pair in detail.
+
 ### 2 · Scriptural Structural Explorer
-Browse every verse/word/chapter total by boundary type. Extremes table (highest/lowest/mean/median per boundary). Density gap analysis — value ranges with no verse representation.
+Browse every verse/word/chapter total by boundary type. Extremes table (highest/lowest/mean/median per boundary). Density gap analysis — value ranges with no verse representation. Click any row → **🔀 Cross-method lookup** expander: pick any method value from the row and search the full corpus by any other method.
 
 ### 3 · Textual Echoes & Anomalies
-Three pattern types:
-- **Internal Balance** — both halves of a verse (split at Asnachta) share the same value (Colel ±1 allowed). Renders both halves side-by-side with breakdown math.
-- **Proximity Echo** — two consecutive verses match under a given method.
-- **Macro–Micro Resonance** — a single verse's value equals its containing chapter total.
+Unified pattern interface with live SQL queries — all results auto-update with filter changes.
 
-Filter by pattern type and/or gematria method. Click a row to see full verse detail with the active cipher's letter equation.
+**Method A / Method B selects** at the top drive all three pattern types. **Cross-method toggle** (off = same-method only; on = all A×B combos). **Colel (±1)** toggle.
+
+Three pattern types (multiselect):
+- **Internal Balance** — first half under Method A ≈ second half under Method B (same verse, Asnachta split). Cross-method when the toggle is on.
+- **Proximity Echo** — two consecutive verses share a value under Method A.
+- **Cross-Method Echo** — any two units anywhere in the Tanach share a value across different methods. Unit type (Verse / Petucha / Setuma) is selectable.
+
+Additional filters: **Min value** (suppress low-value noise; set ≥ 41 to exclude Katan), **Focus** text field (filter results to a book or chapter by string match). **Katan warning** banner appears automatically when Katan is selected without a min-value guard. Metrics (count per pattern type) update with every filter change. Click any result row to render both referenced units with cipher breakdown.
 
 ### 4 · Macro Statistical Dashboard
-Plotly charts: distribution histograms per method, inter-method correlation heatmap, book-level fingerprint (mean Absolute per book). All interactive — hover, zoom, download.
+Plotly charts: distribution histograms per method, inter-method correlation heatmap, book-level fingerprint (mean Absolute per book). All interactive — hover, zoom, download. **Cross-method half-verse balance heatmap** at the bottom shows, for every method pair, the fraction of verses whose first half (row method) equals the second half (column method).
 
 ---
 
@@ -185,7 +192,7 @@ Free tier apps sleep after inactivity; first visitor clicks once to wake (~30s).
 
 - **In-memory SQLite** — rebuilt per session via `@st.cache_resource`. Fast enough for 23k verses; if corpus grows significantly, switch to an on-disk file.
 - **HaNikud on sub-units** — Word and half-verse rows store 0 for HaNikud (no cantillation data at that granularity). Only Verse/Pesucha/Setuma rows carry real nikud counts.
-- **`_parse_pattern_ref`** parses human-readable ref strings (e.g. `"Genesis 1:1 1st-half [Ksiv]"`) back into (book, chapter, verse, boundary) tuples. The three formats it handles: `Book ch:v Nth-half [Track]`, `Book ch:v`, and `Perek Book ch` (last returns None — skipped in the UI).
+- **`parse_pattern_ref`** (Section 6b, module-level) parses human-readable ref strings (e.g. `"Genesis 1:1 1st-half [Ksiv]"`) back into (book, chapter, verse, boundary) tuples. Formats: `Book ch:v Nth-half [Track]` → FirstHalf/SecondHalf; `Book ch:v` → Verse.
 - **`extremes_table` and the Word boundary** — fetches all word rows into pandas to compute statistics. The aggregate could be pushed to SQL for better performance at scale; acceptable for the current corpus size.
 - **Scripture integrity** — paragraph markers `{פ}` / `{ס}` are stripped before any gematria count. The self-test asserts `verse_total == Σ word_totals` to guard this invariant. Never hard-code scriptural text from memory.
 

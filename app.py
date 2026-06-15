@@ -968,6 +968,130 @@ def build_pattern_log(conn: sqlite3.Connection) -> None:
 
 
 # ---------------------------------------------------------------------------
+# SECTION 6b.  MODULE-LEVEL PATTERN MATCH HELPERS
+# ---------------------------------------------------------------------------
+
+def parse_pattern_ref(ref_str: str):
+    """Parse a pattern ref string → (book, chapter, verse, boundary) or None.
+
+    Handles:
+      'Book ch:v 1st-half [Track]'  → FirstHalf
+      'Book ch:v 2nd-half [Track]'  → SecondHalf
+      'Book ch:v'                   → Verse
+    """
+    m = re.match(r'^(.+?)\s+(\d+):(\d+)\s+(1st|2nd)-half', ref_str)
+    if m:
+        return m.group(1), int(m.group(2)), int(m.group(3)), (
+            "FirstHalf" if m.group(4) == "1st" else "SecondHalf")
+    m = re.match(r'^(.+?)\s+(\d+):(\d+)\s*', ref_str)
+    if m:
+        return m.group(1), int(m.group(2)), int(m.group(3)), "Verse"
+    return None
+
+
+def internal_balance_matches(
+    conn: sqlite3.Connection,
+    methods_a: List[str],
+    methods_b: List[str],
+    colel: bool = False,
+    min_value: int = 0,
+    limit: int = 500,
+) -> pd.DataFrame:
+    """Return verses where first-half[ma] ≈ second-half[mb] for each (ma, mb) pair."""
+    tol = 1 if colel else 0
+    parts = []
+    for ma in methods_a:
+        for mb in methods_b:
+            df = pd.read_sql_query(
+                f"SELECT 'Internal Balance' AS Pattern, "
+                f"u1.{ma} AS 'Value A', u2.{mb} AS 'Value B', "
+                f"u1.sub_id AS 'Reference A', u2.sub_id AS 'Reference B', "
+                f"u1.book AS Book, u1.chapter AS Chapter, u1.verse AS Verse "
+                "FROM units u1 JOIN units u2 "
+                "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
+                "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
+                "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
+                f"AND u1.{ma} > ? AND u2.{mb} > ? "
+                f"AND ABS(u1.{ma} - u2.{mb}) <= ? "
+                f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
+                conn, params=[min_value, min_value, tol, limit],
+            )
+            if not df.empty:
+                df.insert(1, "Method B", mb)
+                df.insert(1, "Method A", ma)
+                parts.append(df)
+    return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+
+
+def proximity_echo_matches(
+    conn: sqlite3.Connection,
+    methods: List[str],
+    colel: bool = False,
+    min_value: int = 0,
+    limit: int = 500,
+) -> pd.DataFrame:
+    """Return consecutive verse pairs sharing a value under each method."""
+    tol = 1 if colel else 0
+    parts = []
+    for m in methods:
+        df = pd.read_sql_query(
+            f"SELECT 'Proximity Echo' AS Pattern, "
+            f"u1.{m} AS 'Value A', u2.{m} AS 'Value B', "
+            f"u1.sub_id AS 'Reference A', u2.sub_id AS 'Reference B', "
+            f"u1.book AS Book, u1.chapter AS Chapter, u1.verse AS Verse "
+            "FROM units u1 JOIN units u2 "
+            "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u2.verse=u1.verse+1 "
+            "WHERE u1.boundary_type='Verse' AND u2.boundary_type='Verse' "
+            "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
+            f"AND u1.{m} > ? AND ABS(u1.{m} - u2.{m}) <= ? LIMIT ?",
+            conn, params=[min_value, tol, limit],
+        )
+        if not df.empty:
+            df.insert(1, "Method B", m)
+            df.insert(1, "Method A", m)
+            parts.append(df)
+    return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+
+
+def whole_unit_echo_matches(
+    conn: sqlite3.Connection,
+    methods_a: List[str],
+    methods_b: List[str],
+    boundary: str = "Verse",
+    min_value: int = 0,
+    limit: int = 300,
+) -> pd.DataFrame:
+    """Return unit pairs anywhere in Tanach sharing a value cross-method (ma ≠ mb).
+
+    Each (ma, mb) pair where ma != mb is queried separately.  The two directions
+    (u1=A, u2=B) and (u1=B, u2=A) are both included when both equalities hold.
+    """
+    parts = []
+    for ma in methods_a:
+        for mb in methods_b:
+            if ma == mb:
+                continue
+            df = pd.read_sql_query(
+                f"SELECT 'Cross-Method Echo' AS Pattern, "
+                f"u1.{ma} AS 'Value A', u2.{mb} AS 'Value B', "
+                f"u1.sub_id AS 'Reference A', u2.sub_id AS 'Reference B', "
+                f"u1.book AS Book, u1.chapter AS Chapter, u1.verse AS Verse "
+                f"FROM units u1 JOIN units u2 ON u1.{ma} = u2.{mb} "
+                "WHERE u1.boundary_type=? AND u2.boundary_type=? "
+                "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
+                f"AND u1.{ma} > ? AND u2.{mb} > ? "
+                "AND u1.rowid != u2.rowid "
+                "LIMIT ?",
+                conn, params=[boundary, boundary, min_value, min_value, limit],
+            )
+            if not df.empty:
+                df.insert(1, "Method B", mb)
+                df.insert(1, "Method A", ma)
+                parts.append(df)
+    return pd.concat(parts, ignore_index=True) if parts else pd.DataFrame()
+
+
+# ---------------------------------------------------------------------------
 # SECTION 7.  SEARCH ENGINE (with the Rule of the Colel)
 # ---------------------------------------------------------------------------
 
@@ -1557,180 +1681,211 @@ def run_app() -> None:
                 on_select="rerun", selection_mode="single-row", key="t2_sel")
             st.caption(f"{len(show)} {BOUNDARY_LABELS.get(kind, kind)} unit(s). "
                        "Every method column is an indexed gematria total for that block.")
-            if kind in DETAIL_BOUNDARIES and event2.selection.rows:
+            if event2.selection.rows:
                 row2 = show.iloc[event2.selection.rows[0]]
-                with st.expander("📜 Verse detail", expanded=True):
-                    render_verse_detail(row2["Book"], row2["Chapter"], row2["Verse"], kind)
+                if kind in DETAIL_BOUNDARIES:
+                    with st.expander("📜 Verse detail", expanded=True):
+                        render_verse_detail(row2["Book"], row2["Chapter"], row2["Verse"], kind)
+                with st.expander("🔀 Cross-method lookup for this row", expanded=False):
+                    st.caption(
+                        "Take any gematria value from the selected row and find all "
+                        "corpus units that share that value under a different method.")
+                    lkp1, lkp2, lkp3 = st.columns([3, 3, 1])
+                    with lkp1:
+                        lkp_from = st.selectbox(
+                            "Value from (Method A)", CIPHER_NAMES, key="t2_lkp_from")
+                    with lkp2:
+                        lkp_to = st.selectbox(
+                            "Search corpus by (Method B)", CIPHER_NAMES,
+                            index=1, key="t2_lkp_to")
+                    with lkp3:
+                        lkp_colel = st.toggle("Colel", False, key="t2_lkp_colel")
+                    lkp_val = int(row2[lkp_from]) if lkp_from in row2.index else 0
+                    st.markdown(
+                        f"**{lkp_from} = {lkp_val}** "
+                        f"(`{row2['Book']} {row2.get('Chapter', '')}:{row2.get('Verse', '')}`) "
+                        f"→ corpus units with **{lkp_to} = {lkp_val}**"
+                        + (" ± 1" if lkp_colel else ""))
+                    if lkp_val > 0:
+                        lkp_res = search_value(conn, lkp_to, lkp_val, lkp_colel)
+                        if lkp_res.empty:
+                            st.info("No corpus unit matches this value. Try enabling Colel.")
+                        else:
+                            ev_lkp = st.dataframe(
+                                lkp_res, use_container_width=True, hide_index=True,
+                                on_select="rerun", selection_mode="single-row",
+                                key="t2_lkp_sel")
+                            if ev_lkp.selection.rows:
+                                rlkp = lkp_res.iloc[ev_lkp.selection.rows[0]]
+                                with st.expander("📜 Verse detail", expanded=True):
+                                    render_verse_detail(
+                                        rlkp["Book"], rlkp["Chapter"], rlkp["Verse"],
+                                        rlkp["Boundary"],
+                                        matched_text=rlkp.get("Text"),
+                                        active_method=lkp_to)
+                    else:
+                        st.info(
+                            "This method returns 0 for the selected unit "
+                            "(e.g. HaNikud on a word or half-verse unit).")
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
     with tab3:
-        st.subheader("Textual Echoes & Anomalies Tracker")
-        pat = pd.read_sql_query("SELECT * FROM patterns", conn)
-        if pat.empty:
-            st.info("No patterns flagged in the current corpus. Internal-balance "
-                    "and proximity-echo detectors run automatically on "
-                    "load — add more chapters to surface more anomalies.")
+        st.subheader("Textual Echoes & Anomalies")
+
+        # --- Filter controls ---
+        col_m1, col_m2, col_opts = st.columns([3, 3, 2])
+        with col_m1:
+            t3_ma = st.multiselect(
+                "Method A", CIPHER_NAMES, default=["Absolute"], key="t3_ma",
+                help="Gematria method for the first element of each pattern")
+        with col_m2:
+            t3_mb = st.multiselect(
+                "Method B", CIPHER_NAMES, default=["Absolute"], key="t3_mb",
+                help="Method for the second element. When Cross-method is off, Method A is used for both.")
+        with col_opts:
+            t3_cross = st.toggle(
+                "Cross-method", False, key="t3_cross",
+                help="When on, all A×B method combinations are tested. "
+                     "When off, only same-method (A=B) patterns.")
+            t3_colel = st.toggle("Colel (±1)", False, key="t3_colel")
+
+        col_pt, col_bnd, col_mv, col_foc = st.columns([3, 2, 2, 3])
+        with col_pt:
+            sel_patterns = st.multiselect(
+                "Pattern types",
+                ["Internal Balance", "Proximity Echo", "Cross-Method Echo"],
+                default=["Internal Balance", "Proximity Echo"],
+                key="t3_ptypes")
+        with col_bnd:
+            t3_boundary = st.selectbox(
+                "Unit type (Cross-Method Echo)", ["Verse", "Petucha", "Setuma"],
+                key="t3_bnd",
+                help="Boundary type used for the Cross-Method Echo search")
+        with col_mv:
+            t3_minval = st.number_input(
+                "Min value filter", min_value=0, value=0, step=10, key="t3_minval",
+                help="Exclude units whose gematria value is below this threshold")
+        with col_foc:
+            t3_focus = st.text_input(
+                "Focus (e.g. 'Genesis 1' or 'Psalms')", "", key="t3_focus",
+                help="Filter results to references containing this text")
+
+        # Effective method sets
+        eff_a = t3_ma or CIPHER_NAMES
+        eff_b = (t3_mb if t3_cross else eff_a) or CIPHER_NAMES
+
+        if ("Katan" in eff_a or "Katan" in eff_b) and int(t3_minval) < 41:
+            st.warning(
+                "⚠️ **Mispar Katan** collapses values to 1–40, producing a very high "
+                "match rate. Set **Min value ≥ 41** or deselect Katan to reduce noise.")
+
+        # --- Build unified results ---
+        frames = []
+        with st.spinner("Searching patterns…"):
+            if "Internal Balance" in sel_patterns:
+                ib = internal_balance_matches(
+                    conn, eff_a, eff_b, colel=t3_colel,
+                    min_value=int(t3_minval), limit=500)
+                if not ib.empty:
+                    frames.append(ib)
+            if "Proximity Echo" in sel_patterns:
+                pe = proximity_echo_matches(
+                    conn, eff_a, colel=t3_colel,
+                    min_value=int(t3_minval), limit=500)
+                if not pe.empty:
+                    frames.append(pe)
+            if "Cross-Method Echo" in sel_patterns:
+                wue = whole_unit_echo_matches(
+                    conn, eff_a, eff_b, boundary=t3_boundary,
+                    min_value=int(t3_minval), limit=300)
+                if not wue.empty:
+                    frames.append(wue)
+
+        unified = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+        if t3_focus.strip() and not unified.empty:
+            foc = t3_focus.strip().lower()
+            mask = (
+                unified.get("Reference A", pd.Series(dtype=str))
+                .str.lower().str.contains(foc, na=False)
+                | unified.get("Reference B", pd.Series(dtype=str))
+                .str.lower().str.contains(foc, na=False)
+                | unified.get("Book", pd.Series(dtype=str))
+                .str.lower().str.contains(foc, na=False)
+            )
+            unified = unified[mask]
+
+        # --- Metrics (auto-update with filters) ---
+        n_ib  = int((unified["Pattern"] == "Internal Balance").sum())  if not unified.empty else 0
+        n_pe  = int((unified["Pattern"] == "Proximity Echo").sum())    if not unified.empty else 0
+        n_wue = int((unified["Pattern"] == "Cross-Method Echo").sum()) if not unified.empty else 0
+        mc1, mc2, mc3 = st.columns(3)
+        with mc1:
+            st.metric("Internal Balance", n_ib)
+            st.caption("1st half ≈ 2nd half of the same verse")
+        with mc2:
+            st.metric("Proximity Echo", n_pe)
+            st.caption("Two consecutive verses share a value")
+        with mc3:
+            st.metric("Cross-Method Echo", n_wue)
+            st.caption("Any two units match across different methods (capped)")
+
+        st.divider()
+
+        if unified.empty:
+            if not sel_patterns:
+                st.info("Select at least one pattern type above.")
+            else:
+                st.info(
+                    "No patterns found with the current filters. "
+                    "Try different methods, lower Min value, or enable Colel.")
         else:
-            PATTERN_LABELS = {
-                "InternalBalance": "Internal Balance",
-                "ProximityEcho":   "Proximity Echo",
-            }
-            PATTERN_DESC = {
-                "InternalBalance": "The two halves of a verse (split at the Asnachta cantillation mark) share the same gematria value, or differ by only 1 (Colel). The major syntactic pause divides the verse into numerically balanced units.",
-                "ProximityEcho":   "Two consecutive verses share the same gematria value under a given method — a numerical 'rhyme' between neighboring verses.",
-            }
-
-            counts = pat["pattern_type"].value_counts().to_dict()
-            m1, m2 = st.columns(2)
-            with m1:
-                st.metric("Internal Balance", counts.get("InternalBalance", 0))
-                st.caption(PATTERN_DESC["InternalBalance"])
-            with m2:
-                st.metric("Proximity Echo", counts.get("ProximityEcho", 0))
-                st.caption(PATTERN_DESC["ProximityEcho"])
-
-            st.divider()
-            raw_types = sorted(pat["pattern_type"].unique())
-            fc1, fc2 = st.columns(2)
-            with fc1:
-                sel_type_labels = st.multiselect(
-                    "Pattern type",
-                    [PATTERN_LABELS.get(t, t) for t in raw_types],
-                    placeholder="All types")
-                sel_ptypes = {raw_types[i] for i, lbl in
-                              enumerate([PATTERN_LABELS.get(t, t) for t in raw_types])
-                              if lbl in sel_type_labels}
-            with fc2:
-                sel_methods = st.multiselect(
-                    "Gematria method", CIPHER_NAMES, placeholder="All methods")
-                if len(sel_methods) == 1:
-                    st.caption(CIPHER_BLURB.get(sel_methods[0], ""))
-            view = pat.copy()
-            if sel_ptypes:
-                view = view[view.pattern_type.isin(sel_ptypes)]
-            if sel_methods:
-                view = view[view.cipher.isin(sel_methods)]
-            cfilter = sel_methods[0] if len(sel_methods) == 1 else None
-            view["pattern_type"] = view["pattern_type"].map(
-                lambda t: PATTERN_LABELS.get(t, t))
-            view = view.rename(columns={
-                "pattern_type": "Pattern", "cipher": "Method", "value_a": "Value A",
-                "value_b": "Value B", "ref_a": "Reference A", "ref_b": "Reference B",
-                "detail": "Detail"}).drop(columns=["pattern_id"])
-            event3 = st.dataframe(
-                view, use_container_width=True, hide_index=True,
+            display_cols = [c for c in
+                ["Pattern", "Method A", "Method B", "Value A", "Value B",
+                 "Reference A", "Reference B"]
+                if c in unified.columns]
+            ev3 = st.dataframe(
+                unified[display_cols], use_container_width=True, hide_index=True,
                 on_select="rerun", selection_mode="single-row", key="t3_sel")
+            cap_parts = []
+            if n_ib:  cap_parts.append(f"{n_ib:,} Internal Balance")
+            if n_pe:  cap_parts.append(f"{n_pe:,} Proximity Echo")
+            if n_wue: cap_parts.append(f"{n_wue:,} Cross-Method Echo")
+            if len(unified) >= 500:
+                cap_parts.append("*(list capped — narrow filters to see more)*")
+            st.caption(" · ".join(cap_parts))
 
-            import re as _re
-
-            def _parse_pattern_ref(ref_str: str):
-                """Parse a pattern ref string → (book, chapter, verse, boundary) or None.
-
-                Handles formats stored by build_pattern_log:
-                  "Book ch:v 1st-half [Track]"  → FirstHalf
-                  "Book ch:v 2nd-half [Track]"  → SecondHalf
-                  "Book ch:v"                   → Verse
-                """
-                m = _re.match(r'^(.+?)\s+(\d+):(\d+)\s+(1st|2nd)-half', ref_str)
-                if m:
-                    boundary = "FirstHalf" if m.group(4) == "1st" else "SecondHalf"
-                    return m.group(1), int(m.group(2)), int(m.group(3)), boundary
-                m = _re.match(r'^(.+?)\s+(\d+):(\d+)\s*', ref_str)
-                if m:
-                    return m.group(1), int(m.group(2)), int(m.group(3)), "Verse"
-                return None
-
-            if event3.selection.rows:
-                sel = view.iloc[event3.selection.rows[0]]
-                pat_type = sel["Pattern"]
-                ref_a_str = str(sel["Reference A"])
-                ref_b_str = str(sel["Reference B"])
-                active_m = str(sel["Method"]) if "Method" in sel.index else cfilter
+            if ev3.selection.rows:
+                sel_row = unified.iloc[ev3.selection.rows[0]]
+                pat_type  = str(sel_row.get("Pattern", ""))
+                ref_a_str = str(sel_row.get("Reference A", ""))
+                ref_b_str = str(sel_row.get("Reference B", ""))
+                active_ma = str(sel_row.get("Method A", "Absolute"))
+                active_mb = str(sel_row.get("Method B", active_ma))
 
                 with st.expander("📜 Referenced verses", expanded=True):
                     if "Internal Balance" in pat_type:
-                        for label, ref_str in [("First half (before Asnachta)", ref_a_str),
-                                               ("Second half (after Asnachta)", ref_b_str)]:
-                            parsed = _parse_pattern_ref(ref_str)
-                            if parsed:
-                                book, chap, vs, boundary = parsed
-                                st.markdown(f"**{label}**")
-                                render_verse_detail(book, chap, vs, boundary,
-                                                    active_method=active_m)
+                        pairs = [
+                            ("First half (before Asnachta)", ref_a_str, active_ma),
+                            ("Second half (after Asnachta)", ref_b_str, active_mb),
+                        ]
                     elif "Proximity Echo" in pat_type:
-                        for label, ref_str in [("Verse A", ref_a_str), ("Verse B", ref_b_str)]:
-                            parsed = _parse_pattern_ref(ref_str)
-                            if parsed:
-                                book, chap, vs, boundary = parsed
-                                st.markdown(f"**{label}**")
-                                render_verse_detail(book, chap, vs, boundary,
-                                                    active_method=active_m)
-
-        st.divider()
-        st.markdown("### Cross-Method Half-Verse Balance")
-        st.caption(
-            "Find verses where the first half under one method equals the second half "
-            "under a different method — a cross-method extension of Internal Balance."
-        )
-        xmhv_c1, xmhv_c2, xmhv_c3 = st.columns([2, 2, 1])
-        with xmhv_c1:
-            xmhv_a = st.selectbox("First half — method", CIPHER_NAMES, key="xmhv_a")
-        with xmhv_c2:
-            xmhv_b = st.selectbox("Second half — method", CIPHER_NAMES,
-                                   index=0, key="xmhv_b")
-        with xmhv_c3:
-            xmhv_colel = st.toggle("Colel (±1)", value=False, key="xmhv_colel")
-
-        total_hv = int(pd.read_sql_query(
-            "SELECT COUNT(*) FROM units u1 JOIN units u2 "
-            "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
-            "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
-            "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv'",
-            conn).iloc[0, 0])
-
-        if xmhv_a == xmhv_b:
-            st.info(
-                "Same method on both halves — this is standard Internal Balance. "
-                "See the pattern table above for the pre-computed results."
-            )
-        else:
-            tol = 1 if xmhv_colel else 0
-            xmhv_sql = (
-                f'SELECT u1.book AS Book, u1.chapter AS Chapter, u1.verse AS Verse, '
-                f'u1.{xmhv_a} AS "First Half ({xmhv_a})", '
-                f'u2.{xmhv_b} AS "Second Half ({xmhv_b})" '
-                "FROM units u1 JOIN units u2 "
-                "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
-                "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
-                "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-                f"AND ABS(u1.{xmhv_a} - u2.{xmhv_b}) <= {tol} "
-                "ORDER BY u1.book, u1.chapter, u1.verse LIMIT 500"
-            )
-            xmhv_df = pd.read_sql_query(xmhv_sql, conn)
-            n_hv = len(xmhv_df)
-            pct = (n_hv / total_hv * 100) if total_hv else 0.0
-            st.markdown(
-                f"**{n_hv:,} of {total_hv:,} verses ({pct:.1f}%)** show "
-                f"`{xmhv_a}(first half) = {xmhv_b}(second half)`"
-                + (" *(list capped at 500)*" if n_hv >= 500 else "")
-            )
-            if xmhv_df.empty:
-                st.info(
-                    "No verse in the loaded corpus balances under these two methods "
-                    "at the current Colel setting."
-                )
-            else:
-                ev_hv = st.dataframe(
-                    xmhv_df, use_container_width=True, hide_index=True,
-                    on_select="rerun", selection_mode="single-row", key="xmhv_sel",
-                )
-                if ev_hv.selection.rows:
-                    rhv = xmhv_df.iloc[ev_hv.selection.rows[0]]
-                    with st.expander("📜 Verse detail", expanded=True):
-                        render_verse_detail(
-                            rhv["Book"], rhv["Chapter"], rhv["Verse"],
-                            "Verse", active_method=xmhv_a,
-                        )
+                        pairs = [
+                            ("Verse A", ref_a_str, active_ma),
+                            ("Verse B", ref_b_str, active_mb),
+                        ]
+                    else:
+                        pairs = [
+                            ("Unit A", ref_a_str, active_ma),
+                            ("Unit B", ref_b_str, active_mb),
+                        ]
+                    for label, ref_str, meth in pairs:
+                        parsed = parse_pattern_ref(ref_str)
+                        if parsed:
+                            book, chap, vs, boundary = parsed
+                            st.markdown(f"**{label}**")
+                            render_verse_detail(book, chap, vs, boundary,
+                                                active_method=meth)
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
     with tab4:
