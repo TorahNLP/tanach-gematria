@@ -1176,6 +1176,27 @@ def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
     return {"values": values, "results": results}
 
 
+def search_value_all_methods(
+    conn: sqlite3.Connection, value: int, limit_per_method: int = 50
+) -> pd.DataFrame:
+    """Search `value` across all 12 ciphers in a single UNION ALL query.
+
+    Returns a DataFrame with a leading 'Method' column so the caller can see
+    which cipher produced each match.
+    """
+    unions, params = [], []
+    for c in CIPHER_NAMES:
+        unions.append(
+            f"SELECT '{c}' AS Method, book AS Book, chapter AS Chapter, "
+            f"verse AS Verse, boundary_type AS Boundary, variant_track AS Track, "
+            f"consonants AS Text, {c} AS Value, sub_id AS SubID "
+            f"FROM units WHERE {c}=? AND variant_track='Ksiv' LIMIT {limit_per_method}"
+        )
+        params.append(value)
+    sql = "SELECT * FROM (" + " UNION ALL ".join(unions) + ") ORDER BY Method, Book, Chapter, Verse"
+    return pd.read_sql_query(sql, conn, params=params)
+
+
 def normalize_query(raw: str) -> str:
     """Clean a Hebrew query string down to its 22-letter consonant skeleton."""
     return strip_to_consonants(raw)
@@ -1683,57 +1704,53 @@ def run_app() -> None:
                 mask = (show["Book"].str.contains(q, case=False, na=False) |
                         show["Parsha"].str.contains(q, case=False, na=False))
                 show = show[mask]
+            st.caption("Click any gematria value cell to find every unit in the corpus "
+                       "that shares that number, across all 12 methods.")
             event2 = st.dataframe(
                 show, use_container_width=True, hide_index=True,
-                on_select="rerun", selection_mode="single-row", key="t2_sel")
+                on_select="rerun",
+                selection_mode=["single-row", "single-column"],
+                key="t2_sel")
             st.caption(f"{len(show)} {BOUNDARY_LABELS.get(kind, kind)} unit(s). "
                        "Every method column is an indexed gematria total for that block.")
-            if event2.selection.rows:
-                row2 = show.iloc[event2.selection.rows[0]]
-                if kind in DETAIL_BOUNDARIES:
-                    with st.expander("📜 Verse detail", expanded=True):
-                        render_verse_detail(row2["Book"], row2["Chapter"], row2["Verse"], kind)
-                with st.expander("🔀 Cross-method lookup for this row", expanded=True):
-                    st.caption(
-                        "Take any gematria value from the selected row and find all "
-                        "corpus units that share that value under a different method.")
-                    lkp1, lkp2, lkp3 = st.columns([3, 3, 1])
-                    with lkp1:
-                        lkp_from = st.selectbox(
-                            "Value from (Method A)", CIPHER_NAMES, key="t2_lkp_from")
-                    with lkp2:
-                        lkp_to = st.selectbox(
-                            "Search corpus by (Method B)", CIPHER_NAMES,
-                            index=1, key="t2_lkp_to")
-                    with lkp3:
-                        lkp_colel = st.toggle("Colel", False, key="t2_lkp_colel")
-                    lkp_val = int(row2[lkp_from]) if lkp_from in row2.index else 0
+
+            sel_rows = event2.selection.rows
+            sel_cols = event2.selection.columns
+            if sel_rows:
+                row2 = show.iloc[sel_rows[0]]
+                clicked_col = sel_cols[0] if sel_cols else None
+
+                if clicked_col and clicked_col in CIPHER_NAMES:
+                    # Cell click on a cipher column → all-methods match
+                    cell_val = int(row2[clicked_col])
                     st.markdown(
-                        f"**{lkp_from} = {lkp_val}** "
-                        f"(`{row2['Book']} {row2.get('Chapter', '')}:{row2.get('Verse', '')}`) "
-                        f"→ corpus units with **{lkp_to} = {lkp_val}**"
-                        + (" ± 1" if lkp_colel else ""))
-                    if lkp_val > 0:
-                        lkp_res = search_value(conn, lkp_to, lkp_val, lkp_colel)
-                        if lkp_res.empty:
-                            st.info("No corpus unit matches this value. Try enabling Colel.")
-                        else:
-                            ev_lkp = st.dataframe(
-                                lkp_res, use_container_width=True, hide_index=True,
-                                on_select="rerun", selection_mode="single-row",
-                                key="t2_lkp_sel")
-                            if ev_lkp.selection.rows:
-                                rlkp = lkp_res.iloc[ev_lkp.selection.rows[0]]
-                                with st.expander("📜 Verse detail", expanded=True):
-                                    render_verse_detail(
-                                        rlkp["Book"], rlkp["Chapter"], rlkp["Verse"],
-                                        rlkp["Boundary"],
-                                        matched_text=rlkp.get("Text"),
-                                        active_method=lkp_to)
+                        f"**{clicked_col} = {cell_val}** — every unit in the corpus "
+                        f"that shares this value (up to 50 per method):")
+                    match_df = search_value_all_methods(conn, cell_val)
+                    if match_df.empty:
+                        st.info("No corpus unit has this exact value under any method.")
                     else:
-                        st.info(
-                            "This method returns 0 for the selected unit "
-                            "(e.g. HaNikud on a word or half-verse unit).")
+                        ev_match = st.dataframe(
+                            match_df[["Method", "Book", "Chapter", "Verse",
+                                      "Boundary", "Text", "Value"]],
+                            use_container_width=True, hide_index=True,
+                            on_select="rerun", selection_mode="single-row",
+                            key="t2_match_sel")
+                        st.caption(f"{len(match_df)} match(es) across "
+                                   f"{match_df['Method'].nunique()} method(s).")
+                        if ev_match.selection.rows:
+                            rm = match_df.iloc[ev_match.selection.rows[0]]
+                            with st.expander("📜 Verse detail", expanded=True):
+                                render_verse_detail(
+                                    rm["Book"], rm["Chapter"], rm["Verse"],
+                                    rm["Boundary"], matched_text=rm.get("Text"),
+                                    active_method=str(rm.get("Method", "")))
+                else:
+                    # Row click without cipher column → verse detail
+                    if kind in DETAIL_BOUNDARIES:
+                        with st.expander("📜 Verse detail", expanded=True):
+                            render_verse_detail(
+                                row2["Book"], row2["Chapter"], row2["Verse"], kind)
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
     with tab3:
@@ -1929,7 +1946,7 @@ def run_app() -> None:
                 fig_h.update_layout(bargap=0.05, height=320,
                                     margin=dict(t=40, b=30, l=40, r=20))
                 st.plotly_chart(fig_h, use_container_width=True,
-                                config={"scrollZoom": False, "displayModeBar": True})
+                                config={"scrollZoom": False})
             st.caption(f"{len(plot_df)} verse(s), each counted once (כְּתִיב Ksiv track). "
                        "Hover for exact counts; click legend to toggle; drag to zoom.")
 
@@ -1948,7 +1965,7 @@ def run_app() -> None:
             fig_corr.update_layout(height=480,
                                    margin=dict(t=50, b=30, l=120, r=20))
             st.plotly_chart(fig_corr, use_container_width=True,
-                            config={"scrollZoom": False, "displayModeBar": True})
+                            config={"scrollZoom": False})
 
             # ---- Book fingerprint (interactive) ----
             st.markdown("#### Book fingerprint — average Absolute value per pasuk")
@@ -1968,7 +1985,7 @@ def run_app() -> None:
                                      showlegend=False, coloraxis_showscale=False,
                                      margin=dict(t=50, b=30, l=140, r=20))
                 st.plotly_chart(fig_bk, use_container_width=True,
-                                config={"scrollZoom": False, "displayModeBar": True})
+                                config={"scrollZoom": False})
 
             st.markdown("#### Unrepresented value ranges (Absolute)")
             dz = density_gaps(conn, "Absolute", "Verse")
@@ -2020,7 +2037,7 @@ def run_app() -> None:
             )
             fig_xm.update_layout(height=560, margin=dict(t=50, b=30, l=120, r=20))
             st.plotly_chart(fig_xm, use_container_width=True,
-                            config={"scrollZoom": False, "displayModeBar": True})
+                            config={"scrollZoom": False})
             st.caption(
                 f"Based on {total_verses:,} Tanach verses (Ksiv track) that have both "
                 "half-verse units. Each cell = fraction of those verses where the first "
