@@ -1676,7 +1676,7 @@ def run_app() -> None:
         )
 
         with st.expander("The 12 gematria methods", expanded=True):
-            st.dataframe(pd.DataFrame([
+            st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
                  "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
@@ -1725,13 +1725,7 @@ def run_app() -> None:
                  "Hebrew": "מספר הנקוד (Mispar HaNikud)",
                  "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
                  "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Based on visual dot-count analysis used in modern Kabbalistic study software. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
-            ]), use_container_width=True, hide_index=True,
-            column_config={
-                "Earliest Source": st.column_config.TextColumn(
-                    "Earliest Source", width="large", wrap_text=True),
-                "Rule": st.column_config.TextColumn(
-                    "Rule", width="medium", wrap_text=True),
-            })
+            ]))
 
         with st.expander("Variant tracks"):
             st.markdown("""
