@@ -188,3 +188,8 @@ Free tier apps sleep after inactivity; first visitor clicks once to wake (~30s).
 - **`_parse_pattern_ref`** parses human-readable ref strings (e.g. `"Genesis 1:1 1st-half [Ksiv]"`) back into (book, chapter, verse, boundary) tuples. The three formats it handles: `Book ch:v Nth-half [Track]`, `Book ch:v`, and `Perek Book ch` (last returns None — skipped in the UI).
 - **`extremes_table` and the Word boundary** — fetches all word rows into pandas to compute statistics. The aggregate could be pushed to SQL for better performance at scale; acceptable for the current corpus size.
 - **Scripture integrity** — paragraph markers `{פ}` / `{ס}` are stripped before any gematria count. The self-test asserts `verse_total == Σ word_totals` to guard this invariant. Never hard-code scriptural text from memory.
+
+## Removed features
+
+### Macro-Micro Resonance (removed)
+Detected verses whose gematria value divided evenly into their containing chapter's total (e.g. verse=300, chapter=900 → x3). Removed because: (1) chapter divisions are a 13th-century Christian invention (Stephen Langton) with no standing as a meaningful unit in classical Jewish textual tradition; (2) no Talmudic, Midrashic, Kabbalistic, or Hasidic source uses verse-to-chapter gematria ratios — classical gematria operates at word/phrase level only; (3) with large chapter totals the divisor relationship occurs frequently by chance. The closest real analogue is the figurate/geometric Torah-numerology school (e.g. 703 nesting inside 2701 in Gen 1:1) and Ivan Panin's Bible Numerics — both interesting but adjacent to this specific construct, not precedent for it. Possibly revisit as a Pesucha/Setuma-scoped analysis (those ARE native Jewish structural units) if a source ever surfaces.

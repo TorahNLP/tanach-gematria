@@ -11,7 +11,7 @@ A self-contained Streamlit application implementing:
   * A Ksiv/Kri + Masoretic textual-variant forking engine (Itture Sopherim,
     Esther doublets — see TEXTUAL_VARIANT_SPECS).
   * An in-memory, fully indexed SQLite store.
-  * Proximity / internal-balance / macro-micro pattern recognition.
+  * Proximity / internal-balance pattern recognition.
   * A Colel ("plus/minus one") aware search engine.
   * Pandas/Matplotlib/Seaborn macro-statistical dashboards.
 
@@ -964,21 +964,6 @@ def build_pattern_log(conn: sqlite3.Connection) -> None:
                     f"{r1.book} {r1.chapter}:{r1.verse}",
                     "adjacent verses share value")
 
-    # --- 6c. Macro-micro resonance: a verse value divides its Perek total ---
-    pereks = df[df.boundary_type == "Perek"]
-    perek_idx = {(r.book, r.chapter): r for _, r in pereks.iterrows()}
-    for _, vrow in vfull.iterrows():
-        prow = perek_idx.get((vrow.book, vrow.chapter))
-        if prow is None:
-            continue
-        for c in CIPHER_NAMES:
-            pv, vv = int(prow[c]), int(vrow[c])
-            if vv and pv and pv % vv == 0 and pv != vv:
-                log("MacroMicro", c, vv, pv,
-                    f"{vrow.book} {vrow.chapter}:{vrow.verse}",
-                    f"Perek {vrow.book} {vrow.chapter}",
-                    f"verse divides chapter (x{pv // vv})")
-
     conn.commit()
 
 
@@ -1582,32 +1567,27 @@ def run_app() -> None:
         st.subheader("Textual Echoes & Anomalies Tracker")
         pat = pd.read_sql_query("SELECT * FROM patterns", conn)
         if pat.empty:
-            st.info("No patterns flagged in the current corpus. Internal-balance, "
-                    "proximity-echo and macro-micro detectors run automatically on "
+            st.info("No patterns flagged in the current corpus. Internal-balance "
+                    "and proximity-echo detectors run automatically on "
                     "load — add more chapters to surface more anomalies.")
         else:
             PATTERN_LABELS = {
                 "InternalBalance": "Internal Balance",
                 "ProximityEcho":   "Proximity Echo",
-                "MacroMicro":      "Macro–Micro Resonance",
             }
             PATTERN_DESC = {
                 "InternalBalance": "The two halves of a verse (split at the Asnachta cantillation mark) share the same gematria value, or differ by only 1 (Colel). The major syntactic pause divides the verse into numerically balanced units.",
                 "ProximityEcho":   "Two consecutive verses share the same gematria value under a given method — a numerical 'rhyme' between neighboring verses.",
-                "MacroMicro":      "A single verse's gematria value equals the total for its containing chapter (Perek). The part mirrors the whole.",
             }
 
             counts = pat["pattern_type"].value_counts().to_dict()
-            m1, m2, m3 = st.columns(3)
+            m1, m2 = st.columns(2)
             with m1:
                 st.metric("Internal Balance", counts.get("InternalBalance", 0))
                 st.caption(PATTERN_DESC["InternalBalance"])
             with m2:
                 st.metric("Proximity Echo", counts.get("ProximityEcho", 0))
                 st.caption(PATTERN_DESC["ProximityEcho"])
-            with m3:
-                st.metric("Macro–Micro Resonance", counts.get("MacroMicro", 0))
-                st.caption(PATTERN_DESC["MacroMicro"])
 
             st.divider()
             raw_types = sorted(pat["pattern_type"].unique())
@@ -1684,14 +1664,6 @@ def run_app() -> None:
                             if parsed:
                                 book, chap, vs, boundary = parsed
                                 st.markdown(f"**{label}**")
-                                render_verse_detail(book, chap, vs, boundary,
-                                                    active_method=active_m)
-                    else:
-                        # MacroMicro: ref_a = verse, ref_b = Perek (skipped by DETAIL_BOUNDARIES gate)
-                        for ref_str in [ref_a_str, ref_b_str]:
-                            parsed = _parse_pattern_ref(ref_str)
-                            if parsed:
-                                book, chap, vs, boundary = parsed
                                 render_verse_detail(book, chap, vs, boundary,
                                                     active_method=active_m)
 
@@ -1960,9 +1932,7 @@ def run_app() -> None:
                 "The engine automatically scans the corpus for three structural patterns:\n"
                 "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
                 "share the same gematria value, or differ by only 1 (Colel).\n"
-                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n"
-                "- **Macro–Micro Resonance** — a verse whose value equals its containing chapter total — "
-                "the part mirrors the whole.\n\n"
+                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n\n"
                 "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
                 "pick any two methods and find verses where the first half under method X equals "
                 "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
