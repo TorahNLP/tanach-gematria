@@ -270,6 +270,24 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
+# Display labels for cipher selector widgets. Internal names stay as short
+# CIPHER_NAMES keys (Python dicts, SQL columns); these labels are used only
+# in interactive selectors via format_func, never as DB column names.
+CIPHER_DISPLAY_NAMES: Dict[str, str] = {
+    "Standard": "Standard — מספר הכרחי",
+    "Katan":    "Katan — מספר קטן",
+    "Gadol":    "Gadol — מספר גדול",
+    "Atbash":   "Atbash — אתב\"ש",
+    "Albam":    "Albam — אלב\"ם",
+    "Atbah":    "Atbah — אטב\"ח",
+    "Avgad":    "Avgad — אבג\"ד",
+    "Siduri":   "Siduri — מספר סידורי",
+    "Ribua":    "Ribua — מספר מרובע",
+    "Kidmi":    "Kidmi — מספר קדמי",
+    "Achbi":    "Achbi — אכב\"י",
+    "HaNikud":  "HaNikud — מספר הנקוד",
+}
+
 # Human-readable one-liners shown next to each cipher selector in the UI.
 CIPHER_BLURB: Dict[str, str] = {
     "Standard": "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
@@ -1707,7 +1725,13 @@ def run_app() -> None:
                  "Hebrew": "מספר הנקוד (Mispar HaNikud)",
                  "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
                  "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Based on visual dot-count analysis used in modern Kabbalistic study software. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
-            ]), use_container_width=True, hide_index=True)
+            ]), use_container_width=True, hide_index=True,
+            column_config={
+                "Earliest Source": st.column_config.TextColumn(
+                    "Earliest Source", width="large", wrap_text=True),
+                "Rule": st.column_config.TextColumn(
+                    "Rule", width="medium", wrap_text=True),
+            })
 
         with st.expander("Variant tracks"):
             st.markdown("""
@@ -1814,7 +1838,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             st.dataframe(pd.DataFrame([vals]), use_container_width=True,
                          hide_index=True)
 
-            cipher = st.selectbox("Show matches for method", CIPHER_NAMES, index=0)
+            cipher = st.selectbox("Show matches for method", CIPHER_NAMES, index=0,
+                                  format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
             st.caption(CIPHER_BLURB.get(cipher, ""))
             res = payload["results"][cipher]
             tgt = vals[cipher]
@@ -1871,11 +1896,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 dc1, dc2 = st.columns(2)
                 with dc1:
                     drill_a = st.selectbox(
-                        "Method A", CIPHER_NAMES, key="xm_drill_a"
+                        "Method A", CIPHER_NAMES, key="xm_drill_a",
+                        format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
                     )
                 with dc2:
                     drill_b = st.selectbox(
-                        "Method B", CIPHER_NAMES, index=0, key="xm_drill_b"
+                        "Method B", CIPHER_NAMES, index=0, key="xm_drill_b",
+                        format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
                     )
                 drill_val = a_vals[drill_a]
                 st.markdown(
@@ -1930,10 +1957,21 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
                        "that shares that number, across all 12 methods.")
+            t2_col_config = {
+                "Book":    st.column_config.TextColumn("Book", width="medium"),
+                "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
+                "Verse":   st.column_config.NumberColumn("Verse", width="small"),
+                "Parsha":  st.column_config.TextColumn("Parsha", width="medium"),
+                "Track":   st.column_config.TextColumn("Track", width="small"),
+            }
+            for _c in CIPHER_NAMES:
+                t2_col_config[_c] = st.column_config.NumberColumn(_c, width="small")
             event2 = st.dataframe(
                 show, use_container_width=True, hide_index=True,
                 on_select="rerun",
                 selection_mode="single-row",
+                column_config=t2_col_config,
+                height=400,
                 key="t2_sel")
             st.caption(f"{len(show)} {BOUNDARY_LABELS.get(kind, kind)} unit(s). "
                        "Every method column is an indexed gematria total for that block.")
@@ -1941,6 +1979,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             cipher_pick = st.selectbox(
                 "Look up matches for which method's value?",
                 CIPHER_NAMES, index=0, key="t2_cipher_pick",
+                format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
                      "any of the 12 methods.")
@@ -1992,10 +2031,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         with col_m1:
             t3_ma = st.multiselect(
                 "Method A", CIPHER_NAMES, default=["Standard"], key="t3_ma",
+                format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Gematria method for the first element of each pattern")
         with col_m2:
             t3_mb = st.multiselect(
                 "Method B", CIPHER_NAMES, default=["Standard"], key="t3_mb",
+                format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Method for the second element. When Cross-method is off, Method A is used for both.")
         with col_opts:
             t3_cross = st.toggle(
