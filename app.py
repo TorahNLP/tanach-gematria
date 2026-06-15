@@ -1186,11 +1186,13 @@ def search_value_all_methods(
     """
     unions, params = [], []
     for c in CIPHER_NAMES:
+        # Each branch must be wrapped in a subquery for LIMIT to be valid inside UNION ALL
         unions.append(
+            f"SELECT * FROM ("
             f"SELECT '{c}' AS Method, book AS Book, chapter AS Chapter, "
             f"verse AS Verse, boundary_type AS Boundary, variant_track AS Track, "
             f"consonants AS Text, {c} AS Value, sub_id AS SubID "
-            f"FROM units WHERE {c}=? AND variant_track='Ksiv' LIMIT {limit_per_method}"
+            f"FROM units WHERE {c}=? AND variant_track='Ksiv' LIMIT {limit_per_method})"
         )
         params.append(value)
     sql = "SELECT * FROM (" + " UNION ALL ".join(unions) + ") ORDER BY Method, Book, Chapter, Verse"
