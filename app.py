@@ -726,7 +726,8 @@ def load_from_sefaria(refs: List[str], timeout: int = 20) -> List[VerseInput]:
     return out
 
 
-CORPUS_FILE = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
+CORPUS_FILE   = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
+PREBUILT_DB   = pathlib.Path(__file__).parent / "tanach.db"
 
 
 def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
@@ -1379,10 +1380,8 @@ def run_app() -> None:
     st.set_page_config(page_title="Tanach Gematria Engine",
                        page_icon="📜", layout="wide",
                        initial_sidebar_state="collapsed")
-    @st.cache_resource(show_spinner="Loading gematria database…")
+    @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
-        # Primary corpus: bundled full Tanach. Falls back to SAMPLE_CORPUS
-        # if the file isn't present (e.g. development without the data file).
         bundled = load_from_jsonl()
         verses = bundled if bundled else list(SAMPLE_CORPUS)
         verses = apply_textual_variants(verses)
@@ -1395,6 +1394,14 @@ def run_app() -> None:
             elif refs:
                 fetched_ok = False
         verse_index = {(v.book, v.chapter, v.verse): v for v in verses}
+        # Fast path: restore pre-built DB from disk (baked into Docker image).
+        # Skips the 20–30s cipher computation on cold starts.
+        if not extra_refs_key and PREBUILT_DB.exists():
+            disk = sqlite3.connect(str(PREBUILT_DB), check_same_thread=False)
+            conn = sqlite3.connect(":memory:", check_same_thread=False)
+            disk.backup(conn)
+            disk.close()
+            return conn, len(verses), True, verse_index
         return build_database(verses), len(verses), fetched_ok, verse_index
 
     def get_connection(extra_refs_key: str):
@@ -1686,7 +1693,7 @@ def run_app() -> None:
                 if kind in DETAIL_BOUNDARIES:
                     with st.expander("📜 Verse detail", expanded=True):
                         render_verse_detail(row2["Book"], row2["Chapter"], row2["Verse"], kind)
-                with st.expander("🔀 Cross-method lookup for this row", expanded=False):
+                with st.expander("🔀 Cross-method lookup for this row", expanded=True):
                     st.caption(
                         "Take any gematria value from the selected row and find all "
                         "corpus units that share that value under a different method.")
@@ -1921,7 +1928,8 @@ def run_app() -> None:
                     labels={c: "Gematria value", "count": "Verses"})
                 fig_h.update_layout(bargap=0.05, height=320,
                                     margin=dict(t=40, b=30, l=40, r=20))
-                st.plotly_chart(fig_h, use_container_width=True)
+                st.plotly_chart(fig_h, use_container_width=True,
+                                config={"scrollZoom": False, "displayModeBar": True})
             st.caption(f"{len(plot_df)} verse(s), each counted once (כְּתִיב Ksiv track). "
                        "Hover for exact counts; click legend to toggle; drag to zoom.")
 
@@ -1939,7 +1947,8 @@ def run_app() -> None:
                 title="Method correlation (verse totals)")
             fig_corr.update_layout(height=480,
                                    margin=dict(t=50, b=30, l=120, r=20))
-            st.plotly_chart(fig_corr, use_container_width=True)
+            st.plotly_chart(fig_corr, use_container_width=True,
+                            config={"scrollZoom": False, "displayModeBar": True})
 
             # ---- Book fingerprint (interactive) ----
             st.markdown("#### Book fingerprint — average Absolute value per pasuk")
@@ -1958,7 +1967,8 @@ def run_app() -> None:
                 fig_bk.update_layout(height=max(350, len(book_means) * 18),
                                      showlegend=False, coloraxis_showscale=False,
                                      margin=dict(t=50, b=30, l=140, r=20))
-                st.plotly_chart(fig_bk, use_container_width=True)
+                st.plotly_chart(fig_bk, use_container_width=True,
+                                config={"scrollZoom": False, "displayModeBar": True})
 
             st.markdown("#### Unrepresented value ranges (Absolute)")
             dz = density_gaps(conn, "Absolute", "Verse")
@@ -2009,7 +2019,8 @@ def run_app() -> None:
                             y="First half — method", color="Rate"),
             )
             fig_xm.update_layout(height=560, margin=dict(t=50, b=30, l=120, r=20))
-            st.plotly_chart(fig_xm, use_container_width=True)
+            st.plotly_chart(fig_xm, use_container_width=True,
+                            config={"scrollZoom": False, "displayModeBar": True})
             st.caption(
                 f"Based on {total_verses:,} Tanach verses (Ksiv track) that have both "
                 "half-verse units. Each cell = fraction of those verses where the first "
@@ -2234,5 +2245,21 @@ if __name__ == "__main__":
         if hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(encoding="utf-8", errors="replace")
         run_selftest()
+    elif len(sys.argv) > 1 and sys.argv[1] == "builddb":
+        # Pre-build tanach.db so Docker cold starts skip cipher computation.
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        print("Building tanach.db …")
+        _verses = load_from_jsonl()
+        if not _verses:
+            _verses = list(SAMPLE_CORPUS)
+            print("  WARNING: tanach_corpus.jsonl not found — building from SAMPLE_CORPUS only")
+        _verses = apply_textual_variants(_verses)
+        _conn = build_database(_verses)
+        _disk = sqlite3.connect(str(PREBUILT_DB))
+        _conn.backup(_disk)
+        _disk.close()
+        _conn.close()
+        print(f"tanach.db written ({len(_verses):,} verses, {PREBUILT_DB.stat().st_size // 1024:,} KB)")
     else:
         run_app()

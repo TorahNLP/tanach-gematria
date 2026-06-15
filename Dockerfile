@@ -7,6 +7,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+# Pre-build the gematria database so cold starts skip the cipher computation.
+# tanach.db is baked into the image; startup restores it into memory (~1-2s).
+RUN python app.py builddb
+
 EXPOSE 7860
 
 CMD ["streamlit", "run", "app.py", \
