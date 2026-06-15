@@ -203,7 +203,7 @@ def g_kidmi(s: str) -> int:
 
 
 def _temurah_value(s: str, mapping: Dict[str, str]) -> int:
-    """Substitute each letter via a temurah map, then take the Absolute value."""
+    """Substitute each letter via a temurah map, then take the Standard value."""
     total = 0
     for c in s:
         base = _normalize_final(c)
@@ -255,7 +255,7 @@ def g_nikud(text: str) -> int:
 # NOTE: HaNikud operates on cantillated text; all others take consonants.
 # compute_all_ciphers handles the dispatch so callers use a uniform API.
 CIPHERS: Dict[str, Callable[[str], int]] = {
-    "Absolute": g_absolute,     # Mispar Hechrachi / Yaschar      (required)
+    "Standard": g_absolute,     # Mispar Hechrachi / Yaschar      (required)
     "Katan": g_katan,           # Mispar Katan (reduced)          (required)
     "Gadol": g_gadol,           # Mispar Gadol (final 500-900)    (required)
     "Atbash": g_atbash,         # א"ת ב"ש                          (required)
@@ -272,17 +272,17 @@ CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
 # Human-readable one-liners shown next to each cipher selector in the UI.
 CIPHER_BLURB: Dict[str, str] = {
-    "Absolute": "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
+    "Standard": "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
     "Katan":    "Reduced values — drop trailing zeros (ק→1, מ→4), then sum.",
-    "Gadol":    "Like Absolute, but final forms count higher: ך=500 … ץ=900.",
-    "Atbash":   "Mirror swap: א↔ת, ב↔ש, ג↔ר … then Absolute of swapped letters.",
-    "Albam":    "ROT-11 swap: א↔ל, ב↔מ, ג↔נ … then Absolute of swapped letters.",
+    "Gadol":    "Like Standard, but final forms count higher: ך=500 … ץ=900.",
+    "Atbash":   "Mirror swap: א↔ת, ב↔ש, ג↔ר … then Standard values of swapped letters.",
+    "Albam":    "ROT-11 swap: א↔ל, ב↔מ, ג↔נ … then Standard values of swapped letters.",
     "Atbah":    "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
-    "Avgad":    "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute of shifted letters.",
+    "Avgad":    "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of shifted letters.",
     "Siduri":   "Ordinal position: א=1, ב=2, ג=3 … ת=22. Sequence, not value.",
     "Ribua":    "Sum of squared values: Σ v² per letter.",
-    "Kidmi":    "Triangular cumulative: each letter = sum of all Absolutes up to it. א=1, ב=3 … ת=1495.",
-    "Achbi":    "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Absolute.",
+    "Kidmi":    "Triangular cumulative: each letter = sum of all Standard values up to it. א=1, ב=3 … ת=1495.",
+    "Achbi":    "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
     "HaNikud":  "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
 }
 
@@ -582,7 +582,7 @@ SAMPLE_CORPUS: List[VerseInput] = [
 TEXTUAL_VARIANT_SPECS: dict = {
     # --- Itture Sopherim (BT Nedarim 37b) —
     #     Five places where scribes omitted a conjunctive vav.
-    #     TextVariant restores the vav (+6 Absolute).
+    #     TextVariant restores the vav (+6 Standard).
     ("Genesis", 18, 5): {
         "from": "אחר", "to": "ואחר",
         "category": "Ittur Sopherim",
@@ -1256,13 +1256,13 @@ def structure_frame(conn: sqlite3.Connection, boundary: str,
 
 def extremes_table(conn: sqlite3.Connection,
                    boundaries: List[str]) -> pd.DataFrame:
-    """Max/Min/Mean/Median/Std of the Absolute value per macro-structure type."""
+    """Max/Min/Mean/Median/Std of the Standard value per macro-structure type."""
     rows = []
     for b in boundaries:
         df = structure_frame(conn, b)
         if df.empty:
             continue
-        col = df["Absolute"]
+        col = df["Standard"]
         rows.append({
             "Structure": b, "Count": int(col.count()),
             "Max": int(col.max()), "Min": int(col.min()),
@@ -1273,7 +1273,7 @@ def extremes_table(conn: sqlite3.Connection,
     return pd.DataFrame(rows)
 
 
-def density_gaps(conn: sqlite3.Connection, cipher: str = "Absolute",
+def density_gaps(conn: sqlite3.Connection, cipher: str = "Standard",
                  boundary: str = "Verse") -> Dict[str, object]:
     """Identify 'dead zones': value ranges with zero verse representation."""
     df = structure_frame(conn, boundary)
@@ -1306,7 +1306,7 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
     result: List[Tuple[str, int]] = []
     for ch in consonants:
         base = _normalize_final(ch)
-        if cipher == "Absolute":
+        if cipher == "Standard":
             result.append((ch, STANDARD.get(base, 0)))
         elif cipher == "Katan":
             result.append((ch, _katan_digit(STANDARD.get(base, 0))))
@@ -1353,12 +1353,12 @@ def run_selftest() -> None:
     g11 = strip_to_consonants(SAMPLE_CORPUS[0].text)
     assert g_absolute(g11) == 2701, g_absolute(g11)
     print(f"Genesis 1:1 consonants: {g11}")
-    print(f"  Absolute = {g_absolute(g11)} (expected 2701)  OK")
+    print(f"  Standard = {g_absolute(g11)} (expected 2701)  OK")
 
     shalom = "שלום"
     assert g_absolute(shalom) == 376, g_absolute(shalom)
     assert g_siduri(shalom) == 52, g_siduri(shalom)
-    print(f"  שלום Absolute={g_absolute(shalom)} (376), Siduri={g_siduri(shalom)} (52)  OK")
+    print(f"  שלום Standard={g_absolute(shalom)} (376), Siduri={g_siduri(shalom)} (52)  OK")
 
     assert g_atbash("א") == 400 and g_atbash("ב") == 300
     assert g_albam("א") == 30 and g_avgad("א") == 2
@@ -1416,11 +1416,11 @@ def run_selftest() -> None:
     n_pat = conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0]
     print(f"  DB built: {n_units} units, {n_pat} patterns logged  OK")
 
-    res = search_value(conn, "Absolute", 2701)
+    res = search_value(conn, "Standard", 2701)
     assert (res["Value"] == 2701).any()
-    print(f"  Search Absolute=2701 -> {len(res)} hit(s)  OK")
+    print(f"  Search Standard=2701 -> {len(res)} hit(s)  OK")
 
-    res_c = search_value(conn, "Absolute", 2700, colel=True)
+    res_c = search_value(conn, "Standard", 2700, colel=True)
     assert (res_c["Value"] == 2701).any()
     print(f"  Colel search 2700±1 -> {len(res_c)} hit(s) (incl. 2701)  OK")
 
@@ -1484,7 +1484,7 @@ def run_app() -> None:
         st.divider()
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
-        st.caption("Traditional: Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad. "
+        st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbah, Avgad. "
                    "Researched additions: Siduri, Ribua, Kidmi, Achbi, HaNikud.")
 
     DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
@@ -1659,7 +1659,7 @@ def run_app() -> None:
 
         with st.expander("The 12 gematria methods", expanded=True):
             st.dataframe(pd.DataFrame([
-                {"Method": "Absolute",
+                {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
                  "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
                  "Earliest Source": "Biblical era (attested in use). Rabbinic formulation: BT Nedarim 32a interprets the '318 servants' of Gen. 14:14 as the name אֱלִיעֶזֶר (=318) — the earliest clear Talmudic use. The term 'gematriot' appears as a category of wisdom in Mishnah Avot 3:18. BT Sanhedrin 22a discusses the practice explicitly."},
@@ -1669,11 +1669,11 @@ def run_app() -> None:
                  "Earliest Source": "Medieval. No Talmudic source for this specific reduction. Formalized in Hasidei Ashkenaz tradition (12th–13th c.), appearing in works such as Sefer Gematriot (attr. R. Yehuda he-Hasid, d. 1217)."},
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
-                 "Rule": "Like Absolute, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
+                 "Rule": "Like Standard, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
                  "Earliest Source": "The 27-letter sequence including finals is described in Sefer Yetzirah 2:2 (dated 3rd–6th c. CE by scholarship; earlier by tradition). Practical use with the higher values in gematria appears in Sefer ha-Bahir (12th c.) and the Zohar (13th c.)."},
                 {"Method": "Atbash",
                  "Hebrew": "אתב\"ש (At-Bash)",
-                 "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Absolute values of the swapped letters.",
+                 "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Standard values of the swapped letters.",
                  "Earliest Source": "The oldest attested gematria method — appears in the Hebrew Bible itself. 'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
                 {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
@@ -1685,7 +1685,7 @@ def run_app() -> None:
                  "Earliest Source": "Attributed to Rabbi Eliezer ben Yose ha-Gelili, a 2nd-century Tanna. The full name 'Atbah of R. Eliezer' appears in the Baraita of 32 Hermeneutical Rules (Tannaic era, transmitted in medieval compilations) and in Midrashic literature."},
                 {"Method": "Avgad",
                  "Hebrew": "אבג\"ד (Av-Gad)",
-                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Absolute values of the shifted letters.",
+                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of the shifted letters.",
                  "Earliest Source": "Classical cyclic temurah. The concept of cyclic letter shifting appears within the temurah tradition of Sefer Yetzirah (3rd–6th c. CE). The specific Avgad cipher is named and elaborated in medieval Kabbalistic works."},
                 {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
@@ -1693,11 +1693,11 @@ def run_app() -> None:
                  "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria method, widely attested in Midrashic literature and medieval biblical commentary."},
                 {"Method": "Ribua",
                  "Hebrew": "מספר מרובע (Mispar Meruba Pratti)",
-                 "Rule": "Square each letter's Absolute value, then sum all squares (Σ v²).",
+                 "Rule": "Square each letter's Standard value, then sum all squares (Σ v²).",
                  "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in Sefer ha-Bahir (Provence, 12th c.) and later Zoharic and Lurianic literature."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי / משולש (Mispar Kidmi)",
-                 "Rule": "Triangular cumulative: each letter's value = sum of all Absolute values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
+                 "Rule": "Triangular cumulative: each letter's value = sum of all Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
                  "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in later Kabbalistic computational texts; the triangular-number principle is implicit in Pythagorean numerology as absorbed into medieval Jewish mysticism."},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
@@ -1713,7 +1713,7 @@ def run_app() -> None:
             st.markdown("""
 **Ksiv (כְּתִיב — "Written")** — The consonantal text exactly as written in the Torah scroll. The default track; every verse is recorded here. The Masoretes went to extraordinary lengths to preserve this text letter-perfect.
 
-**Kri (קְרֵי — "Read")** — The text as traditionally *read aloud*, sometimes differing from the written form. Marginal notes mark every divergence. Different consonants → different gematria totals. Example: Psalms 100:3 written לֹא (alef), read לוֹ (vav), difference = 1 Absolute.
+**Kri (קְרֵי — "Read")** — The text as traditionally *read aloud*, sometimes differing from the written form. Marginal notes mark every divergence. Different consonants → different gematria totals. Example: Psalms 100:3 written לֹא (alef), read לוֹ (vav), difference = 1 in Standard.
 
 *Qere Perpetuum* — A subset of Kri: substitutions so consistent they receive only one marginal note for all occurrences. Chief example: in the Torah, הִיא ("she") is written as הוּא ("he") 33 times; a single note at Genesis 3:20 covers all (cf. BT Yevamot). Implemented via the Kri track.
 
@@ -1991,11 +1991,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         col_m1, col_m2, col_opts = st.columns([3, 3, 2])
         with col_m1:
             t3_ma = st.multiselect(
-                "Method A", CIPHER_NAMES, default=["Absolute"], key="t3_ma",
+                "Method A", CIPHER_NAMES, default=["Standard"], key="t3_ma",
                 help="Gematria method for the first element of each pattern")
         with col_m2:
             t3_mb = st.multiselect(
-                "Method B", CIPHER_NAMES, default=["Absolute"], key="t3_mb",
+                "Method B", CIPHER_NAMES, default=["Standard"], key="t3_mb",
                 help="Method for the second element. When Cross-method is off, Method A is used for both.")
         with col_opts:
             t3_cross = st.toggle(
@@ -2115,7 +2115,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 pat_type  = str(sel_row.get("Pattern", ""))
                 ref_a_str = str(sel_row.get("Reference A", ""))
                 ref_b_str = str(sel_row.get("Reference B", ""))
-                active_ma = str(sel_row.get("Method A", "Absolute"))
+                active_ma = str(sel_row.get("Method A", "Standard"))
                 active_mb = str(sel_row.get("Method B", active_ma))
 
                 with st.expander("📜 Referenced verses", expanded=True):
@@ -2146,12 +2146,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
     with tab4:
         st.subheader("Macro Statistical Dashboard")
 
-        st.markdown("#### Highs & lows by structure — Absolute method")
+        st.markdown("#### Highs & lows by structure — Standard method")
         ext = extremes_table(conn, ["Verse", "Perek", "Parsha",
                                     "Petucha", "Setuma", "Word"])
         if not ext.empty:
             st.dataframe(ext, use_container_width=True, hide_index=True)
-            st.caption("All statistics use the **Absolute** (standard) gematria method.")
+            st.caption("All statistics use the **Standard** (Mispar Hechrachi) gematria method.")
 
         st.markdown("#### Value distributions across verses")
         # Each verse appears exactly once. The per-verse Petucha/Setuma rows are
@@ -2168,7 +2168,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             import plotly.graph_objects as go
 
             # ---- Distribution histograms (interactive) ----
-            hist_cols = ["Absolute", "Katan", "Atbash"]
+            hist_cols = ["Standard", "Katan", "Atbash"]
             hist_colors = ["#2c6fbb", "#bb572c", "#3aa66f"]
             for c, color in zip(hist_cols, hist_colors):
                 fig_h = px.histogram(
@@ -2200,27 +2200,27 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             config={"scrollZoom": False})
 
             # ---- Book fingerprint (interactive) ----
-            st.markdown("#### Book fingerprint — average Absolute value per pasuk")
-            st.caption("Mean Absolute gematria per book. "
+            st.markdown("#### Book fingerprint — average Standard value per pasuk")
+            st.caption("Mean Standard gematria per book. "
                        "Books with longer or less-common words tend to score higher. "
                        "Hover for exact values.")
-            if "book" in plot_df.columns and "Absolute" in plot_df.columns:
-                book_means = (plot_df.groupby("book")["Absolute"]
+            if "book" in plot_df.columns and "Standard" in plot_df.columns:
+                book_means = (plot_df.groupby("book")["Standard"]
                               .mean().round(1).sort_values(ascending=True)
                               .reset_index())
-                book_means.columns = ["Book", "Mean Absolute"]
+                book_means.columns = ["Book", "Mean Standard"]
                 fig_bk = px.bar(
-                    book_means, x="Mean Absolute", y="Book", orientation="h",
-                    color="Mean Absolute", color_continuous_scale="YlOrBr",
-                    title="Average verse (pasuk) value by book — Absolute method")
+                    book_means, x="Mean Standard", y="Book", orientation="h",
+                    color="Mean Standard", color_continuous_scale="YlOrBr",
+                    title="Average verse (pasuk) value by book — Standard method")
                 fig_bk.update_layout(height=max(350, len(book_means) * 18),
                                      showlegend=False, coloraxis_showscale=False,
                                      margin=dict(t=50, b=30, l=140, r=20))
                 st.plotly_chart(fig_bk, use_container_width=True,
                                 config={"scrollZoom": False})
 
-            st.markdown("#### Unrepresented value ranges (Absolute)")
-            dz = density_gaps(conn, "Absolute", "Verse")
+            st.markdown("#### Unrepresented value ranges (Standard)")
+            dz = density_gaps(conn, "Standard", "Verse")
             st.write(f"Observed range **{dz['min']}–{dz['max']}**, "
                      f"**{len(dz['present'])}** distinct values present, "
                      f"**{len(dz['gaps'])}** unrepresented range(s).")
