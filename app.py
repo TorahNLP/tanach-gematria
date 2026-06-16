@@ -195,24 +195,6 @@ EMTZAIYOT_MALEH_VALS: Dict[str, int] = {
     for k, v in LETTER_NAME_SPELLING_3.items()
 }
 
-# Mispar Mispari: gematria of the Hebrew number-word for each letter's Standard value.
-# Verified against TorahCalc and cross-checked with Mispar Mispari tables.
-# Number words: 1=אחד, 2=שתיים, 3=שלוש, 4=ארבע, 5=חמש, 6=שש, 7=שבע, 8=שמונה,
-# 9=תשע, 10=עשר, 20=עשרים, 30=שלושים, 40=ארבעים, 50=חמישים, 60=שישים,
-# 70=שבעים, 80=שמונים, 90=תשעים, 100=מאה, 200=מאתים, 300=שלוש מאות, 400=ארבע מאות.
-MISPARI_VALS: Dict[str, int] = {
-    ALEFBET[i]: v for i, v in enumerate(
-        [13, 760, 636, 273, 348, 600, 372, 401, 770, 570,
-         620, 686, 323, 408, 660, 422, 446, 820, 46, 501, 1083, 720]
-    )
-}
-MISPARI_WORDS: Dict[str, str] = {
-    ALEFBET[i]: w for i, w in enumerate(
-        ["אחד","שתיים","שלוש","ארבע","חמש","שש","שבע","שמונה","תשע",
-         "עשר","עשרים","שלושים","ארבעים","חמישים","שישים","שבעים",
-         "שמונים","תשעים","מאה","מאתים","שלוש מאות","ארבע מאות"]
-    )
-}
 
 # Ofanim (אופנים): last letter of each letter's Lurianic name spelling, standard value.
 OFANIM_MAP: Dict[str, str] = {
@@ -469,19 +451,9 @@ def g_reverse_ordinal(s: str) -> int:
     return sum(REVERSE_ORDINAL.get(_normalize_final(c), 0) for c in s)
 
 
-def g_meshulash(s: str) -> int:
-    """Mispar Meshulash (Cubed) - each letter's Standard value cubed, then summed."""
-    return sum(STANDARD.get(_normalize_final(c), 0) ** 3 for c in s)
-
-
 def g_ha_merubah_klali(s: str) -> int:
     """Mispar HaMerubah HaKlali - the total Standard sum squared as a single block."""
     return g_absolute(s) ** 2
-
-
-def g_mispari(s: str) -> int:
-    """Mispar Mispari - gematria of the Hebrew number-word for each letter's Standard value."""
-    return sum(MISPARI_VALS.get(_normalize_final(c), 0) for c in s)
 
 
 def g_ayak_bachar(s: str) -> int:
@@ -539,14 +511,12 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     # ── Mathematical transforms ───────────────────────────────────────────────
     "Ribua":            g_ribua,             # Mispar Meruba Prati (Σ v²)
     "HaMerubahKlali":   g_ha_merubah_klali,  # Mispar HaMerubah HaKlali (total²)
-    "Meshulash":        g_meshulash,         # Mispar Meshulash (Σ v³ per letter)
     "Kidmi":            g_kidmi,             # Mispar Kidmi / HaKadmon (cumulative Standard sums)
     # ── Name-expansion (2-letter / standard Lurianic) ────────────────────────
     "Milui":            g_milui,             # Mispar Milui (full letter-name)
     "Neelam":           g_neelam,            # Mispar Neelam (hidden portion)
     "Emtzaiyot":        g_emtzaiyot,         # Emtzaiyot (middle/inner letter of name)
     "Ofanim":           g_ofanim,            # Ofanim (last letter of name)
-    "Mispari":          g_mispari,           # Mispar Mispari (Hebrew number-word)
     # ── Vowel-mark (nikud) ciphers — dispatched to cantillated text ──────────
     "HaNekudot":        g_hanekudot,         # Geometric vowel values (dot=10, line=6)
     "ImHaNekudot":      g_hanekudot,         # Standard(letters) + geometric vowel values
@@ -577,10 +547,9 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
 # Ciphers excluded from correlation/balance heatmaps: KatanMispari saturates
-# (only 9 distinct values → always ~100% balance), Meshulash and HaMerubahKlali
-# produce hyperscale values (cubed / squared totals) that break Pearson correlation
-# and always show 0% balance.
-_HEATMAP_EXCLUDE: frozenset = frozenset({"KatanMispari", "Meshulash", "HaMerubahKlali"})
+# (only 9 distinct values → always ~100% balance), HaMerubahKlali produces
+# hyperscale squared totals that break Pearson correlation and always show 0% balance.
+_HEATMAP_EXCLUDE: frozenset = frozenset({"KatanMispari", "HaMerubahKlali"})
 
 # Display labels for cipher selector widgets. Internal names stay as short
 # CIPHER_NAMES keys (Python dicts, SQL columns); these labels are used only
@@ -594,13 +563,11 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "ReverseOrdinal":  "Reverse Ordinal — מספר אחור סידורי",
     "Ribua":           "Ribua — מספר מרובע",
     "HaMerubahKlali":  "HaMerubah HaKlali — מספר המרובע הכללי",
-    "Meshulash":       "Meshulash — מספר משולש",
     "Kidmi":           "Kidmi — מספר קדמי",
     "Milui":           "Milui — מספר שמי / מילוי",
     "Neelam":          "Neelam — מספר נעלם",
     "Emtzaiyot":       "Emtzaiyot — אמצעיות",
     "Ofanim":          "Ofanim — אופנים",
-    "Mispari":          "Mispari — מספר מספרי",
     "HaNekudot":        "HaNekudot — מספר הנקודות",
     "ImHaNekudot":      "Im HaNekudot — עם הנקודות",
     "MiluiNekudot":     "Milui HaNekudot — מילוי הנקודות",
@@ -633,14 +600,12 @@ CIPHER_BLURB: Dict[str, str] = {
     "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22. Chassidei Ashkenaz / Sefer Raziel.",
     "Ribua":           "Sum of squared values per letter: Σ v².",
     "HaMerubahKlali":  "The total Standard sum squared as one block: (Σv)². Pardes Rimonim Sha'ar 30.",
-    "Meshulash":       "Each letter's Standard value cubed (v³), then summed: Σ v³. TorahCalc advanced.",
     "Kidmi":           "Cumulative sum of Standard values: each letter = Σ Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
     "Milui":           "Spell each letter's full name (Lurianic: א=אלף=111 …); sum all spelling letters.",
     "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
     "Emtzaiyot":       "Middle letter: Standard value of the second letter of each Milui name (2-letter spellings). אלף→ל=30, בית→י=10 …",
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
-    "Mispari":          "Gematria of the Hebrew number-word for each letter's value (א=1→אחד=13 …).",
     "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh=10. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30. Consonants and taamim contribute 0.",
     "ImHaNekudot":      "Standard gematria of the consonants plus HaNekudot of the vowel marks: letters + vowel-mark geometric values combined.",
     "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark (Gikatilla spellings). שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307. Returns 0 for consonant-only text.",
@@ -1809,8 +1774,6 @@ def cipher_breakdown(cipher: str, consonants: str,
             result.append((ch, REVERSE_ORDINAL.get(base, 0)))
         elif cipher == "Ribua":
             result.append((f"{ch}²", v_std * v_std))
-        elif cipher == "Meshulash":
-            result.append((f"{ch}³", v_std ** 3))
         elif cipher == "Kidmi":
             result.append((ch, KIDMI.get(base, 0)))
         elif cipher == "Milui":
@@ -1819,9 +1782,6 @@ def cipher_breakdown(cipher: str, consonants: str,
         elif cipher == "Neelam":
             spelling = LETTER_NAME_SPELLING.get(base, "")
             result.append((f"{ch}→{spelling[1:]}", NEELAM_VALS.get(base, 0)))
-        elif cipher == "Mispari":
-            word_label = MISPARI_WORDS.get(base, "")
-            result.append((f"{ch}={word_label}", MISPARI_VALS.get(base, 0)))
         elif cipher == "Emtzaiyot":
             spelling = LETTER_NAME_SPELLING.get(base, base)
             mid_raw = spelling[1] if len(spelling) > 1 else spelling[0]
@@ -1915,17 +1875,13 @@ def run_selftest() -> None:
     assert g_neelam(emet) == 166,             g_neelam(emet)           # לף(110)+ם(40)+יו(16)
     assert g_kolel_ehad(emet) == 442,         g_kolel_ehad(emet)       # 441+1
     assert g_kolel_otiyot(emet) == 444,       g_kolel_otiyot(emet)     # 441+3
-    # Renamed: Boneeh (was Meshulash), HaAchor (was Kaful), ReverseOrdinal (was HaAchor)
     assert g_boneeh(emet) == 483,             g_boneeh(emet)           # 1+(1+40)+(1+40+400)
     assert g_haachor(emet) == 1281,           g_haachor(emet)          # 1×1+40×2+400×3
     assert g_mityashev(emet) == 1323,         g_mityashev(emet)        # 441×3
     assert g_reverse_ordinal("ת") == 1
     assert g_reverse_ordinal("א") == 22
     assert g_reverse_ordinal(emet) == 33,     g_reverse_ordinal(emet)  # א=22+מ=10+ת=1
-    # New ciphers
-    assert g_meshulash(emet) == 64064001,     g_meshulash(emet)        # 1³+40³+400³
     assert g_ha_merubah_klali(emet) == 194481, g_ha_merubah_klali(emet)  # 441²
-    assert g_mispari(emet) == 1056,           g_mispari(emet)          # אחד(13)+ארבעים(323)+ארבע מאות(720)
     assert g_ayak_bachar(emet) == 414,        g_ayak_bachar(emet)      # א→י(10)+מ→ת(400)+ת→ד(4)
     assert g_ofanim(emet) == 126,             g_ofanim(emet)           # א→פ(80)+מ→מ(40)+ת→ו(6)
     assert g_achas_beta(emet) == 608,         g_achas_beta(emet)       # א→ח(8)+מ→ר(200)+ת→ת(400)
@@ -2046,8 +2002,8 @@ def run_app() -> None:
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
         st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
-                   "Value: Ribua, HaMerubahKlali, Meshulash, Kidmi, KatanMispari, ReverseOrdinal. "
-                   "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim, Mispari. "
+                   "Value: Ribua, HaMerubahKlali, Kidmi, KatanMispari, ReverseOrdinal. "
+                   "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim. "
                    "Vowel-mark (nikud): HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot. "
                    "Name-expansion (Maleh): MiluiMaleh, NeelAmMaleh, EmtzaiyotMaleh. "
                    "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
@@ -2161,14 +2117,14 @@ def run_app() -> None:
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
             "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 36 gematria methods."
+            "statistical fingerprint of the Tanach across 34 gematria methods."
         )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 36 gematria methods with earliest Talmudic or medieval sources,"
+                "Explains all 34 gematria methods with earliest Talmudic or medieval sources,"
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
@@ -2227,7 +2183,7 @@ def run_app() -> None:
             "Historical attributions are traditional and noted where uncertain."
         )
 
-        with st.expander("The 36 gematria methods", expanded=True):
+        with st.expander("The 34 gematria methods", expanded=True):
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -2261,10 +2217,6 @@ def run_app() -> None:
                  "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
                  "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua which squares per letter.",
                  "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30)."},
-                {"Method": "Meshulash",
-                 "Hebrew": "מספר משולש — Cubed (Mispar Meshulash)",
-                 "Rule": "Each letter's Standard value cubed individually (v³), then summed. Alef=1³=1, Bet=2³=8, Tav=400³.",
-                 "Earliest Source": "Modern invention with no classical precedent. The classical term 'Mispar Meshulash' (מספר משולש) denotes a triangular/cumulative method identical to Kidmi — not cubing. The v³ operation is sometimes labeled מעוקב (Me'ukav, cubed) in modern taxonomies. No Talmudic or Kabbalistic source applies the cubic function to gematria."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
                  "Rule": "Cumulative prefix sum of Standard values: each letter's value = Σ Standard values from א up to and including it. א=1, ב=3, ג=6, ד=10 … ת=1495.",
@@ -2285,10 +2237,6 @@ def run_app() -> None:
                  "Hebrew": "אופנים (Ofanim — Wheels)",
                  "Rule": "Replace each letter with the final letter of its Milui name spelling, take Standard value.",
                  "Earliest Source": "Sefer Raziel HaMalach."},
-                {"Method": "Mispari",
-                 "Hebrew": "מספר מספרי (Mispar Mispari)",
-                 "Rule": "Spell out the Hebrew number-word for each letter's value; sum those words' gematria. Alef=1→אחד=13.",
-                 "Earliest Source": "Purely modern; no classical source exists. Hebrew number-words change with grammatical gender and context (e.g., אחד vs. אחת, שניים vs. שתיים), making a stable cipher definition impossible in classical usage. Documented only in contemporary gematria software taxonomies."},
                 {"Method": "HaNekudot",
                  "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
                  "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh/Shuruk=10, Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30. Taamim and shin/sin dot excluded. Returns 0 for consonant-only text.",
@@ -2764,13 +2712,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 "(Katan: 1–40; KatanMispari: 1–9), producing artificially high match rates. "
                 "Set **Min value ≥ 41** or deselect these methods to reduce noise.")
 
-        _hyperscale = {"Meshulash", "HaMerubahKlali"}
+        _hyperscale = {"HaMerubahKlali"}
         if any(c in eff_a or c in eff_b for c in _hyperscale):
             triggered_h = [c for c in _hyperscale if c in eff_a or c in eff_b]
             st.info(
-                f"ℹ️ **{' / '.join(triggered_h)}** produce very large values "
-                "(cubed or squared totals). Matches will be rare to nonexistent; "
-                "Colel ±1 has no practical effect at this scale.")
+                f"ℹ️ **{' / '.join(triggered_h)}** produces very large values "
+                "(squared totals). Matches will be rare to nonexistent; "
+                "Kolel ±1 has no practical effect at this scale.")
 
         # --- Build unified results ---
         frames = []

@@ -10,7 +10,7 @@
 
 A single-file Streamlit app (`app.py`) that brings together:
 
-- **36 gematria ciphers** over the full 23,206-verse Masoretic Tanakh
+- **34 gematria ciphers** over the full 23,206-verse Masoretic Tanakh
 - **Structural analysis** — half-verse splits at the Asnachta, Pesucha/Setuma paragraph detection, Ksiv/Kri variant forking
 - **Pattern database** — internal half-verse balance, proximity echoes, cross-method echoes
 - **Interactive dashboards** — Plotly histograms, correlation heatmaps, book fingerprints
@@ -43,8 +43,7 @@ The corpus is sourced from Sefaria (cantillated Masoretic text) and bundled as `
 |------|--------|-------------|
 | Ribua | מספר מרובע | Sum of squared Standard values per letter (Σv²). |
 | HaMerubahKlali | מספר המרובע הכללי | The whole Standard sum squared: (Σv)². |
-| Meshulash | מספר משולש | Each letter's Standard value cubed (Σv³). |
-| Kidmi | מספר קדמי | Triangular cumulative: each letter = Σ Standard values from א up to it. |
+| Kidmi | מספר קדמי | Cumulative prefix sum of Standard values: each letter = Σ Standard values from א up to it. |
 
 ### Name-expansion — 2-letter (standard Lurianic)
 
@@ -54,7 +53,6 @@ The corpus is sourced from Sefaria (cantillated Masoretic text) and bundled as `
 | Neelam | נעלם | Like Milui but drop the first letter of each name. |
 | Emtzaiyot | אמצעיות | Standard value of the second (inner) letter of each Milui name. |
 | Ofanim | אופנים | Standard value of the last letter of each Milui name. |
-| Mispari | מספר מספרי | Gematria of the Hebrew number-word for each letter's Standard value. |
 
 ### Vowel-mark (nikud) ciphers
 
@@ -281,7 +279,7 @@ Free tier apps sleep after inactivity; first visitor clicks once to wake (~30s).
 - **`parse_pattern_ref`** (Section 6b, module-level) parses human-readable ref strings (e.g. `"Genesis 1:1 1st-half [Ksiv]"`) back into (book, chapter, verse, boundary) tuples. Formats: `Book ch:v Nth-half [Track]` → FirstHalf/SecondHalf; `Book ch:v` → Verse.
 - **`extremes_table` and the Word boundary** — fetches all word rows into pandas to compute statistics. The aggregate could be pushed to SQL for better performance at scale; acceptable for the current corpus size.
 - **Scripture integrity** — paragraph markers `{פ}` / `{ס}` are stripped before any gematria count. The self-test asserts `verse_total == Σ word_totals` to guard this invariant. Never hard-code scriptural text from memory.
-- **`_HEATMAP_EXCLUDE`** — `KatanMispari` (only 9 distinct values → always ~100% balance), `Meshulash` and `HaMerubahKlali` (hyperscale cubed/squared values) are excluded from correlation and balance heatmaps. The 4 nikud ciphers are **not** excluded — they carry real non-zero data on all Verse/FirstHalf/SecondHalf rows used by those charts.
+- **`_HEATMAP_EXCLUDE`** — `KatanMispari` (only 9 distinct values → always ~100% balance) and `HaMerubahKlali` (hyperscale squared values) are excluded from correlation and balance heatmaps. The 4 nikud ciphers are **not** excluded — they carry real non-zero data on all Verse/FirstHalf/SecondHalf rows used by those charts.
 
 ## Removed features
 
