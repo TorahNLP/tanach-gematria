@@ -1660,8 +1660,14 @@ def search_value_all_methods(
             f" LIMIT {int(limit_per_method)})"
         )
         params += branch_params
+    method_order = (
+        "CASE Method " +
+        " ".join(f"WHEN ? THEN {i}" for i, _ in enumerate(CIPHER_NAMES)) +
+        " ELSE 9999 END"
+    )
     sql = ("SELECT * FROM (" + " UNION ALL ".join(unions) +
-           ") ORDER BY Method, ABS(Value - ?), Book, Chapter, Verse")
+           f") ORDER BY {method_order}, ABS(Value - ?), Book, Chapter, Verse")
+    params += list(CIPHER_NAMES)
     params.append(value)
     return pd.read_sql_query(sql, conn, params=params)
 
