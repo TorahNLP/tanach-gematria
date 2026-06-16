@@ -2528,16 +2528,85 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         horizontal=True, key="t1_mode")
 
         if mode == "Hebrew text":
-            c1, c2 = st.columns([3, 2])
+            _KBD_KEY  = "t1_hebrew"
+            _KBD_OPEN = "t1_kbd_open"
+            if _KBD_KEY not in st.session_state:
+                st.session_state[_KBD_KEY] = "שלום"
+
+            def _kbd_add(ch):
+                st.session_state[_KBD_KEY] = st.session_state.get(_KBD_KEY, "") + ch
+            def _kbd_bksp():
+                v = st.session_state.get(_KBD_KEY, "")
+                st.session_state[_KBD_KEY] = v[:-1] if v else ""
+            def _kbd_clear():
+                st.session_state[_KBD_KEY] = ""
+            def _kbd_toggle():
+                st.session_state[_KBD_OPEN] = not st.session_state.get(_KBD_OPEN, False)
+
+            kbd_open = st.session_state.get(_KBD_OPEN, False)
+            c1, c2, c3 = st.columns([4, 2, 1])
             with c1:
-                raw = st.text_input(
-                    "Hebrew phrase or name",
-                    value="שלום", help="Type or paste Hebrew. Nikud and ta'amim are "
-                    "stripped automatically; only the 22 consonants are counted.")
+                if kbd_open:
+                    # Non-focusable display — suppresses device keyboard on mobile
+                    _txt = st.session_state.get(_KBD_KEY, "")
+                    st.markdown(
+                        f'<div style="border:1px solid #ccc;border-radius:6px;'
+                        f'padding:8px 12px;min-height:2.6em;font-size:1.15em;'
+                        f'direction:rtl;text-align:right;background:#fff;'
+                        f'color:#222;line-height:1.9;user-select:none;">'
+                        f'{_txt}<span style="border-right:2px solid #555;'
+                        f'margin-right:2px;animation:t1blink 1s step-end infinite;">'
+                        f'&nbsp;</span></div>'
+                        f'<style>@keyframes t1blink{{50%{{opacity:0}}}}</style>',
+                        unsafe_allow_html=True)
+                    raw = _txt
+                else:
+                    raw = st.text_input(
+                        "Hebrew phrase or name", key=_KBD_KEY,
+                        help="Type or paste Hebrew. Nikud and ta'amim are "
+                        "stripped automatically; only the 22 consonants are counted.")
             with c2:
                 colel = st.toggle("Rule of the Colel (±1)", value=False,
                                   key="t1_text_colel",
                                   help="Also match Value−1 and Value+1.")
+            with c3:
+                st.markdown("<div style='padding-top:1.65em'>", unsafe_allow_html=True)
+                st.button("⌨", key="t1_kbd_toggle", on_click=_kbd_toggle,
+                          help="Toggle Hebrew on-screen keyboard",
+                          use_container_width=True)
+                st.markdown("</div>", unsafe_allow_html=True)
+
+            if kbd_open:
+                with st.container(border=True):
+                    # ── Consonants ──────────────────────────────────────────────
+                    for _row in ["אבגדהוזחטי", "כלמנסעפצקר", "שתךםןףץ"]:
+                        _cols = st.columns(len(_row))
+                        for _col, _ch in zip(_cols, _row):
+                            _col.button(_ch, key=f"hk_{_ch}",
+                                        on_click=_kbd_add, args=(_ch,),
+                                        use_container_width=True)
+                    # ── Nikud ───────────────────────────────────────────────────
+                    st.caption("Nikud (vowel marks — click after consonant)")
+                    _NIKUD = [
+                        ("◌ַ", "ַ"), ("◌ָ", "ָ"), ("◌ֵ", "ֵ"),
+                        ("◌ֶ", "ֶ"), ("◌ִ", "ִ"), ("◌ֹ", "ֹ"),
+                        ("◌ֻ", "ֻ"), ("◌ּ", "ּ"), ("◌ְ", "ְ"),
+                    ]
+                    _nc = st.columns(len(_NIKUD))
+                    for _col, (_lbl, _mark) in zip(_nc, _NIKUD):
+                        _col.button(_lbl, key=f"hk_{_mark}",
+                                    on_click=_kbd_add, args=(_mark,),
+                                    use_container_width=True)
+                    # ── Controls ────────────────────────────────────────────────
+                    _ctl1, _ctl2, _ctl3 = st.columns(3)
+                    _ctl1.button("Space", key="hk_space",
+                                 on_click=_kbd_add, args=(" ",),
+                                 use_container_width=True)
+                    _ctl2.button("⌫ Delete", key="hk_bksp",
+                                 on_click=_kbd_bksp, use_container_width=True)
+                    _ctl3.button("✕ Clear", key="hk_clear",
+                                 on_click=_kbd_clear, use_container_width=True)
+
             cons = normalize_query(raw)
             word_cons = " ".join(tokenize_words(raw))
             st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
