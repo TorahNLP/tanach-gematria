@@ -2756,7 +2756,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         st.subheader("Scriptural Structural Explorer")
         kind = st.radio(
             "Browse by",
-            ["Perek", "Parsha", "Petucha", "Setuma", "Verse"],
+            ["Perek", "Parsha", "Petucha", "Setuma", "Verse",
+             "FirstHalf", "SecondHalf", "TiphchaPhrase", "ZakefPhrase"],
             horizontal=True,
             format_func=lambda b: BOUNDARY_LABELS.get(b, b))
         df = structure_frame(conn, kind)
