@@ -96,6 +96,9 @@ ALBAM_MAP = {ALEFBET[i]: ALEFBET[(i + 11) % 22] for i in range(22)}
 # Avgad (א"ב ג"ד): +1 Caesar shift  (Alef->Bet, ..., Tav wraps -> Alef).
 AVGAD_MAP = {ALEFBET[i]: ALEFBET[(i + 1) % 22] for i in range(22)}
 
+# Agdat (אגד"ת): +2 Caesar shift  (Alef->Gimel, ..., Tav wraps -> Bet).
+AGDAT_MAP: Dict[str, str] = {ALEFBET[i]: ALEFBET[(i + 2) % 22] for i in range(22)}
+
 # Achbi (א"כ ב"י): split the 22 letters into two halves of 11 and reverse each
 # half internally (Alef<->Kaf, Bet<->Yod, ... ; Lamed<->Tav, Mem<->Shin, ...).
 ACHBI_MAP: Dict[str, str] = {}
@@ -128,6 +131,24 @@ ATBAH_VALUE = {
     for ch in ALEFBET
 }
 
+
+# Milui (מילוי): primary letter-name spellings (Lurianic standard convention).
+# Each letter's name is spelled as a Hebrew word; Milui sums Standard values of
+# all spelling letters. Neelam (hidden) drops the first letter of each spelling.
+LETTER_NAME_SPELLING: Dict[str, str] = {
+    "א": "אלף",  "ב": "בית",  "ג": "גימל", "ד": "דלת",  "ה": "הא",
+    "ו": "ואו",  "ז": "זין",  "ח": "חית",  "ט": "טית",  "י": "יוד",
+    "כ": "כף",   "ל": "למד",  "מ": "מם",   "נ": "נון",  "ס": "סמך",
+    "ע": "עין",  "פ": "פא",   "צ": "צדי",  "ק": "קוף",  "ר": "ריש",
+    "ש": "שין",  "ת": "תיו",
+}
+
+def _spelling_val(spelling: str) -> int:
+    """Sum Standard values of a letter-name spelling (handles finals)."""
+    return sum(STANDARD.get(FINAL_TO_BASE.get(c, c), 0) for c in spelling)
+
+MILUI_VALS: Dict[str, int]  = {k: _spelling_val(v)     for k, v in LETTER_NAME_SPELLING.items()}
+NEELAM_VALS: Dict[str, int] = {k: _spelling_val(v[1:]) for k, v in LETTER_NAME_SPELLING.items()}
 
 # Nikud (vowel-point) dot counts for Mispar HaNikud.
 # Only the 12 standard vowel points (U+05B0–U+05BB) are counted; dagesh,
@@ -198,7 +219,7 @@ def g_ribua(s: str) -> int:
 
 
 def g_kidmi(s: str) -> int:
-    """Mispar Kidmi / Meshulash - triangular cumulative value per letter."""
+    """Mispar Kidmi (HaKadmon) - triangular cumulative value per letter."""
     return sum(KIDMI.get(_normalize_final(c), 0) for c in s)
 
 
@@ -250,6 +271,70 @@ def g_nikud(text: str) -> int:
     return sum(NIKUD_DOTS.get(ch, 0) for ch in text)
 
 
+def g_agdat(s: str) -> int:
+    """Agdat (אגד"ת) - +2 cyclic shift, then standard value."""
+    return _temurah_value(s, AGDAT_MAP)
+
+
+def g_katan_mispari(s: str) -> int:
+    """Mispar Katan Mispari - sum Standard values first, then reduce total to digital root."""
+    total = g_absolute(s)
+    while total >= 10:
+        total = sum(int(d) for d in str(total))
+    return total
+
+
+def g_milui(s: str) -> int:
+    """Mispar Milui (מילוי) - spell each letter's full name, sum all spelling letters."""
+    return sum(MILUI_VALS.get(_normalize_final(c), 0) for c in s)
+
+
+def g_neelam(s: str) -> int:
+    """Mispar Neelam (נעלם) - like Milui but drop the first letter of each name (hidden portion)."""
+    return sum(NEELAM_VALS.get(_normalize_final(c), 0) for c in s)
+
+
+def g_meshulash(s: str) -> int:
+    """Mispar Meshulash - sum of running prefix sums: v1 + (v1+v2) + (v1+v2+v3) + ..."""
+    total = 0
+    running = 0
+    for c in s:
+        running += STANDARD.get(_normalize_final(c), 0)
+        total += running
+    return total
+
+
+def g_kaful(s: str) -> int:
+    """Mispar Kaful - each letter's Standard value × its ordinal position in the unit."""
+    total = 0
+    pos = 0
+    for c in s:
+        v = STANDARD.get(_normalize_final(c), 0)
+        if v:
+            pos += 1
+            total += pos * v
+    return total
+
+
+def g_mityashev(s: str) -> int:
+    """Mispar Mityashev - each letter's Standard value × total letter count in the unit."""
+    vals = [STANDARD.get(_normalize_final(c), 0) for c in s
+            if STANDARD.get(_normalize_final(c), 0)]
+    n = len(vals)
+    return sum(v * n for v in vals)
+
+
+def g_kolel_ehad(s: str) -> int:
+    """Mispar Kolel (Word) - Standard total + 1 (the word counted as a single unit)."""
+    return g_absolute(s) + 1
+
+
+def g_kolel_otiyot(s: str) -> int:
+    """Mispar Kolel (Letters) - Standard total + count of letters in the unit."""
+    n = sum(1 for c in s if STANDARD.get(_normalize_final(c), 0))
+    return g_absolute(s) + n
+
+
 # Ordered registry of every cipher. The order here is the column order used
 # throughout the database and the UI.
 # NOTE: HaNikud operates on cantillated text; all others take consonants.
@@ -264,9 +349,18 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Avgad": g_avgad,           # א"ב ג"ד                          (required)
     "Siduri": g_siduri,         # Mispar Siduri (ordinal)         (researched)
     "Ribua": g_ribua,           # Mispar Meruba Prati (squared)   (researched)
-    "Kidmi": g_kidmi,           # Mispar Kidmi / Meshulash        (researched)
+    "Kidmi": g_kidmi,           # Mispar Kidmi / HaKadmon         (researched)
     "Achbi": g_achbi,           # א"כ ב"י temurah variant         (researched)
     "HaNikud": g_nikud,         # Mispar HaNikud (nikud dots)     (researched)
+    "Agdat": g_agdat,           # אגד"ת +2 shift                  (researched)
+    "KatanMispari": g_katan_mispari,  # digital-root of total     (researched)
+    "Milui": g_milui,           # Mispar Milui (filled names)     (researched)
+    "Neelam": g_neelam,         # Mispar Neelam (hidden portion)  (researched)
+    "Meshulash": g_meshulash,   # Mispar Meshulash (prefix sums)  (researched)
+    "Kaful": g_kaful,           # Mispar Kaful (pos × value)      (researched)
+    "Mityashev": g_mityashev,   # Mispar Mityashev (val × count)  (researched)
+    "KololEhad": g_kolel_ehad,  # Kolel +1 (word unit)            (researched)
+    "KololOtiyot": g_kolel_otiyot,  # Kolel +N (letter count)     (researched)
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
@@ -284,8 +378,17 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Siduri":   "Siduri — מספר סידורי",
     "Ribua":    "Ribua — מספר מרובע",
     "Kidmi":    "Kidmi — מספר קדמי",
-    "Achbi":    "Achbi — אכב\"י",
-    "HaNikud":  "HaNikud — מספר הנקוד",
+    "Achbi":        "Achbi — אכב\"י",
+    "HaNikud":      "HaNikud — מספר הנקוד",
+    "Agdat":        "Agdat — אגד\"ת",
+    "KatanMispari": "Katan Mispari — קטן מספרי",
+    "Milui":        "Milui — מילוי",
+    "Neelam":       "Neelam — נעלם",
+    "Meshulash":    "Meshulash — מספר משולש",
+    "Kaful":        "Kaful — מספר כפול",
+    "Mityashev":    "Mityashev — מספר מיושב",
+    "KololEhad":    "Kolel (Word) — כולל",
+    "KololOtiyot":  "Kolel (Letters) — כולל אותיות",
 }
 
 # Human-readable one-liners shown next to each cipher selector in the UI.
@@ -300,8 +403,17 @@ CIPHER_BLURB: Dict[str, str] = {
     "Siduri":   "Ordinal position: א=1, ב=2, ג=3 … ת=22. Sequence, not value.",
     "Ribua":    "Sum of squared values: Σ v² per letter.",
     "Kidmi":    "Triangular cumulative: each letter = sum of all Standard values up to it. א=1, ב=3 … ת=1495.",
-    "Achbi":    "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
-    "HaNikud":  "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
+    "Achbi":        "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
+    "HaNikud":      "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
+    "Agdat":        "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of shifted letters.",
+    "KatanMispari": "Sum all Standard values first; then reduce the total to a single digital root.",
+    "Milui":        "Spell each letter's full name (א=אלף=111, ב=בית=412 …); sum all spelling letters.",
+    "Neelam":       "Like Milui but drop the first letter of each name — only the hidden remainder (א→לף=110 …).",
+    "Meshulash":    "Stacked prefix sums: v₁ + (v₁+v₂) + (v₁+v₂+v₃) + … Grows with word length.",
+    "Kaful":        "Each Standard value × its ordinal position in the unit (1st×v₁ + 2nd×v₂ + …).",
+    "Mityashev":    "Each Standard value × total letter count in the unit: Σ(vᵢ × N).",
+    "KololEhad":    "Standard total + 1 (the word counted as one collective unit).",
+    "KololOtiyot":  "Standard total + number of letters in the unit (one per letter).",
 }
 
 # Friendly display labels for variant tracks and boundary types in the UI.
@@ -1319,7 +1431,7 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
     value contribution. Returns None for HaNikud (not letter-based) or empty
     input — callers should show a note instead.
     """
-    if cipher == "HaNikud" or not consonants:
+    if cipher in ("HaNikud", "KatanMispari", "KololEhad", "KololOtiyot") or not consonants:
         return None
     result: List[Tuple[str, int]] = []
     for ch in consonants:
@@ -1358,6 +1470,31 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
             result.append((f"{ch}²", v2 * v2))
         elif cipher == "Kidmi":
             result.append((ch, KIDMI.get(base, 0)))
+        elif cipher == "Agdat":
+            swapped = AGDAT_MAP.get(base, base)
+            val = STANDARD.get(_normalize_final(swapped), 0)
+            result.append((f"{ch}→{swapped}", val))
+        elif cipher == "Milui":
+            spelling = LETTER_NAME_SPELLING.get(base, "")
+            result.append((f"{ch}={spelling}", MILUI_VALS.get(base, 0)))
+        elif cipher == "Neelam":
+            spelling = LETTER_NAME_SPELLING.get(base, "")
+            hidden = spelling[1:] if spelling else ""
+            result.append((f"{ch}→{hidden}", NEELAM_VALS.get(base, 0)))
+        elif cipher == "Meshulash":
+            # Show the running prefix sum that this letter contributes to the stack.
+            running = sum(STANDARD.get(_normalize_final(c2), 0)
+                          for c2 in consonants[:consonants.index(ch) + 1])
+            result.append((ch, running))
+        elif cipher == "Kaful":
+            pos = sum(1 for c2 in consonants[:consonants.index(ch) + 1]
+                      if STANDARD.get(_normalize_final(c2), 0))
+            val = STANDARD.get(base, 0)
+            result.append((f"{ch}×{pos}", val * pos))
+        elif cipher == "Mityashev":
+            n = sum(1 for c2 in consonants if STANDARD.get(_normalize_final(c2), 0))
+            val = STANDARD.get(base, 0)
+            result.append((f"{ch}×{n}", val * n))
         else:
             result.append((ch, 0))
     return result
@@ -1395,7 +1532,21 @@ def run_selftest() -> None:
     assert g_nikud("שלום") == 0, g_nikud("שלום")
     assert g_nikud("בְּרֵאשִׁ֖ית") == 5, g_nikud("בְּרֵאשִׁ֖ית")
     assert g_nikud(SAMPLE_CORPUS[0].text) > 0
-    print("  All 12 ciphers pass spot-checks  OK")
+    # New ciphers — spot-checks using חבד (ח=8, ב=2, ד=4)
+    chabad = "חבד"
+    assert g_agdat(chabad) == 20,          g_agdat(chabad)        # ח→י(10)+ב→ד(4)+ד→ו(6)
+    assert g_katan_mispari(chabad) == 5,   g_katan_mispari(chabad) # 14 → 1+4=5
+    assert g_milui(chabad) == 1264,        g_milui(chabad)         # חית+בית+דלת
+    assert g_neelam(chabad) == 1250,       g_neelam(chabad)        # ית+ית+לת
+    assert g_meshulash(chabad) == 32,      g_meshulash(chabad)     # 8+10+14
+    assert g_kaful(chabad) == 24,          g_kaful(chabad)         # 8×1+2×2+4×3
+    assert g_mityashev(chabad) == 42,      g_mityashev(chabad)     # (8+2+4)×3
+    assert g_kolel_ehad(chabad) == 15,     g_kolel_ehad(chabad)    # 14+1
+    assert g_kolel_otiyot(chabad) == 17,   g_kolel_otiyot(chabad)  # 14+3
+    # Structural: every cipher must have a display name and blurb
+    assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
+        "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
+    print(f"  All {len(CIPHER_NAMES)} ciphers pass spot-checks  OK")
 
     fh, sh = split_halves_by_atnach(SAMPLE_CORPUS[0].text)
     print(f"  Gen 1:1 first half  : {fh}")
@@ -1675,12 +1826,12 @@ def run_app() -> None:
             "Historical attributions are traditional and noted where uncertain."
         )
 
-        with st.expander("The 12 gematria methods", expanded=True):
+        with st.expander("The 21 gematria methods", expanded=True):
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
                  "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
-                 "Earliest Source": "Biblical era (attested in use). Rabbinic formulation: BT Nedarim 32a interprets the '318 servants' of Gen. 14:14 as the name אֱלִיעֶזֶר (=318) — the earliest clear Talmudic use. The term 'gematriot' appears as a category of wisdom in Mishnah Avot 3:18. BT Sanhedrin 22a discusses the practice explicitly."},
+                 "Earliest Source": "29th hermeneutical rule of the Baraita of R. Eliezer ben Yose ha-Gelili (c. 200 CE). BT Sanhedrin 38a; BT Nedarim 32a (318 servants = אֱלִיעֶזֶר). The term 'gematriot' appears in Mishnah Avot 3:18."},
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
@@ -1688,7 +1839,7 @@ def run_app() -> None:
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Standard, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
-                 "Earliest Source": "The 27-letter sequence including finals is described in Sefer Yetzirah 2:2 (dated 3rd–6th c. CE by scholarship; earlier by tradition). Practical use with the higher values in gematria appears in Sefer ha-Bahir (12th c.) and the Zohar (13th c.)."},
+                 "Earliest Source": "27-letter sequence including finals described in Sefer Yetzirah 2:2 (3rd–6th c. CE). Consolidated and systematized in Siftei Yeshanim (R. Shabbethai Bass, 17th c.)."},
                 {"Method": "Atbash",
                  "Hebrew": "אתב\"ש (At-Bash)",
                  "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Standard values of the swapped letters.",
@@ -1696,35 +1847,71 @@ def run_app() -> None:
                 {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
                  "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
-                 "Earliest Source": "Classical temurah described in Sefer Yetzirah ch. 2 (3rd–6th c. CE). Elaborated in Sefer Yetzirah commentaries by Rav Saadia Gaon (882–942 CE) and R. Dunash ibn Tamim (10th c.)."},
+                 "Earliest Source": "Explicitly detailed in Yalkut Shimoni (Yisro, Remez 271). Classical temurah in Sefer Yetzirah ch. 2 (3rd–6th c. CE)."},
                 {"Method": "Atbah",
                  "Hebrew": "אטב\"ח (At-Bach)",
                  "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
-                 "Earliest Source": "Attributed to Rabbi Eliezer ben Yose ha-Gelili, a 2nd-century Tanna. The full name 'Atbah of R. Eliezer' appears in the Baraita of 32 Hermeneutical Rules (Tannaic era, transmitted in medieval compilations) and in Midrashic literature."},
+                 "Earliest Source": "Attributed to Rabbi Chiya (late 2nd/early 3rd c. CE). The phrase 'in the Atbah of Rabbi Chiya' (בְּאַטְבַּ״ח שֶׁל רַבִּי חִיָּיא) appears explicitly in BT Sukkah 52b. Also classified in the Baraita of 32 Hermeneutical Rules of R. Eliezer ben Yose ha-Gelili."},
                 {"Method": "Avgad",
-                 "Hebrew": "אבג\"ד (Av-Gad)",
-                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of the shifted letters.",
-                 "Earliest Source": "Classical cyclic temurah. The concept of cyclic letter shifting appears within the temurah tradition of Sefer Yetzirah (3rd–6th c. CE). The specific Avgad cipher is named and elaborated in medieval Kabbalistic works."},
+                 "Hebrew": "אבג\"ד (Av-Gad / Abgad)",
+                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of the shifted letters. Also known as Mispar Ha'Ahari (next-letter value).",
+                 "Earliest Source": "Codified in Ta'am Zekenim (R. Eliezer Ashkenazi). Cyclic letter-shifting tradition rooted in Sefer Yetzirah (3rd–6th c. CE). R. Abraham Abulafia (13th c.) employs the next-letter method in his prophetic Kabbalah texts."},
                 {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
                  "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
-                 "Earliest Source": "Ordinal letter counting is implicit in Talmudic letter-position discussions (e.g. BT Shabbat 104a on letter forms and sequence). As a formal gematria method, widely attested in Midrashic literature and medieval biblical commentary."},
+                 "Earliest Source": "Formally categorized as a gematria method in Pardes Rimonim (Sha'ar HaGematria, Gate 30) by R. Moshe Cordovero (1548). Ordinal counting is implicit in earlier Talmudic letter-position discussions (e.g. BT Shabbat 104a)."},
                 {"Method": "Ribua",
-                 "Hebrew": "מספר מרובע (Mispar Meruba Pratti)",
-                 "Rule": "Square each letter's Standard value, then sum all squares (Σ v²).",
-                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in Sefer ha-Bahir (Provence, 12th c.) and later Zoharic and Lurianic literature."},
+                 "Hebrew": "מספר מרובע / פרטי (Mispar Meruba Prati)",
+                 "Rule": "Square each individual letter's Standard value, then sum all squares (Σ vᵢ² — per letter, not the total squared).",
+                 "Earliest Source": "Mainstreamed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.) in his Torah commentary. Also documented in Pardes Rimonim (Gate 30)."},
                 {"Method": "Kidmi",
-                 "Hebrew": "מספר קדמי / משולש (Mispar Kidmi)",
+                 "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
                  "Rule": "Triangular cumulative: each letter's value = sum of all Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
-                 "Earliest Source": "Medieval Kabbalistic. No Talmudic source. Appears in later Kabbalistic computational texts; the triangular-number principle is implicit in Pythagorean numerology as absorbed into medieval Jewish mysticism."},
+                 "Earliest Source": "Mapped in Pardes Rimonim (Gate 30, Ch. 8) by R. Moshe Cordovero (1548)."},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
-                 "Earliest Source": "Classical temurah variant. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE). A less common scheme; named and discussed in medieval Kabbalistic commentaries."},
+                 "Earliest Source": "Outlined as a structural matrix in Sefer Raziel HaMalach. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE)."},
                 {"Method": "HaNikud",
                  "Hebrew": "מספר הנקוד (Mispar HaNikud)",
                  "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
-                 "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Based on visual dot-count analysis used in modern Kabbalistic study software. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
+                 "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
+                {"Method": "Agdat",
+                 "Hebrew": "אגד\"ת (Ag-Dat)",
+                 "Rule": "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of the shifted letters.",
+                 "Earliest Source": "Explicitly detailed in Pardes Rimonim, Gate 22 (R. Moshe Cordovero, 1548). Companion to Avgad (+1) in the family of linear-shift temurah ciphers."},
+                {"Method": "KatanMispari",
+                 "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
+                 "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
+                 "Earliest Source": "Cataloged by early Renaissance Jewish scholars; referenced in the 1906 Jewish Encyclopedia under gematria variants. Treated in Pardes Rimonim (Gate 30)."},
+                {"Method": "Milui",
+                 "Hebrew": "מילוי / מספר שמי (Mispar Milui)",
+                 "Rule": "Spell each letter's full name as a Hebrew word, then sum Standard values of all spelling letters. א=אלף=111, ב=בית=412, ח=חית=418 …",
+                 "Earliest Source": "A pillar of Lurianic Kabbalah (16th c.). Deployed in the Zoharic Sifra diTzni'uta (Book of Concealment). Comprehensively treated in Pardes Rimonim, Gate 30 (R. Moshe Cordovero, 1548)."},
+                {"Method": "Neelam",
+                 "Hebrew": "נעלם (Mispar Neelam — Hidden)",
+                 "Rule": "Like Milui, but drop the first letter of each spelling — only the hidden remainder counts. א→לף=110, ח→ית=410 …",
+                 "Earliest Source": "Formally codified in Pardes Rimonim (Sha'ar HaGematria, Gate 30). Used in Kabbalah to identify hidden spiritual energies sustaining an outer visible concept."},
+                {"Method": "Meshulash",
+                 "Hebrew": "מספר משולש (Mispar Meshulash)",
+                 "Rule": "Stacked prefix sums: v₁ + (v₁+v₂) + (v₁+v₂+v₃) + … Each prefix sub-total is added to the running total. Note: distinct from Kidmi, which is a per-letter alphabet-triangular.",
+                 "Earliest Source": "Zohar; Pardes Rimonim (R. Moshe Cordovero, 1548)."},
+                {"Method": "Kaful",
+                 "Hebrew": "מספר כפול (Mispar Kaful)",
+                 "Rule": "Each letter's Standard value × its ordinal position within the unit: 1st letter × v₁ + 2nd letter × v₂ + … (ח in position 1 = 8×1=8; ב in position 2 = 2×2=4 …).",
+                 "Earliest Source": "Detailed in Sefer Raziel HaMalach (medieval Kabbalistic compilation); used by Chassidei Ashkenaz (12th–13th c.) pietists."},
+                {"Method": "Mityashev",
+                 "Hebrew": "מספר מיושב (Mispar Mityashev)",
+                 "Rule": "Each letter's Standard value × total letter count in the unit: Σ(vᵢ × N). For a 3-letter word, every letter's value is multiplied by 3.",
+                 "Earliest Source": "Traced to early Italian Kabbalistic manuscripts; documented in operational gematria manuals."},
+                {"Method": "KololEhad",
+                 "Hebrew": "כולל (Kolel — Word)",
+                 "Rule": "Standard total + 1. The word itself is counted as one additional collective unit. Widely used as a ±1 adjustment to link words whose values differ by one.",
+                 "Earliest Source": "Ubiquitous in Chassidic philosophy and Kabbalah. Heavily employed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.) to link thematically related phrases."},
+                {"Method": "KololOtiyot",
+                 "Hebrew": "כולל אותיות (Kolel — Letters)",
+                 "Rule": "Standard total + number of letters in the unit. Each letter adds 1 beyond its gematria value, reflecting the physical presence of the letter-vessels.",
+                 "Earliest Source": "Kabbalistic practice; variant of the Kolel principle found across Chassidic and Kabbalistic literature."},
             ]))
 
         with st.expander("Variant tracks"):
