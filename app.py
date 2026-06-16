@@ -73,8 +73,8 @@ ORDINAL: Dict[str, int] = {ALEFBET[i]: i + 1 for i in range(22)}
 # Reverse ordinal values (Mispar HaAchor): Tav=1, Shin=2 … Alef=22.
 REVERSE_ORDINAL: Dict[str, int] = {ALEFBET[i]: 22 - i for i in range(22)}
 
-# Triangular / cumulative values (Mispar Kidmi a.k.a. Meshulash):
-# each letter = sum of standard values of every letter up to and including it.
+# Cumulative / prefix-sum values (Mispar Kidmi a.k.a. HaKadmon):
+# each letter = sum of Standard values of every letter from א up to and including it.
 #   Alef=1, Bet=1+2=3, Gimel=1+2+3=6, ... Tav=sum(all)=1495.
 _kidmi_running = 0
 KIDMI: Dict[str, int] = {}
@@ -309,7 +309,7 @@ def g_ribua(s: str) -> int:
 
 
 def g_kidmi(s: str) -> int:
-    """Mispar Kidmi (HaKadmon) - triangular cumulative value per letter."""
+    """Mispar Kidmi (HaKadmon) - cumulative sum of Standard values up to each letter."""
     return sum(KIDMI.get(_normalize_final(c), 0) for c in s)
 
 
@@ -540,7 +540,7 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Ribua":            g_ribua,             # Mispar Meruba Prati (Σ v²)
     "HaMerubahKlali":   g_ha_merubah_klali,  # Mispar HaMerubah HaKlali (total²)
     "Meshulash":        g_meshulash,         # Mispar Meshulash (Σ v³ per letter)
-    "Kidmi":            g_kidmi,             # Mispar Kidmi / HaKadmon (triangular)
+    "Kidmi":            g_kidmi,             # Mispar Kidmi / HaKadmon (cumulative Standard sums)
     # ── Name-expansion (2-letter / standard Lurianic) ────────────────────────
     "Milui":            g_milui,             # Mispar Milui (full letter-name)
     "Neelam":           g_neelam,            # Mispar Neelam (hidden portion)
@@ -634,7 +634,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Ribua":           "Sum of squared values per letter: Σ v².",
     "HaMerubahKlali":  "The total Standard sum squared as one block: (Σv)². Pardes Rimonim Sha'ar 30.",
     "Meshulash":       "Each letter's Standard value cubed (v³), then summed: Σ v³. TorahCalc advanced.",
-    "Kidmi":           "Triangular cumulative: each letter = Σ Standard values up to it. א=1, ב=3 … ת=1495.",
+    "Kidmi":           "Cumulative sum of Standard values: each letter = Σ Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
     "Milui":           "Spell each letter's full name (Lurianic: א=אלף=111 …); sum all spelling letters.",
     "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
@@ -2267,7 +2267,7 @@ def run_app() -> None:
                  "Earliest Source": "TorahCalc Advanced Gematria Explanations Index; hyper-dimensional geometric scaling."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
-                 "Rule": "Triangular cumulative: each letter's value = sum of all Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
+                 "Rule": "Cumulative prefix sum of Standard values: each letter's value = Σ Standard values from א up to and including it. א=1, ב=3, ג=6, ד=10 … ת=1495.",
                  "Earliest Source": "Mapped in Pardes Rimonim (Gate 30, Ch. 8) by R. Moshe Cordovero (1548)."},
                 {"Method": "Milui",
                  "Hebrew": "מילוי / מספר שמי (Mispar Milui)",
