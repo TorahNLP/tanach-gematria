@@ -1434,6 +1434,8 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
     if cipher in ("HaNikud", "KatanMispari", "KololEhad", "KololOtiyot") or not consonants:
         return None
     result: List[Tuple[str, int]] = []
+    _kaful_pos = 0       # running letter-position counter for Kaful
+    _meshulash_run = 0   # running prefix sum for Meshulash
     for ch in consonants:
         base = _normalize_final(ch)
         if cipher == "Standard":
@@ -1482,15 +1484,13 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
             hidden = spelling[1:] if spelling else ""
             result.append((f"{ch}→{hidden}", NEELAM_VALS.get(base, 0)))
         elif cipher == "Meshulash":
-            # Show the running prefix sum that this letter contributes to the stack.
-            running = sum(STANDARD.get(_normalize_final(c2), 0)
-                          for c2 in consonants[:consonants.index(ch) + 1])
-            result.append((ch, running))
+            _meshulash_run += STANDARD.get(base, 0)
+            result.append((ch, _meshulash_run))
         elif cipher == "Kaful":
-            pos = sum(1 for c2 in consonants[:consonants.index(ch) + 1]
-                      if STANDARD.get(_normalize_final(c2), 0))
             val = STANDARD.get(base, 0)
-            result.append((f"{ch}×{pos}", val * pos))
+            if val:
+                _kaful_pos += 1
+            result.append((f"{ch}×{_kaful_pos}", val * _kaful_pos))
         elif cipher == "Mityashev":
             n = sum(1 for c2 in consonants if STANDARD.get(_normalize_final(c2), 0))
             val = STANDARD.get(base, 0)
