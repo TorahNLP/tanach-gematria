@@ -2157,6 +2157,36 @@ def run_app() -> None:
                 else:
                     result.append(part)
             return "".join(result)
+        if boundary in ("TiphchaPhrase", "ZakefPhrase") and matched_cons:
+            split_acc = (TIPCHA + ATNACH) if boundary == "TiphchaPhrase" else (ZAKEF_KATON + TIPCHA + ATNACH)
+            # Split preserving separators for in-place reconstruction
+            toks = _re.split(r"([\s" + _re.escape(MAQAF) + r"]+)", cantillated)
+            content = [(i, t) for i, t in enumerate(toks) if t and strip_to_consonants(t)]
+            if content:
+                phrases, start = [], 0
+                for j, (_, t) in enumerate(content):
+                    if any(a in t for a in split_acc):
+                        c = strip_to_consonants("".join(content[k][1] for k in range(start, j + 1)))
+                        phrases.append((start, j, c))
+                        start = j + 1
+                if start < len(content):
+                    c = strip_to_consonants("".join(content[k][1] for k in range(start, len(content))))
+                    phrases.append((start, len(content) - 1, c))
+                hit = next(((s, e) for s, e, c in phrases if c == matched_cons), None)
+                if hit:
+                    first_tok = content[hit[0]][0]
+                    last_tok  = content[hit[1]][0]
+                    result = []
+                    for i, tok in enumerate(toks):
+                        if i == first_tok == last_tok:
+                            result.append(f"<mark>{tok}</mark>")
+                        elif i == first_tok:
+                            result.append(f"<mark>{tok}")
+                        elif i == last_tok:
+                            result.append(f"{tok}</mark>")
+                        else:
+                            result.append(tok)
+                    return "".join(result)
         return cantillated
 
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
@@ -2536,10 +2566,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         with cc2:
             bounds = st.multiselect(
                 "Text units",
-                ["Word", "ZakefPhrase", "TiphchaPhrase",
-                 "FirstHalf", "SecondHalf", "Verse",
-                 "Perek", "Parsha", "Petucha", "Setuma"],
-                default=["Word", "Verse", "FirstHalf", "SecondHalf"],
+                ["Perek", "Parsha", "Verse", "Petucha", "Setuma",
+                 "FirstHalf", "SecondHalf",
+                 "TiphchaPhrase", "ZakefPhrase", "Word"],
+                default=["Verse", "FirstHalf", "SecondHalf", "Word"],
                 format_func=lambda b: BOUNDARY_LABELS.get(b, b))
 
         # Perek/Parsha rows are stored under the "Aggregate" track (a DB tag,
@@ -2585,29 +2615,32 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             st.dataframe(pd.DataFrame([vals]), use_container_width=True,
                          hide_index=True)
 
-            cipher = st.selectbox("Show matches for method", CIPHER_NAMES, index=0,
-                                  format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
-            st.caption(CIPHER_BLURB.get(cipher, ""))
-            res = payload["results"][cipher]
-            tgt = vals[cipher]
-            st.markdown(
-                f"#### Matches for **{cipher} = {tgt}**"
-                + (f" (Colel window {tgt-1}–{tgt+1})" if colel else "")
-                + f" — {len(res)} result(s)")
-            if res.empty:
-                st.info("No structural unit in the loaded corpus matches this value. "
-                        "Load more chapters from Sefaria to widen the search space.")
-            else:
-                event = st.dataframe(
-                    res, use_container_width=True, hide_index=True,
-                    on_select="rerun", selection_mode="single-row", key="t1_sel")
-                sel = event.selection.rows
-                if sel:
-                    row = res.iloc[sel[0]]
-                    with st.expander("📜 Verse detail", expanded=True):
-                        render_verse_detail(
-                            row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
-                            matched_text=row.get("Text"), active_method=cipher)
+            ciphers_sel = st.multiselect(
+                "Show matches for method(s)", CIPHER_NAMES, default=[CIPHER_NAMES[0]],
+                format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
+            active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
+            for cipher in active_ciphers:
+                st.caption(CIPHER_BLURB.get(cipher, ""))
+                res = payload["results"][cipher]
+                tgt = vals[cipher]
+                st.markdown(
+                    f"#### {CIPHER_DISPLAY_NAMES.get(cipher, cipher)} = {tgt}"
+                    + (f" (Colel window {tgt-1}–{tgt+1})" if colel else "")
+                    + f" — {len(res)} result(s)")
+                if res.empty:
+                    st.info("No structural unit in the loaded corpus matches this value.")
+                else:
+                    event = st.dataframe(
+                        res, use_container_width=True, hide_index=True,
+                        on_select="rerun", selection_mode="single-row",
+                        key=f"t1_sel_{cipher}")
+                    sel = event.selection.rows
+                    if sel:
+                        row = res.iloc[sel[0]]
+                        with st.expander("📜 Verse detail", expanded=True):
+                            render_verse_detail(
+                                row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
+                                matched_text=row.get("Text"), active_method=cipher)
 
             with st.expander("🔀 Cross-method coincidences", expanded=False):
                 st.caption(
@@ -2681,10 +2714,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 )
                 sc1, sc2 = st.columns([2, 1])
                 with sc1:
+                    _span_default = active_ciphers[0] if active_ciphers else CIPHER_NAMES[0]
                     span_cipher = st.selectbox(
                         "Cipher",
                         CIPHER_NAMES,
-                        index=CIPHER_NAMES.index(cipher) if cipher in CIPHER_NAMES else 0,
+                        index=CIPHER_NAMES.index(_span_default) if _span_default in CIPHER_NAMES else 0,
                         format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                         key="span_cipher",
                     )
@@ -2704,7 +2738,16 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.info("No multi-word span matches this value with the current settings.")
                 else:
                     st.markdown(f"**{len(span_df)} span match(es)**")
-                    st.dataframe(span_df, use_container_width=True, hide_index=True)
+                    span_event = st.dataframe(
+                        span_df, use_container_width=True, hide_index=True,
+                        on_select="rerun", selection_mode="single-row", key="span_sel")
+                    span_sel = span_event.selection.rows
+                    if span_sel:
+                        sr = span_df.iloc[span_sel[0]]
+                        with st.expander("📜 Verse detail", expanded=True):
+                            render_verse_detail(
+                                sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
+                                "Verse", active_method=span_cipher)
         else:
             st.warning("Enter a Hebrew or transliterable phrase to search.")
 
