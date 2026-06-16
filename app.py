@@ -70,6 +70,9 @@ GADOL_FINALS = {"ך": 500, "ם": 600, "ן": 700, "ף": 800, "ץ": 900}
 # Ordinal values (Mispar Siduri): Alef=1 .. Tav=22.
 ORDINAL: Dict[str, int] = {ALEFBET[i]: i + 1 for i in range(22)}
 
+# Reverse ordinal values (Mispar HaAchor): Tav=1, Shin=2 … Alef=22.
+REVERSE_ORDINAL: Dict[str, int] = {ALEFBET[i]: 22 - i for i in range(22)}
+
 # Triangular / cumulative values (Mispar Kidmi a.k.a. Meshulash):
 # each letter = sum of standard values of every letter up to and including it.
 #   Alef=1, Bet=1+2=3, Gimel=1+2+3=6, ... Tav=sum(all)=1495.
@@ -295,33 +298,38 @@ def g_neelam(s: str) -> int:
 
 
 def g_meshulash(s: str) -> int:
-    """Mispar Meshulash - sum of running prefix sums: v1 + (v1+v2) + (v1+v2+v3) + ..."""
+    """Mispar Meshulash - running prefix sums, reset at each word boundary."""
     total = 0
-    running = 0
-    for c in s:
-        running += STANDARD.get(_normalize_final(c), 0)
-        total += running
+    for word in s.split():
+        running = 0
+        for c in word:
+            running += STANDARD.get(_normalize_final(c), 0)
+            total += running
     return total
 
 
 def g_kaful(s: str) -> int:
-    """Mispar Kaful - each letter's Standard value × its ordinal position in the unit."""
+    """Mispar Kaful - each letter × its position within the word; position resets per word."""
     total = 0
-    pos = 0
-    for c in s:
-        v = STANDARD.get(_normalize_final(c), 0)
-        if v:
-            pos += 1
-            total += pos * v
+    for word in s.split():
+        pos = 0
+        for c in word:
+            v = STANDARD.get(_normalize_final(c), 0)
+            if v:
+                pos += 1
+                total += pos * v
     return total
 
 
 def g_mityashev(s: str) -> int:
-    """Mispar Mityashev - each letter's Standard value × total letter count in the unit."""
-    vals = [STANDARD.get(_normalize_final(c), 0) for c in s
-            if STANDARD.get(_normalize_final(c), 0)]
-    n = len(vals)
-    return sum(v * n for v in vals)
+    """Mispar Mityashev - each letter × letter count of its word; N resets per word."""
+    total = 0
+    for word in s.split():
+        vals = [STANDARD.get(_normalize_final(c), 0) for c in word
+                if STANDARD.get(_normalize_final(c), 0)]
+        n = len(vals)
+        total += sum(v * n for v in vals)
+    return total
 
 
 def g_kolel_ehad(s: str) -> int:
@@ -333,6 +341,11 @@ def g_kolel_otiyot(s: str) -> int:
     """Mispar Kolel (Letters) - Standard total + count of letters in the unit."""
     n = sum(1 for c in s if STANDARD.get(_normalize_final(c), 0))
     return g_absolute(s) + n
+
+
+def g_haachor(s: str) -> int:
+    """Mispar HaAchor - reverse ordinal: Tav=1, Shin=2 … Alef=22."""
+    return sum(REVERSE_ORDINAL.get(_normalize_final(c), 0) for c in s)
 
 
 # Ordered registry of every cipher. The order here is the column order used
@@ -361,6 +374,7 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Mityashev": g_mityashev,   # Mispar Mityashev (val × count)  (researched)
     "KololEhad": g_kolel_ehad,  # Kolel +1 (word unit)            (researched)
     "KololOtiyot": g_kolel_otiyot,  # Kolel +N (letter count)     (researched)
+    "HaAchor": g_haachor,       # Mispar HaAchor (reverse ordinal) (researched)
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
@@ -389,6 +403,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Mityashev":    "Mityashev — מספר מיושב",
     "KololEhad":    "Kolel (Word) — כולל",
     "KololOtiyot":  "Kolel (Letters) — כולל אותיות",
+    "HaAchor":      "HaAchor — מספר האחור",
 }
 
 # Human-readable one-liners shown next to each cipher selector in the UI.
@@ -409,11 +424,12 @@ CIPHER_BLURB: Dict[str, str] = {
     "KatanMispari": "Sum all Standard values first; then reduce the total to a single digital root.",
     "Milui":        "Spell each letter's full name (א=אלף=111, ב=בית=412 …); sum all spelling letters.",
     "Neelam":       "Like Milui but drop the first letter of each name — only the hidden remainder (א→לף=110 …).",
-    "Meshulash":    "Stacked prefix sums: v₁ + (v₁+v₂) + (v₁+v₂+v₃) + … Grows with word length.",
-    "Kaful":        "Each Standard value × its ordinal position in the unit (1st×v₁ + 2nd×v₂ + …).",
-    "Mityashev":    "Each Standard value × total letter count in the unit: Σ(vᵢ × N).",
+    "Meshulash":    "Stacked prefix sums per word: v₁ + (v₁+v₂) + … — resets at each word boundary.",
+    "Kaful":        "Each Standard value × its position within its word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
+    "Mityashev":    "Each Standard value × total letter count of its word: Σ(vᵢ × N). N resets per word.",
     "KololEhad":    "Standard total + 1 (the word counted as one collective unit).",
     "KololOtiyot":  "Standard total + number of letters in the unit (one per letter).",
+    "HaAchor":      "Reverse ordinal: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri — counts from the end of the alphabet.",
 }
 
 # Friendly display labels for variant tracks and boundary types in the UI.
@@ -435,18 +451,22 @@ BOUNDARY_LABELS: Dict[str, str] = {
 }
 
 
-def compute_all_ciphers(consonants: str, cantillated: str = "") -> Dict[str, int]:
+def compute_all_ciphers(consonants: str, cantillated: str = "",
+                        word_consonants: str = "") -> Dict[str, int]:
     """Return {cipher_name: value} for a cleaned consonant string.
 
-    HaNikud is dispatched to `cantillated` (if provided) rather than
-    consonants, so it reflects the actual vowel-dot count. When
-    `cantillated` is empty, HaNikud returns 0 (correct for consonant-only
-    strings).
+    HaNikud is dispatched to `cantillated`. Kaful, Mityashev, and Meshulash
+    are dispatched to `word_consonants` (space-separated words) so they can
+    reset counters at each word boundary. Falls back to `consonants` when
+    `word_consonants` is empty (correct for single-word units).
     """
+    word_src = word_consonants if word_consonants else consonants
     result = {}
     for name, fn in CIPHERS.items():
         if name == "HaNikud":
             result[name] = fn(cantillated)
+        elif name in ("Kaful", "Mityashev", "Meshulash"):
+            result[name] = fn(word_src)
         else:
             result[name] = fn(consonants)
     return result
@@ -524,6 +544,21 @@ def split_halves_by_atnach(text: str) -> Tuple[str, str]:
     first = strip_to_consonants(text[:end])
     second = strip_to_consonants(text[end:])
     return first, second
+
+
+def split_halves_word_cons(text: str) -> Tuple[str, str]:
+    """Like split_halves_by_atnach but returns space-separated word consonants for each half.
+
+    Used to feed word-boundary-aware ciphers (Kaful, Mityashev, Meshulash) the
+    correct word structure for half-verse units.
+    """
+    idx = text.find(ATNACH)
+    if idx == -1:
+        return " ".join(tokenize_words(text)), ""
+    end = idx
+    while end < len(text) and text[end] not in (" ", "\t", MAQAF, SOF_PASUQ):
+        end += 1
+    return " ".join(tokenize_words(text[:end])), " ".join(tokenize_words(text[end:]))
 
 
 # ---------------------------------------------------------------------------
@@ -908,8 +943,9 @@ CIPHER_PLACEHOLDERS = ", ".join(["?"] * len(CIPHER_NAMES))
 CIPHER_INSERT_COLS = ", ".join(CIPHER_NAMES)
 
 
-def _cipher_tuple(consonants: str, cantillated: str = "") -> Tuple[int, ...]:
-    vals = compute_all_ciphers(consonants, cantillated)
+def _cipher_tuple(consonants: str, cantillated: str = "",
+                  word_consonants: str = "") -> Tuple[int, ...]:
+    vals = compute_all_ciphers(consonants, cantillated, word_consonants)
     return tuple(vals[c] for c in CIPHER_NAMES)
 
 
@@ -936,7 +972,7 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
     """)
 
     def insert(sub_id, book, chapter, verse, parsha, boundary, track, cons,
-               disp=None, cantillated=""):
+               disp=None, cantillated="", word_cons=""):
         if not cons:
             return
         cur.execute(
@@ -945,7 +981,7 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                  variant_track, consonants, text_display, {CIPHER_INSERT_COLS})
                 VALUES (?,?,?,?,?,?,?,?,?,{CIPHER_PLACEHOLDERS})""",
             (sub_id, book, chapter, verse, parsha, boundary, track, cons,
-             disp or cons, *_cipher_tuple(cons, cantillated)),
+             disp or cons, *_cipher_tuple(cons, cantillated, word_cons)),
         )
 
     # ---- Micro structures: words, half-verses, full verses (per fork) ----
@@ -963,22 +999,24 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         all_forks.extend(fork_verse(v))
 
     for f in all_forks:
+        verse_wc = " ".join(f.words)
+        fh_wc, sh_wc = split_halves_word_cons(f.cantillated_text)
         # Pass cantillated_text for Verse rows so HaNikud gets the vowel count.
         # Sub-unit rows (halves, words) only have consonants → HaNikud = 0 there.
         insert(f.sub_id, f.book, f.chapter, f.verse, f.parsha,
                "Verse", f.variant_track, f.full_consonants,
-               cantillated=f.cantillated_text)
+               cantillated=f.cantillated_text, word_cons=verse_wc)
         insert(f"{f.sub_id}_FH", f.book, f.chapter, f.verse, f.parsha,
-               "FirstHalf", f.variant_track, f.first_half)
+               "FirstHalf", f.variant_track, f.first_half, word_cons=fh_wc)
         insert(f"{f.sub_id}_SH", f.book, f.chapter, f.verse, f.parsha,
-               "SecondHalf", f.variant_track, f.second_half)
+               "SecondHalf", f.variant_track, f.second_half, word_cons=sh_wc)
         for wi, w in enumerate(f.words, start=1):
             insert(f"{f.sub_id}_W{wi}", f.book, f.chapter, f.verse, f.parsha,
                    "Word", f.variant_track, w)
         if f.paragraph_marker:
             insert(f"{f.sub_id}_{f.paragraph_marker}", f.book, f.chapter,
                    f.verse, f.parsha, f.paragraph_marker, f.variant_track,
-                   f.full_consonants, cantillated=f.cantillated_text)
+                   f.full_consonants, cantillated=f.cantillated_text, word_cons=verse_wc)
 
     # ---- Macro structures: Perek, Parsha (Ksiv track aggregation) ----
     ksiv = [f for f in all_forks if f.variant_track == "Ksiv"]
@@ -990,10 +1028,12 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         for key, members in buckets.items():
             members.sort(key=lambda m: (m.chapter, m.verse))
             cons = "".join(m.full_consonants for m in members)
+            word_cons_agg = " ".join(w for m in members for w in m.words)
             sample = members[0]
             insert(id_fn(key, sample), sample.book,
                    sample.chapter if boundary_name == "Perek" else 0,
-                   0, sample.parsha, boundary_name, "Aggregate", cons)
+                   0, sample.parsha, boundary_name, "Aggregate", cons,
+                   word_cons=word_cons_agg)
 
     aggregate(lambda f: (f.book, f.chapter), "Perek",
               lambda k, s: f"PEREK_{k[0]}_{k[1]}")
@@ -1008,9 +1048,10 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         if f.paragraph_marker:
             block_n += 1
             cons = "".join(m.full_consonants for m in block)
+            word_cons_block = " ".join(w for m in block for w in m.words)
             insert(f"BLOCK_{f.paragraph_marker}_{block_n}", block[0].book,
                    block[0].chapter, block[0].verse, block[0].parsha,
-                   f.paragraph_marker, "Aggregate", cons)
+                   f.paragraph_marker, "Aggregate", cons, word_cons=word_cons_block)
             block = []
 
     conn.commit()
@@ -1297,10 +1338,11 @@ def boundary_population(conn: sqlite3.Connection,
 
 
 def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
+                  word_consonants: str = "",
                   colel: bool = False, tracks: Optional[List[str]] = None,
                   boundaries: Optional[List[str]] = None) -> Dict[str, object]:
     """Compute every cipher value for the input phrase and search each one."""
-    values = compute_all_ciphers(phrase_consonants)
+    values = compute_all_ciphers(phrase_consonants, word_consonants=word_consonants)
     results = {c: search_value(conn, c, values[c], colel, tracks, boundaries)
                for c in CIPHER_NAMES}
     return {"values": values, "results": results}
@@ -1424,18 +1466,49 @@ def density_gaps(conn: sqlite3.Connection, cipher: str = "Standard",
 # SECTION 8b.  CIPHER BREAKDOWN HELPER (for in-UI letter-by-letter display)
 # ---------------------------------------------------------------------------
 
-def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, int]]]:
+def cipher_breakdown(cipher: str, consonants: str,
+                     word_consonants: str = "") -> Optional[List[Tuple[str, int]]]:
     """Return [(display_label, letter_value)] for equation display in the UI.
 
     Each element is one letter (or swap arrow for temurah ciphers) plus its
     value contribution. Returns None for HaNikud (not letter-based) or empty
     input — callers should show a note instead.
+    word_consonants, if provided, is used for word-boundary-aware ciphers
+    (Kaful, Mityashev, Meshulash) so their display resets at word boundaries.
     """
     if cipher in ("HaNikud", "KatanMispari", "KololEhad", "KololOtiyot") or not consonants:
         return None
     result: List[Tuple[str, int]] = []
-    _kaful_pos = 0       # running letter-position counter for Kaful
-    _meshulash_run = 0   # running prefix sum for Meshulash
+
+    # Word-boundary-aware ciphers: iterate word by word, reset counters each word.
+    if cipher in ("Kaful", "Mityashev", "Meshulash"):
+        src = word_consonants if word_consonants else consonants
+        for word in src.split():
+            if cipher == "Meshulash":
+                running = 0
+                for c in word:
+                    base = _normalize_final(c)
+                    running += STANDARD.get(base, 0)
+                    result.append((c, running))
+            elif cipher == "Kaful":
+                pos = 0
+                for c in word:
+                    base = _normalize_final(c)
+                    v = STANDARD.get(base, 0)
+                    if v:
+                        pos += 1
+                    result.append((f"{c}×{pos}", v * pos))
+            elif cipher == "Mityashev":
+                letters = [STANDARD.get(_normalize_final(c), 0) for c in word
+                           if STANDARD.get(_normalize_final(c), 0)]
+                n = len(letters)
+                for c in word:
+                    base = _normalize_final(c)
+                    v = STANDARD.get(base, 0)
+                    result.append((f"{c}×{n}", v * n))
+        return result
+
+    # All other ciphers: iterate directly over the consonant string.
     for ch in consonants:
         base = _normalize_final(ch)
         if cipher == "Standard":
@@ -1467,6 +1540,8 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
             result.append((f"{ch}→{swapped}", val))
         elif cipher == "Siduri":
             result.append((ch, ORDINAL.get(base, 0)))
+        elif cipher == "HaAchor":
+            result.append((ch, REVERSE_ORDINAL.get(base, 0)))
         elif cipher == "Ribua":
             v2 = STANDARD.get(base, 0)
             result.append((f"{ch}²", v2 * v2))
@@ -1483,18 +1558,6 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
             spelling = LETTER_NAME_SPELLING.get(base, "")
             hidden = spelling[1:] if spelling else ""
             result.append((f"{ch}→{hidden}", NEELAM_VALS.get(base, 0)))
-        elif cipher == "Meshulash":
-            _meshulash_run += STANDARD.get(base, 0)
-            result.append((ch, _meshulash_run))
-        elif cipher == "Kaful":
-            val = STANDARD.get(base, 0)
-            if val:
-                _kaful_pos += 1
-            result.append((f"{ch}×{_kaful_pos}", val * _kaful_pos))
-        elif cipher == "Mityashev":
-            n = sum(1 for c2 in consonants if STANDARD.get(_normalize_final(c2), 0))
-            val = STANDARD.get(base, 0)
-            result.append((f"{ch}×{n}", val * n))
         else:
             result.append((ch, 0))
     return result
@@ -1543,6 +1606,15 @@ def run_selftest() -> None:
     assert g_mityashev(emet) == 1323,      g_mityashev(emet)       # 441×3
     assert g_kolel_ehad(emet) == 442,      g_kolel_ehad(emet)      # 441+1
     assert g_kolel_otiyot(emet) == 444,    g_kolel_otiyot(emet)    # 441+3
+    # HaAchor (reverse ordinal): ת=index 21→22-21=1, מ=index 12→22-12=10, א=index 0→22-0=22
+    assert g_haachor("ת") == 1  and g_haachor("א") == 22, (g_haachor("ת"), g_haachor("א"))
+    assert g_haachor(emet) == 33,          g_haachor(emet)         # א=22+מ=10+ת=1=33
+    # Word-boundary reset: Kaful/Mityashev/Meshulash must reset counters between words.
+    # "אמת שלום" tests that position/count restarts at each word boundary.
+    two_words = "אמת שלום"
+    assert g_kaful(two_words) == 1819,     g_kaful(two_words)      # אמת:1281 + שלום:538
+    assert g_mityashev(two_words) == 2827, g_mityashev(two_words)  # אמת:1323 + שלום:1504
+    assert g_meshulash(two_words) == 1825, g_meshulash(two_words)  # אמת:483 + שלום:1342
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -1653,8 +1725,10 @@ def run_app() -> None:
         st.divider()
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
-        st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbah, Avgad. "
-                   "Researched additions: Siduri, Ribua, Kidmi, Achbi, HaNikud.")
+        st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad. "
+                   "Researched additions: Siduri, Ribua, Kidmi, Achbi, HaNikud, Agdat, "
+                   "KatanMispari, Milui, Neelam, Meshulash, Kaful, Mityashev, "
+                   "KololEhad, KololOtiyot, HaAchor.")
 
     DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
 
@@ -1722,9 +1796,18 @@ def run_app() -> None:
         else:
             cons = strip_to_consonants(v.text)
             st.markdown(f"**Consonants:** `{cons}`")
+        # Derive word-boundary-aware consonants for Kaful/Mityashev/Meshulash
+        if boundary == "FirstHalf":
+            w_cons, _ = split_halves_word_cons(v.text)
+        elif boundary == "SecondHalf":
+            _, w_cons = split_halves_word_cons(v.text)
+        elif boundary == "Word":
+            w_cons = cons
+        else:
+            w_cons = " ".join(tokenize_words(v.text))
         # Compute values — pass cantillated text for HaNikud
         cantillated_src = matched_text if (sub_unit and matched_text) else v.text
-        vals = compute_all_ciphers(cons, cantillated_src)
+        vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
         st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
         # Letter-by-letter breakdown for the active method
         if active_method and active_method in CIPHERS:
@@ -1733,7 +1816,7 @@ def run_app() -> None:
                 st.caption(f"**{active_method}:** {CIPHER_BLURB.get(active_method, '')} "
                            f"Dot count = {nikud_val}")
             else:
-                breakdown = cipher_breakdown(active_method, cons)
+                breakdown = cipher_breakdown(active_method, cons, w_cons)
                 if breakdown:
                     parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown)
                     total = sum(val for _, val in breakdown)
@@ -1760,14 +1843,14 @@ def run_app() -> None:
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
             "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 12 gematria methods."
+            "statistical fingerprint of the Tanach across 22 gematria methods."
         )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 12 gematria methods with earliest Talmudic or medieval sources, "
+                "Explains all 22 gematria methods with earliest Talmudic or medieval sources, "
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
@@ -1826,7 +1909,7 @@ def run_app() -> None:
             "Historical attributions are traditional and noted where uncertain."
         )
 
-        with st.expander("The 21 gematria methods", expanded=True):
+        with st.expander("The 22 gematria methods", expanded=True):
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -1912,6 +1995,10 @@ def run_app() -> None:
                  "Hebrew": "כולל אותיות (Kolel — Letters)",
                  "Rule": "Standard total + number of letters in the unit. Each letter adds 1 beyond its gematria value, reflecting the physical presence of the letter-vessels.",
                  "Earliest Source": "Kabbalistic practice; variant of the Kolel principle found across Chassidic and Kabbalistic literature."},
+                {"Method": "HaAchor",
+                 "Hebrew": "מספר האחור (Mispar HaAchor)",
+                 "Rule": "Reverse ordinal — counts backwards from the end of the alphabet: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri (ordinal), mirror of Kadmon's positional logic.",
+                 "Earliest Source": "Early Ashkenazi Hasidic mathematical treatises (Chassidei Ashkenaz, 12th–13th c.); referenced in Sefer Raziel HaMalach."},
             ]))
 
         with st.expander("Variant tracks"):
@@ -1988,6 +2075,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             colel = st.toggle("Rule of the Colel (±1)", value=False,
                               help="Also match Value−1 and Value+1.")
         cons = normalize_query(raw)
+        word_cons = " ".join(tokenize_words(raw))
         st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
 
         cc1, cc2 = st.columns(2)
@@ -2012,7 +2100,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             effective_tracks.append("Aggregate")
 
         if cons:
-            payload = search_phrase(conn, cons, colel=colel,
+            payload = search_phrase(conn, cons, word_consonants=word_cons, colel=colel,
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
             st.markdown("#### Computed values across all methods")
