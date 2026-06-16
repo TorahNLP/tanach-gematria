@@ -2295,7 +2295,7 @@ def run_app() -> None:
                  "Earliest Source": "Conceptual roots in Tikunei HaZohar (Tikun 5 and 70, late 13th c.), which analyses vowel shapes as Yod (dot) and Vav (line). The explicit mathematical gematria system belongs to R. Isaac Luria (Arizal, 16th c.), recorded by R. Chaim Vital in Sha'ar HaKavanot and Etz Chaim (Sha'ar TaNTA — Ta'amim, Nekudot, Tagin, Otiot)."},
                 {"Method": "ImHaNekudot",
                  "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
-                 "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines letter totals with vowel-mark totals in a single sum. Example: ציצית (Standard=600) + its nekudot values = higher total.",
+                 "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines consonant totals with vowel-mark geometric values in a single sum.",
                  "Earliest Source": "First formally catalogued and named by R. Moses Cordovero (Ramak) in Pardes Rimonim (1548), Sha'ar HaGematriot (Gate 30), Chapter 8. Cordovero systematically lists Im HaNekudot as a distinct hermeneutical method. Earlier ecstatic Kabbalists (e.g. R. Abraham Abulafia) used vowel values in meditative contexts without formalizing the system."},
                 {"Method": "MiluiNekudot",
                  "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
