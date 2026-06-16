@@ -219,22 +219,43 @@ OFANIM_MAP: Dict[str, str] = {
     k: FINAL_TO_BASE.get(v[-1], v[-1]) for k, v in LETTER_NAME_SPELLING.items()
 }
 
-# Nikud (vowel-point) dot counts for Mispar HaNikud.
-# Only the 12 standard vowel points (U+05B0–U+05BB) are counted; dagesh,
-# meteg and shin/sin dots are excluded. A string without nikud scores 0.
-NIKUD_DOTS: Dict[str, int] = {
-    "ְ": 2,  # Sheva — two stacked dots
-    "ֱ": 3,  # Hataf Segol — sheva-pair + one segol-dot
-    "ֲ": 3,  # Hataf Patah — sheva-pair + patah stroke
-    "ֳ": 3,  # Hataf Kamatz — sheva-pair + kamatz stroke
-    "ִ": 1,  # Hiriq — single dot
-    "ֵ": 2,  # Tsere — two horizontal dots
-    "ֶ": 3,  # Segol — three dots in triangle
-    "ַ": 1,  # Patah — one horizontal stroke
-    "ָ": 2,  # Kamatz — horizontal + vertical = two strokes
-    "ֹ": 1,  # Holam — single dot above
-    "ֺ": 1,  # Holam haser for vav — single dot
-    "ֻ": 3,  # Kubutz — three diagonal dots
+# Nikud (vowel-mark) geometric values for Mispar HaNekudot.
+# Rule: each dot = 10, each line (stroke) = 6.
+# Dagesh/Shuruk included (one dot inside the letter = 10).
+# Shin/sin dot, meteg, and all taamim excluded (consonantal or accentual, not vowel marks).
+NIKUD_VALS: Dict[str, int] = {
+    "ְ": 20,  # Sheva — two dots (10+10)
+    "ֱ": 30,  # Hataf Segol — three dots (same geometry as Segol: 10+10+10)
+    "ֲ":  6,  # Hataf Patah — one line (same geometry as Patah)
+    "ֳ": 16,  # Hataf Kamatz — one line + one dot (same geometry as Kamatz: 6+10)
+    "ִ": 10,  # Hiriq — one dot
+    "ֵ": 20,  # Tsere — two dots (10+10)
+    "ֶ": 30,  # Segol — three dots (10+10+10)
+    "ַ":  6,  # Patah — one line
+    "ָ": 16,  # Kamatz — one line + one dot (6+10)
+    "ֹ": 10,  # Holam — one dot above
+    "ֺ": 10,  # Holam haser for vav — one dot
+    "ֻ": 30,  # Kubutz — three diagonal dots (10+10+10)
+    "ּ": 10,  # Dagesh / Shuruk — one dot inside the letter
+}
+
+# Gikatilla (Ginnat Egoz, 13th c.): Standard gematria of the Hebrew NAME of each vowel mark.
+# Used by Mispar Milui HaNekudot. Hataf forms use the same name as their base vowel.
+NEKUDA_NAME_VALS: Dict[str, int] = {
+    # Spellings follow Gikatilla, Ginnat Egoz (1274): שבא (not שוא), צרי (not צירי)
+    "ְ": _spelling_val("שבא"),    # שבא   = 303  (Gikatilla's spelling of Sheva)
+    "ִ": _spelling_val("חיריק"),  # חיריק = 328
+    "ֵ": _spelling_val("צרי"),    # צרי   = 300  (Gikatilla's spelling of Tsere)
+    "ֶ": _spelling_val("סגול"),   # סגול  = 99
+    "ַ": _spelling_val("פתח"),    # פתח   = 488
+    "ָ": _spelling_val("קמץ"),    # קמץ   = 230  (variant קומץ=236 not used here)
+    "ֹ": _spelling_val("חולם"),   # חולם  = 84
+    "ֺ": _spelling_val("חולם"),   # Holam haser = same name
+    "ֻ": _spelling_val("קובוץ"),  # קובוץ = 204
+    "ּ": _spelling_val("דגש"),    # דגש   = 307
+    "ֱ": _spelling_val("סגול"),   # Hataf Segol  → same name as Segol
+    "ֲ": _spelling_val("פתח"),    # Hataf Patah  → same name as Patah
+    "ֳ": _spelling_val("קמץ"),    # Hataf Kamatz → same name as Kamatz
 }
 
 
@@ -331,13 +352,20 @@ def g_achbi(s: str) -> int:
     return _temurah_value(s, ACHBI_MAP)
 
 
-def g_nikud(text: str) -> int:
-    """Mispar HaNikud - count the dots in each vowel-point (nikud) mark.
-
-    Operates on raw (cantillated / vocalised) text, not stripped consonants.
-    Returns 0 for consonant-only strings — correct behaviour.
+def g_hanekudot(text: str) -> int:
+    """HaNekudot — geometric value of vowel marks (dot=10, line=6).
+    Operates on raw cantillated text; dagesh included; taamim excluded.
+    Returns 0 for consonant-only text.
     """
-    return sum(NIKUD_DOTS.get(ch, 0) for ch in text)
+    return sum(NIKUD_VALS.get(ch, 0) for ch in text)
+
+
+def g_milui_nekudot(text: str) -> int:
+    """Milui HaNekudot (Gikatilla, Ginnat Egoz 13th c.) — sum of the Standard
+    gematria of the Hebrew NAME of each vowel mark found in the text.
+    Returns 0 for consonant-only text.
+    """
+    return sum(NEKUDA_NAME_VALS.get(ch, 0) for ch in text)
 
 
 def g_agdat(s: str) -> int:
@@ -497,33 +525,37 @@ def g_reverse_avgad(s: str) -> int:
 
 # Ordered registry of every cipher. The order here is the column order used
 # throughout the database and the UI.
-# NOTE: HaNikud operates on cantillated text; all others take consonants.
-# compute_all_ciphers handles the dispatch so callers use a uniform API.
+# NOTE: Nikud ciphers (HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot)
+# operate on cantillated text; compute_all_ciphers handles dispatch.
 CIPHERS: Dict[str, Callable[[str], int]] = {
     # ── Standard value ciphers ────────────────────────────────────────────────
-    "Standard":        g_absolute,          # Mispar Hechrachi / Yaschar
-    "Katan":           g_katan,             # Mispar Katan (reduced, drop zeros)
-    "Gadol":           g_gadol,             # Mispar Gadol (finals 500-900)
-    "KatanMispari":    g_katan_mispari,     # Mispar Katan Mispari (digital root)
+    "Standard":         g_absolute,          # Mispar Hechrachi / Yaschar
+    "Katan":            g_katan,             # Mispar Katan (reduced, drop zeros)
+    "Gadol":            g_gadol,             # Mispar Gadol (finals 500-900)
+    "KatanMispari":     g_katan_mispari,     # Mispar Katan Mispari (digital root)
     # ── Ordinal / positional ciphers ─────────────────────────────────────────
-    "Siduri":          g_siduri,            # Mispar Siduri (ordinal 1-22)
-    "ReverseOrdinal":  g_reverse_ordinal,   # Reverse ordinal: Tav=1 … Alef=22
+    "Siduri":           g_siduri,            # Mispar Siduri (ordinal 1-22)
+    "ReverseOrdinal":   g_reverse_ordinal,   # Reverse ordinal: Tav=1 … Alef=22
     # ── Mathematical transforms ───────────────────────────────────────────────
-    "Ribua":           g_ribua,             # Mispar Meruba Prati (Σ v²)
-    "HaMerubahKlali":  g_ha_merubah_klali,  # Mispar HaMerubah HaKlali (total²)
-    "Meshulash":       g_meshulash,         # Mispar Meshulash (Σ v³ per letter)
-    "Kidmi":           g_kidmi,             # Mispar Kidmi / HaKadmon (triangular)
+    "Ribua":            g_ribua,             # Mispar Meruba Prati (Σ v²)
+    "HaMerubahKlali":   g_ha_merubah_klali,  # Mispar HaMerubah HaKlali (total²)
+    "Meshulash":        g_meshulash,         # Mispar Meshulash (Σ v³ per letter)
+    "Kidmi":            g_kidmi,             # Mispar Kidmi / HaKadmon (triangular)
     # ── Name-expansion (2-letter / standard Lurianic) ────────────────────────
-    "Milui":           g_milui,             # Mispar Milui (full letter-name)
-    "Neelam":          g_neelam,            # Mispar Neelam (hidden portion)
-    "Emtzaiyot":       g_emtzaiyot,         # Emtzaiyot (middle/inner letter of name)
-    "Ofanim":          g_ofanim,            # Ofanim (last letter of name)
-    "Mispari":         g_mispari,           # Mispar Mispari (Hebrew number-word)
-    "HaNikud":         g_nikud,             # Mispar HaNikud (nikud dots)
+    "Milui":            g_milui,             # Mispar Milui (full letter-name)
+    "Neelam":           g_neelam,            # Mispar Neelam (hidden portion)
+    "Emtzaiyot":        g_emtzaiyot,         # Emtzaiyot (middle/inner letter of name)
+    "Ofanim":           g_ofanim,            # Ofanim (last letter of name)
+    "Mispari":          g_mispari,           # Mispar Mispari (Hebrew number-word)
+    # ── Vowel-mark (nikud) ciphers — dispatched to cantillated text ──────────
+    "HaNekudot":        g_hanekudot,         # Geometric vowel values (dot=10, line=6)
+    "ImHaNekudot":      g_hanekudot,         # Standard(letters) + geometric vowel values
+    "MiluiNekudot":     g_milui_nekudot,     # Gematria of Hebrew names of vowel marks
+    "ImMiluiNekudot":   g_milui_nekudot,     # Standard(letters) + vowel-mark name values
     # ── Name-expansion (3-letter / Maleh tradition: כ=כאף, מ=מאם) ───────────
-    "MiluiMaleh":      g_milui_maleh,       # Milui with Maleh spellings
-    "NeelAmMaleh":     g_neelam_maleh,      # Neelam with Maleh spellings
-    "EmtzaiyotMaleh":  g_emtzaiyot_maleh,   # Emtzaiyot with Maleh spellings (כ,מ → א=1)
+    "MiluiMaleh":       g_milui_maleh,       # Milui with Maleh spellings
+    "NeelAmMaleh":      g_neelam_maleh,      # Neelam with Maleh spellings
+    "EmtzaiyotMaleh":   g_emtzaiyot_maleh,   # Emtzaiyot with Maleh spellings (כ,מ → א=1)
     # ── Temurah / substitution ciphers ───────────────────────────────────────
     "Atbash":          g_atbash,            # א"ת ב"ש mirror swap
     "Albam":           g_albam,             # א"ל ב"ם ROT-11
@@ -568,9 +600,12 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Neelam":          "Neelam — מספר נעלם",
     "Emtzaiyot":       "Emtzaiyot — אמצעיות",
     "Ofanim":          "Ofanim — אופנים",
-    "Mispari":         "Mispari — מספר מספרי",
-    "HaNikud":         "HaNikud — מספר הנקוד",
-    "MiluiMaleh":      "Milui Maleh — מילוי מלא",
+    "Mispari":          "Mispari — מספר מספרי",
+    "HaNekudot":        "HaNekudot — מספר הנקודות",
+    "ImHaNekudot":      "Im HaNekudot — עם הנקודות",
+    "MiluiNekudot":     "Milui HaNekudot — מילוי הנקודות",
+    "ImMiluiNekudot":   "Im Milui HaNekudot — עם מילוי הנקודות",
+    "MiluiMaleh":       "Milui Maleh — מילוי מלא",
     "NeelAmMaleh":     "Neelam Maleh — נעלם מלא",
     "EmtzaiyotMaleh":  "Emtzaiyot Maleh — אמצעיות מלא",
     "Atbash":          "Atbash — אתב\"ש",
@@ -605,11 +640,14 @@ CIPHER_BLURB: Dict[str, str] = {
     "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
     "Emtzaiyot":       "Middle letter: Standard value of the second letter of each Milui name (2-letter spellings). אלף→ל=30, בית→י=10 …",
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
-    "Mispari":         "Gematria of the Hebrew number-word for each letter's value (א=1→אחד=13 …).",
-    "MiluiMaleh":      "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
-    "NeelAmMaleh":     "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
-    "EmtzaiyotMaleh":  "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
-    "HaNikud":         "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
+    "Mispari":          "Gematria of the Hebrew number-word for each letter's value (א=1→אחד=13 …).",
+    "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh=10. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30. Consonants and taamim contribute 0.",
+    "ImHaNekudot":      "Standard gematria of the consonants plus HaNekudot of the vowel marks: letters + vowel-mark geometric values combined.",
+    "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark (Gikatilla spellings). שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307. Returns 0 for consonant-only text.",
+    "ImMiluiNekudot":   "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines letter totals with the spelled-out vowel marks.",
+    "MiluiMaleh":       "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
+    "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
+    "EmtzaiyotMaleh":   "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
     "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
     "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
@@ -649,16 +687,21 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
                         word_consonants: str = "") -> Dict[str, int]:
     """Return {cipher_name: value} for a cleaned consonant string.
 
-    HaNikud is dispatched to `cantillated`. HaAchor, Mityashev, and Boneeh
-    are dispatched to `word_consonants` (space-separated words) so they can
-    reset counters at each word boundary. Falls back to `consonants` when
-    `word_consonants` is empty (correct for single-word units).
+    Nikud ciphers are dispatched to `cantillated` (raw vocalised text).
+    Im* variants add Standard(consonants) to the nikud total.
+    HaAchor, Mityashev, Boneeh are dispatched to `word_consonants` so they
+    reset counters at each word boundary; falls back to `consonants` when empty.
     """
     word_src = word_consonants if word_consonants else consonants
+    std_val = g_absolute(consonants)
     result = {}
     for name, fn in CIPHERS.items():
-        if name == "HaNikud":
+        if name in ("HaNekudot", "MiluiNekudot"):
             result[name] = fn(cantillated)
+        elif name == "ImHaNekudot":
+            result[name] = std_val + g_hanekudot(cantillated)
+        elif name == "ImMiluiNekudot":
+            result[name] = std_val + g_milui_nekudot(cantillated)
         elif name in ("HaAchor", "Mityashev", "Boneeh"):
             result[name] = fn(word_src)
         else:
@@ -755,6 +798,30 @@ def split_halves_word_cons(text: str) -> Tuple[str, str]:
     return " ".join(tokenize_words(text[:end])), " ".join(tokenize_words(text[end:]))
 
 
+def split_halves_cantillated(text: str) -> Tuple[str, str]:
+    """Split at ATNACH; return the raw cantillated halves (not stripped).
+    Used to thread vowel data to FirstHalf/SecondHalf rows.
+    """
+    idx = text.find(ATNACH)
+    if idx == -1:
+        return text, ""
+    end = idx
+    while end < len(text) and text[end] not in (" ", "\t", MAQAF, SOF_PASUQ):
+        end += 1
+    return text[:end], text[end:]
+
+
+def _tokenize_raw_words(text: str) -> List[str]:
+    """Split cantillated text into raw word tokens (nikud/taamim preserved).
+    Strips paragraph markers; splits on whitespace and maqaf.
+    Drops letter-less tokens (paseq ׀, sof-pasuq, etc.) so the result stays
+    index-aligned with tokenize_words(), which also drops them after stripping.
+    """
+    no_markers = _MARKER_STRIP_RE.sub(" ", text)
+    toks = re.split(r"[\s" + re.escape(MAQAF) + r"]+", no_markers)
+    return [t for t in toks if strip_to_consonants(t)]
+
+
 # ---------------------------------------------------------------------------
 # SECTION 3.  VARIANT (KSIV / KRI / ESTHER-DOUBLET) FORK ENGINE
 # ---------------------------------------------------------------------------
@@ -789,7 +856,7 @@ class VerseFork:
     second_half: str
     paragraph_marker: Optional[str]
     words: List[str] = field(default_factory=list)
-    cantillated_text: str = ""  # full cantillated verse (for HaNikud)
+    cantillated_text: str = ""  # full cantillated verse (for nikud ciphers)
 
 
 def _base_id(v: VerseInput) -> str:
@@ -1195,18 +1262,21 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
     for f in all_forks:
         verse_wc = " ".join(f.words)
         fh_wc, sh_wc = split_halves_word_cons(f.cantillated_text)
-        # Pass cantillated_text for Verse rows so HaNikud gets the vowel count.
-        # Sub-unit rows (halves, words) only have consonants → HaNikud = 0 there.
+        fh_cant, sh_cant = split_halves_cantillated(f.cantillated_text)
+        raw_cant_words = _tokenize_raw_words(f.cantillated_text)
         insert(f.sub_id, f.book, f.chapter, f.verse, f.parsha,
                "Verse", f.variant_track, f.full_consonants,
                cantillated=f.cantillated_text, word_cons=verse_wc)
         insert(f"{f.sub_id}_FH", f.book, f.chapter, f.verse, f.parsha,
-               "FirstHalf", f.variant_track, f.first_half, word_cons=fh_wc)
+               "FirstHalf", f.variant_track, f.first_half,
+               cantillated=fh_cant, word_cons=fh_wc)
         insert(f"{f.sub_id}_SH", f.book, f.chapter, f.verse, f.parsha,
-               "SecondHalf", f.variant_track, f.second_half, word_cons=sh_wc)
+               "SecondHalf", f.variant_track, f.second_half,
+               cantillated=sh_cant, word_cons=sh_wc)
         for wi, w in enumerate(f.words, start=1):
+            cw = raw_cant_words[wi - 1] if wi - 1 < len(raw_cant_words) else ""
             insert(f"{f.sub_id}_W{wi}", f.book, f.chapter, f.verse, f.parsha,
-                   "Word", f.variant_track, w)
+                   "Word", f.variant_track, w, cantillated=cw)
         if f.paragraph_marker:
             insert(f"{f.sub_id}_{f.paragraph_marker}", f.book, f.chapter,
                    f.verse, f.parsha, f.paragraph_marker, f.variant_track,
@@ -1532,11 +1602,12 @@ def boundary_population(conn: sqlite3.Connection,
 
 
 def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
+                  cantillated: str = "",
                   word_consonants: str = "",
                   colel: bool = False, tracks: Optional[List[str]] = None,
                   boundaries: Optional[List[str]] = None) -> Dict[str, object]:
     """Compute every cipher value for the input phrase and search each one."""
-    values = compute_all_ciphers(phrase_consonants, word_consonants=word_consonants)
+    values = compute_all_ciphers(phrase_consonants, cantillated, word_consonants)
     results = {c: search_value(conn, c, values[c], colel, tracks, boundaries)
                for c in CIPHER_NAMES}
     return {"values": values, "results": results}
@@ -1684,12 +1755,12 @@ def cipher_breakdown(cipher: str, consonants: str,
                      word_consonants: str = "") -> Optional[List[Tuple[str, int]]]:
     """Return [(display_label, letter_value)] for equation display in the UI.
 
-    Returns None for ciphers that operate on the whole-word total (HaNikud,
+    Returns None for ciphers with no letter-level breakdown (nikud ciphers,
     KatanMispari, HaMerubahKlali, KololEhad, KololOtiyot) or empty input.
     word_consonants (space-separated) drives word-boundary-aware ciphers.
     """
-    _NO_BREAKDOWN = {"HaNikud", "KatanMispari", "HaMerubahKlali",
-                     "KololEhad", "KololOtiyot"}
+    _NO_BREAKDOWN = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot",
+                     "KatanMispari", "HaMerubahKlali", "KololEhad", "KololOtiyot"}
     if cipher in _NO_BREAKDOWN or not consonants:
         return None
     result: List[Tuple[str, int]] = []
@@ -1828,11 +1899,14 @@ def run_selftest() -> None:
     assert g_gadol("ם") == 600 and g_absolute("ם") == 40
     assert g_ribua("אב") == 5 and g_kidmi("ג") == 6
     assert g_katan("ר") == 2 and g_katan("י") == 1
-    # HaNikud: consonant-only string → 0; cantillated בְּרֵאשִׁ֖ית → 5
-    # (sheva=2 + tsere=2 + hiriq=1; dagesh and taamim excluded)
-    assert g_nikud("שלום") == 0, g_nikud("שלום")
-    assert g_nikud("בְּרֵאשִׁ֖ית") == 5, g_nikud("בְּרֵאשִׁ֖ית")
-    assert g_nikud(SAMPLE_CORPUS[0].text) > 0
+    # HaNekudot: consonant-only → 0; cantillated בְּרֵאשִׁ֖ית:
+    #   dagesh(10) + sheva(20) + tsere(20) + hiriq(10) = 60 (taam excluded)
+    assert g_hanekudot("שלום") == 0, g_hanekudot("שלום")
+    assert g_hanekudot("בְּרֵאשִׁ֖ית") == 60, g_hanekudot("בְּרֵאשִׁ֖ית")
+    assert g_hanekudot(SAMPLE_CORPUS[0].text) > 0
+    # MiluiNekudot (Gikatilla spellings): בְּרֵאשִׁ֖ית — dagesh(דגש=307)+sheva(שבא=303)+tsere(צרי=300)+hiriq(חיריק=328) = 1238
+    assert g_milui_nekudot("שלום") == 0, g_milui_nekudot("שלום")
+    assert g_milui_nekudot("בְּרֵאשִׁ֖ית") == 1238, g_milui_nekudot("בְּרֵאשִׁ֖ית")
     # All ciphers — spot-checks using אמת (א=1, מ=40, ת=400; Standard=441)
     emet = "אמת"
     assert g_agdat(emet) == 65,               g_agdat(emet)            # א→ג(3)+מ→ס(60)+ת→ב(2)
@@ -1973,7 +2047,8 @@ def run_app() -> None:
         st.write(", ".join(CIPHER_NAMES))
         st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
                    "Value: Ribua, HaMerubahKlali, Meshulash, Kidmi, KatanMispari, ReverseOrdinal. "
-                   "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim, Mispari, HaNikud. "
+                   "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim, Mispari. "
+                   "Vowel-mark (nikud): HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot. "
                    "Name-expansion (Maleh): MiluiMaleh, NeelAmMaleh, EmtzaiyotMaleh. "
                    "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
                    "Word-structure: HaAchor, Mityashev, Boneeh. "
@@ -2054,22 +2129,16 @@ def run_app() -> None:
             w_cons = cons
         else:
             w_cons = " ".join(tokenize_words(v.text))
-        # Compute values — pass cantillated text for HaNikud
         cantillated_src = matched_text if (sub_unit and matched_text) else v.text
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
         st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
         # Letter-by-letter breakdown for the active method
         if active_method and active_method in CIPHERS:
-            if active_method == "HaNikud":
-                nikud_val = g_nikud(cantillated_src)
-                st.caption(f"**{active_method}:** {CIPHER_BLURB.get(active_method, '')} "
-                           f"Dot count = {nikud_val}")
-            else:
-                breakdown = cipher_breakdown(active_method, cons, w_cons)
-                if breakdown:
-                    parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown)
-                    total = sum(val for _, val in breakdown)
-                    st.caption(f"**{active_method}:** {parts} = {total}")
+            breakdown = cipher_breakdown(active_method, cons, w_cons)
+            if breakdown:
+                parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown)
+                total = sum(val for _, val in breakdown)
+                st.caption(f"**{active_method}:** {parts} = {total}")
         if boundary in ("Petucha", "Setuma"):
             run = _paragraph_run(book, chapter, verse)
             if run and len(run) > 1:
@@ -2092,14 +2161,14 @@ def run_app() -> None:
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
             "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 33 gematria methods."
+            "statistical fingerprint of the Tanach across 36 gematria methods."
         )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 33 gematria methods with earliest Talmudic or medieval sources,"
+                "Explains all 36 gematria methods with earliest Talmudic or medieval sources,"
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
@@ -2114,7 +2183,7 @@ def run_app() -> None:
                 "letter-by-letter breakdown for the chosen method. "
                 "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
                 "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a 33×33 matrix"
+                "Open **🔀 Cross-method coincidences** below the results to see a 36×36 matrix"
                 "showing how every cipher value of your input matches every corpus method — "
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
@@ -2124,7 +2193,7 @@ def run_app() -> None:
                 "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                 "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
                 "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                "Every row shows gematria totals under all 33 methods for that block."
+                "Every row shows gematria totals under all 36 methods for that block."
                 "Click a row to open the verse detail panel."
             )
 
@@ -2143,7 +2212,7 @@ def run_app() -> None:
             st.markdown("**4 · Macro Statistical Dashboard**")
             st.markdown(
                 "High-level statistics across the full corpus: highest and lowest values by structure, "
-                "value-distribution histograms, a 33-method correlation heatmap, a per-book fingerprint "
+                "value-distribution histograms, a 36-method correlation heatmap, a per-book fingerprint "
                 "chart, and integer ranges with no verse representation. All charts are interactive — "
                 "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
                 "bottom shows, for every method pair, the fraction of verses whose first half "
@@ -2158,7 +2227,7 @@ def run_app() -> None:
             "Historical attributions are traditional and noted where uncertain."
         )
 
-        with st.expander("The 33 gematria methods", expanded=True):
+        with st.expander("The 36 gematria methods", expanded=True):
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -2204,10 +2273,22 @@ def run_app() -> None:
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
                  "Earliest Source": "Outlined as a structural matrix in Sefer Raziel HaMalach. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE)."},
-                {"Method": "HaNikud",
-                 "Hebrew": "מספר הנקוד (Mispar HaNikud)",
-                 "Rule": "Count the dots in each vowel mark (nikud): Sheva=2, Hiriq=1, Tsere=2, Segol=3, Patah=1, Kamatz=2, Holam=1, Kubutz=3, Hataf forms=3. Dagesh, meteg and shin/sin dots excluded. Returns 0 for unvocalised text.",
-                 "Earliest Source": "Modern computational extension. No classical Talmudic or Midrashic source. Requires cantillated (vocalised) source text — only verse-level totals carry meaningful values in this engine."},
+                {"Method": "HaNekudot",
+                 "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
+                 "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh/Shuruk=10, Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30. Taamim and shin/sin dot excluded. Returns 0 for consonant-only text.",
+                 "Earliest Source": "Conceptual roots in Tikunei HaZohar (Tikun 5 and 70, late 13th c.), which analyses vowel shapes as Yod (dot) and Vav (line). The explicit mathematical gematria system belongs to R. Isaac Luria (Arizal, 16th c.), recorded by R. Chaim Vital in Sha'ar HaKavanot and Etz Chaim (Sha'ar TaNTA — Ta'amim, Nekudot, Tagin, Otiot)."},
+                {"Method": "ImHaNekudot",
+                 "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
+                 "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines letter totals with vowel-mark totals in a single sum. Example: ציצית (Standard=600) + its nekudot values = higher total.",
+                 "Earliest Source": "First formally catalogued and named by R. Moses Cordovero (Ramak) in Pardes Rimonim (1548), Sha'ar HaGematriot (Gate 30), Chapter 8. Cordovero systematically lists Im HaNekudot as a distinct hermeneutical method. Earlier ecstatic Kabbalists (e.g. R. Abraham Abulafia) used vowel values in meditative contexts without formalizing the system."},
+                {"Method": "MiluiNekudot",
+                 "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
+                 "Rule": "Standard gematria of the Hebrew NAME of each vowel mark, using Gikatilla's spellings. שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307. Returns 0 for consonant-only text.",
+                 "Earliest Source": "R. Yosef Gikatilla, Ginnat Egoz (1274). In the section on the mystery of the nekudot, Gikatilla computes Standard gematria of each vowel mark's spelled-out name (פתח=488, קמץ=230, צרי=300, שבא=303 …) to reveal macrocosmic correspondences. Ginnat Egoz itself is an acronym for the book's three subjects: Gematria, Notarikon, Temurah."},
+                {"Method": "ImMiluiNekudot",
+                 "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
+                 "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
+                 "Earliest Source": "Extension combining Gikatilla's Milui HaNekudot system (Ginnat Egoz, 1274) with Cordovero's Im HaNekudot framework (Pardes Rimonim, 1548). No single classical source specifies this exact combination."},
                 {"Method": "Agdat",
                  "Hebrew": "אגד\"ת (Ag-Dat)",
                  "Rule": "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of the shifted letters.",
@@ -2440,7 +2521,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             row_num["Boundary"], matched_text=row_num.get("Text"),
                             active_method=row_num["Method"])
         elif cons:
-            payload = search_phrase(conn, cons, word_consonants=word_cons, colel=colel,
+            payload = search_phrase(conn, cons, cantillated=raw,
+                                    word_consonants=word_cons, colel=colel,
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
             st.markdown("#### Computed values across all methods")
@@ -2479,7 +2561,6 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     "Colel, track, and unit filters are shared with the search above."
                 )
                 a_vals = dict(vals)
-                a_vals["HaNikud"] = g_nikud(raw)
                 pop = boundary_population(conn, effective_tracks or None, bounds or None) or 1
                 xm_sparse = st.toggle(
                     "Only show notable coincidences (rate < 5%)", key="xm_sparse"
@@ -2496,10 +2577,6 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         gmap=rate_mat.to_numpy(),
                     ),
                     use_container_width=True,
-                )
-                st.caption(
-                    "★ The **HaNikud** column is non-zero only for Verse / Petucha / "
-                    "Setuma rows — word and half-verse units store no vowel data."
                 )
                 st.markdown("**Drill into a pair**")
                 dc1, dc2 = st.columns(2)
@@ -2565,7 +2642,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         show["Parsha"].str.contains(q, case=False, na=False))
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
-                       "that shares that number, across all 33 methods.")
+                       "that shares that number, across all 36 methods.")
             t2_col_config = {
                 "Book":    st.column_config.TextColumn("Book", width="medium"),
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
@@ -2591,15 +2668,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
-                     "any of the 33 methods.")
+                     "any of the 36 methods.")
 
             sel_rows = event2.selection.rows
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
 
-                # Show this row's values across all 33 methods.
+                # Show this row's values across all 36 methods.
                 summary = {c: int(row2[c]) for c in CIPHER_NAMES if c in row2.index}
-                st.markdown("**Selected unit — values across all 33 methods:**")
+                st.markdown("**Selected unit — values across all 36 methods:**")
                 st.dataframe(pd.DataFrame([summary]),
                              use_container_width=True, hide_index=True)
 
