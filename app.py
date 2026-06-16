@@ -176,11 +176,23 @@ def _spelling_val(spelling: str) -> int:
 
 MILUI_VALS: Dict[str, int]  = {k: _spelling_val(v)     for k, v in LETTER_NAME_SPELLING.items()}
 NEELAM_VALS: Dict[str, int] = {k: _spelling_val(v[1:]) for k, v in LETTER_NAME_SPELLING.items()}
-# Pnimi (inner/middle): the second letter (index 1) of each Milui name spelling.
-# For 2-letter names (כף, מם, הא, פא) this equals the Ofanim (last) letter.
-PNIMI_VALS: Dict[str, int] = {
+# Emtzaiyot (middle/inner): the second letter (index 1) of each Milui name spelling.
+# Uses 2-letter (standard Lurianic) spellings: כ=כף, מ=מם.
+# For those 2-letter names the inner and terminal letters are the same.
+EMTZAIYOT_VALS: Dict[str, int] = {
     k: STANDARD.get(FINAL_TO_BASE.get(v[1], v[1]), 0)
     for k, v in LETTER_NAME_SPELLING.items()
+}
+
+# Maleh (מלא — full/complete) 3-letter spelling tradition.
+# The two letters with 2-letter names gain an Alef: כ=כאף, מ=מאם.
+# For Emtzaiyot (index 1), this changes כ and מ from their final-letter value to א=1.
+LETTER_NAME_SPELLING_3: Dict[str, str] = {**LETTER_NAME_SPELLING, "כ": "כאף", "מ": "מאם"}
+MILUI_MALEH_VALS: Dict[str, int]     = {k: _spelling_val(v)     for k, v in LETTER_NAME_SPELLING_3.items()}
+NEELAM_MALEH_VALS: Dict[str, int]    = {k: _spelling_val(v[1:]) for k, v in LETTER_NAME_SPELLING_3.items()}
+EMTZAIYOT_MALEH_VALS: Dict[str, int] = {
+    k: STANDARD.get(FINAL_TO_BASE.get(v[1], v[1]), 0)
+    for k, v in LETTER_NAME_SPELLING_3.items()
 }
 
 # Mispar Mispari: gematria of the Hebrew number-word for each letter's Standard value.
@@ -351,9 +363,24 @@ def g_neelam(s: str) -> int:
     return sum(NEELAM_VALS.get(_normalize_final(c), 0) for c in s)
 
 
-def g_pnimi(s: str) -> int:
-    """Mispar Pnimi (פנימי — Inner) - Standard value of the middle letter (index 1) of each Milui name."""
-    return sum(PNIMI_VALS.get(_normalize_final(c), 0) for c in s)
+def g_emtzaiyot(s: str) -> int:
+    """Emtzaiyot (אמצעיות — Middle) - Standard value of the second letter of each Milui name (2-letter spellings)."""
+    return sum(EMTZAIYOT_VALS.get(_normalize_final(c), 0) for c in s)
+
+
+def g_milui_maleh(s: str) -> int:
+    """Milui Maleh (מילוי מלא) - Milui using 3-letter Maleh spellings: כ=כאף, מ=מאם."""
+    return sum(MILUI_MALEH_VALS.get(_normalize_final(c), 0) for c in s)
+
+
+def g_neelam_maleh(s: str) -> int:
+    """Neelam Maleh (נעלם מלא) - Neelam using 3-letter Maleh spellings: כ=כאף, מ=מאם."""
+    return sum(NEELAM_MALEH_VALS.get(_normalize_final(c), 0) for c in s)
+
+
+def g_emtzaiyot_maleh(s: str) -> int:
+    """Emtzaiyot Maleh (אמצעיות מלא) - Middle letter using 3-letter Maleh spellings; כ and מ yield א=1."""
+    return sum(EMTZAIYOT_MALEH_VALS.get(_normalize_final(c), 0) for c in s)
 
 
 def g_boneeh(s: str) -> int:
@@ -477,20 +504,26 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Standard":        g_absolute,          # Mispar Hechrachi / Yaschar
     "Katan":           g_katan,             # Mispar Katan (reduced, drop zeros)
     "Gadol":           g_gadol,             # Mispar Gadol (finals 500-900)
+    "KatanMispari":    g_katan_mispari,     # Mispar Katan Mispari (digital root)
+    # ── Ordinal / positional ciphers ─────────────────────────────────────────
     "Siduri":          g_siduri,            # Mispar Siduri (ordinal 1-22)
     "ReverseOrdinal":  g_reverse_ordinal,   # Reverse ordinal: Tav=1 … Alef=22
+    # ── Mathematical transforms ───────────────────────────────────────────────
     "Ribua":           g_ribua,             # Mispar Meruba Prati (Σ v²)
     "HaMerubahKlali":  g_ha_merubah_klali,  # Mispar HaMerubah HaKlali (total²)
     "Meshulash":       g_meshulash,         # Mispar Meshulash (Σ v³ per letter)
     "Kidmi":           g_kidmi,             # Mispar Kidmi / HaKadmon (triangular)
-    "KatanMispari":    g_katan_mispari,     # Mispar Katan Mispari (digital root)
-    # ── Name-expansion ciphers ────────────────────────────────────────────────
+    # ── Name-expansion (2-letter / standard Lurianic) ────────────────────────
     "Milui":           g_milui,             # Mispar Milui (full letter-name)
     "Neelam":          g_neelam,            # Mispar Neelam (hidden portion)
-    "Pnimi":           g_pnimi,             # Mispar Pnimi (inner/middle letter of name)
-    "Mispari":         g_mispari,           # Mispar Mispari (Hebrew number-word)
+    "Emtzaiyot":       g_emtzaiyot,         # Emtzaiyot (middle/inner letter of name)
     "Ofanim":          g_ofanim,            # Ofanim (last letter of name)
+    "Mispari":         g_mispari,           # Mispar Mispari (Hebrew number-word)
     "HaNikud":         g_nikud,             # Mispar HaNikud (nikud dots)
+    # ── Name-expansion (3-letter / Maleh tradition: כ=כאף, מ=מאם) ───────────
+    "MiluiMaleh":      g_milui_maleh,       # Milui with Maleh spellings
+    "NeelAmMaleh":     g_neelam_maleh,      # Neelam with Maleh spellings
+    "EmtzaiyotMaleh":  g_emtzaiyot_maleh,   # Emtzaiyot with Maleh spellings (כ,מ → א=1)
     # ── Temurah / substitution ciphers ───────────────────────────────────────
     "Atbash":          g_atbash,            # א"ת ב"ש mirror swap
     "Albam":           g_albam,             # א"ל ב"ם ROT-11
@@ -524,19 +557,22 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Standard":        "Standard — מספר הכרחי",
     "Katan":           "Katan — מספר קטן",
     "Gadol":           "Gadol — מספר גדול",
+    "KatanMispari":    "Katan Mispari — קטן מספרי",
     "Siduri":          "Siduri — מספר סידורי",
     "ReverseOrdinal":  "Reverse Ordinal — מספר אחור סידורי",
     "Ribua":           "Ribua — מספר מרובע",
     "HaMerubahKlali":  "HaMerubah HaKlali — מספר המרובע הכללי",
     "Meshulash":       "Meshulash — מספר משולש",
     "Kidmi":           "Kidmi — מספר קדמי",
-    "KatanMispari":    "Katan Mispari — קטן מספרי",
     "Milui":           "Milui — מספר שמי / מילוי",
     "Neelam":          "Neelam — מספר נעלם",
-    "Pnimi":           "Pnimi — מספר פנימי",
-    "Mispari":         "Mispari — מספר מספרי",
+    "Emtzaiyot":       "Emtzaiyot — אמצעיות",
     "Ofanim":          "Ofanim — אופנים",
+    "Mispari":         "Mispari — מספר מספרי",
     "HaNikud":         "HaNikud — מספר הנקוד",
+    "MiluiMaleh":      "Milui Maleh — מילוי מלא",
+    "NeelAmMaleh":     "Neelam Maleh — נעלם מלא",
+    "EmtzaiyotMaleh":  "Emtzaiyot Maleh — אמצעיות מלא",
     "Atbash":          "Atbash — אתב\"ש",
     "Albam":           "Albam — אלב\"ם",
     "Achbi":           "Achbi — אכב\"י",
@@ -567,9 +603,12 @@ CIPHER_BLURB: Dict[str, str] = {
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
     "Milui":           "Spell each letter's full name (Lurianic: א=אלף=111 …); sum all spelling letters.",
     "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
-    "Pnimi":           "Inner letter: Standard value of the second (middle) letter of each Milui name. אלף→ל=30, בית→י=10 …",
-    "Mispari":         "Gematria of the Hebrew number-word for each letter's value (א=1→אחד=13 …).",
+    "Emtzaiyot":       "Middle letter: Standard value of the second letter of each Milui name (2-letter spellings). אלף→ל=30, בית→י=10 …",
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
+    "Mispari":         "Gematria of the Hebrew number-word for each letter's value (א=1→אחד=13 …).",
+    "MiluiMaleh":      "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
+    "NeelAmMaleh":     "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
+    "EmtzaiyotMaleh":  "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
     "HaNikud":         "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
     "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
@@ -1712,11 +1751,22 @@ def cipher_breakdown(cipher: str, consonants: str,
         elif cipher == "Mispari":
             word_label = MISPARI_WORDS.get(base, "")
             result.append((f"{ch}={word_label}", MISPARI_VALS.get(base, 0)))
-        elif cipher == "Pnimi":
+        elif cipher == "Emtzaiyot":
             spelling = LETTER_NAME_SPELLING.get(base, base)
             mid_raw = spelling[1] if len(spelling) > 1 else spelling[0]
             mid = FINAL_TO_BASE.get(mid_raw, mid_raw)
-            result.append((f"{ch}→{mid}", PNIMI_VALS.get(base, 0)))
+            result.append((f"{ch}→{mid}", EMTZAIYOT_VALS.get(base, 0)))
+        elif cipher == "MiluiMaleh":
+            spelling = LETTER_NAME_SPELLING_3.get(base, base)
+            result.append((f"{ch}→{spelling}", MILUI_MALEH_VALS.get(base, 0)))
+        elif cipher == "NeelAmMaleh":
+            spelling = LETTER_NAME_SPELLING_3.get(base, base)
+            result.append((f"{ch}→{spelling[1:]}", NEELAM_MALEH_VALS.get(base, 0)))
+        elif cipher == "EmtzaiyotMaleh":
+            spelling = LETTER_NAME_SPELLING_3.get(base, base)
+            mid_raw = spelling[1] if len(spelling) > 1 else spelling[0]
+            mid = FINAL_TO_BASE.get(mid_raw, mid_raw)
+            result.append((f"{ch}→{mid}", EMTZAIYOT_MALEH_VALS.get(base, 0)))
         elif cipher == "Ofanim":
             last = OFANIM_MAP.get(base, base)
             result.append((f"{ch}→{last}", STANDARD.get(last, 0)))
@@ -1922,10 +1972,11 @@ def run_app() -> None:
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
         st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
-                   "Value: Ribua, HaMerubahKlali, Meshulash, Kidmi, KatanMispari. "
-                   "Name-expansion: Milui, Neelam, Mispari, Ofanim, HaNikud. "
+                   "Value: Ribua, HaMerubahKlali, Meshulash, Kidmi, KatanMispari, ReverseOrdinal. "
+                   "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim, Mispari, HaNikud. "
+                   "Name-expansion (Maleh): MiluiMaleh, NeelAmMaleh, EmtzaiyotMaleh. "
                    "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
-                   "Word-structure: HaAchor, Mityashev, Boneeh, ReverseOrdinal. "
+                   "Word-structure: HaAchor, Mityashev, Boneeh. "
                    "Kolel: KololEhad, KololOtiyot.")
 
     DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
@@ -2041,14 +2092,14 @@ def run_app() -> None:
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
             "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 30 gematria methods."
+            "statistical fingerprint of the Tanach across 33 gematria methods."
         )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 30 gematria methods with earliest Talmudic or medieval sources,"
+                "Explains all 33 gematria methods with earliest Talmudic or medieval sources,"
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
@@ -2063,7 +2114,7 @@ def run_app() -> None:
                 "letter-by-letter breakdown for the chosen method. "
                 "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
                 "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a 30×30 matrix"
+                "Open **🔀 Cross-method coincidences** below the results to see a 33×33 matrix"
                 "showing how every cipher value of your input matches every corpus method — "
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
@@ -2073,7 +2124,7 @@ def run_app() -> None:
                 "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                 "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
                 "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                "Every row shows gematria totals under all 30 methods for that block."
+                "Every row shows gematria totals under all 33 methods for that block."
                 "Click a row to open the verse detail panel."
             )
 
@@ -2092,7 +2143,7 @@ def run_app() -> None:
             st.markdown("**4 · Macro Statistical Dashboard**")
             st.markdown(
                 "High-level statistics across the full corpus: highest and lowest values by structure, "
-                "value-distribution histograms, a 30-method correlation heatmap, a per-book fingerprint "
+                "value-distribution histograms, a 33-method correlation heatmap, a per-book fingerprint "
                 "chart, and integer ranges with no verse representation. All charts are interactive — "
                 "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
                 "bottom shows, for every method pair, the fraction of verses whose first half "
@@ -2107,7 +2158,7 @@ def run_app() -> None:
             "Historical attributions are traditional and noted where uncertain."
         )
 
-        with st.expander("The 30 gematria methods", expanded=True):
+        with st.expander("The 33 gematria methods", expanded=True):
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -2217,10 +2268,22 @@ def run_app() -> None:
                  "Hebrew": "אופנים (Ofanim — Wheels)",
                  "Rule": "Replace each letter with the final letter of its Milui name spelling, take Standard value.",
                  "Earliest Source": "Sefer Raziel HaMalach; advanced angelological decryption cipher."},
-                {"Method": "Pnimi",
-                 "Hebrew": "מספר פנימי (Mispar Pnimi — Inner Value)",
-                 "Rule": "Standard value of the middle (second) letter of each letter's Milui name spelling. אלף→ל=30, בית→י=10, חית→י=10 … For 2-letter names the inner and terminal collapse: כף→פ=80.",
-                 "Earliest Source": "Pardes Rimonim (Sha'ar HaTziruf / Sha'ar 30, R. Moshe Cordovero, 1548). The Neelam string (name minus first letter) is split into a structural core (Pnimi, inner middle) and a terminal tail (Ofanim). Also referenced in Sefer Raziel HaMalach."},
+                {"Method": "Emtzaiyot",
+                 "Hebrew": "אמצעיות (Emtzaiyot — Middle Letters)",
+                 "Rule": "Standard value of the second (inner) letter of each letter's Milui name spelling. Uses 2-letter (standard Lurianic) spellings: אלף→ל=30, בית→י=10, חית→י=10. For 2-letter names (כף, מם, הא, פא) the inner and terminal letters are the same.",
+                 "Earliest Source": "Pardes Rimonim (Sha'ar HaTziruf / Sha'ar 30, R. Moshe Cordovero, 1548). Cordovero divides the Neelam string into a structural inner core (Emtzaiyot) and a terminal tail (Ofanim). Referenced in Sefer Raziel HaMalach."},
+                {"Method": "MiluiMaleh",
+                 "Hebrew": "מילוי מלא (Milui Maleh — Full Filling)",
+                 "Rule": "Like Milui, but uses the Maleh (מלא) 3-letter spellings for כ and מ: כ=כאף=101, מ=מאם=81. All other letter spellings are identical to standard Milui.",
+                 "Earliest Source": "The Maleh/Chaser spelling distinction parallels the scribal tradition of כתיב מלא (full spelling) vs. כתיב חסר (deficient spelling). Various Lurianic and Sephardic sources employ the 3-letter forms; cf. Sha'ar HaKavanot and related Ari texts."},
+                {"Method": "NeelAmMaleh",
+                 "Hebrew": "נעלם מלא (Neelam Maleh — Full Hidden)",
+                 "Rule": "Like Neelam, but with Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Reveals an additional Alef hidden inside each of these letters.",
+                 "Earliest Source": "Parallel to Milui Maleh; the Maleh spelling tradition applied to the Neelam (hidden remainder) system."},
+                {"Method": "EmtzaiyotMaleh",
+                 "Hebrew": "אמצעיות מלא (Emtzaiyot Maleh — Full Middle)",
+                 "Rule": "Like Emtzaiyot, but with Maleh 3-letter spellings. Both כ (כאף) and מ (מאם) now yield א=1 as their inner letter, fully distinct from their Ofanim value. אלף→ל=30, בית→י=10, כאף→א=1, מאם→א=1.",
+                 "Earliest Source": "Maleh spelling tradition applied to the Emtzaiyot system; follows from the same Pardes Rimonim framework. The א revealed as the inner letter of כ and מ has significance in Kabbalistic exegesis."},
                 {"Method": "AchasBeta",
                  "Hebrew": "אח\"ס בט\"ע (Achas Beta)",
                  "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
@@ -2502,7 +2565,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         show["Parsha"].str.contains(q, case=False, na=False))
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
-                       "that shares that number, across all 30 methods.")
+                       "that shares that number, across all 33 methods.")
             t2_col_config = {
                 "Book":    st.column_config.TextColumn("Book", width="medium"),
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
@@ -2528,15 +2591,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
-                     "any of the 30 methods.")
+                     "any of the 33 methods.")
 
             sel_rows = event2.selection.rows
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
 
-                # Show this row's values across all 30 methods.
+                # Show this row's values across all 33 methods.
                 summary = {c: int(row2[c]) for c in CIPHER_NAMES if c in row2.index}
-                st.markdown("**Selected unit — values across all 30 methods:**")
+                st.markdown("**Selected unit — values across all 33 methods:**")
                 st.dataframe(pd.DataFrame([summary]),
                              use_container_width=True, hide_index=True)
 
