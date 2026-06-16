@@ -345,7 +345,7 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Gadol": g_gadol,           # Mispar Gadol (final 500-900)    (required)
     "Atbash": g_atbash,         # א"ת ב"ש                          (required)
     "Albam": g_albam,           # א"ל ב"ם                          (required)
-    "Atbah": g_atbah,           # א"ט ב"ח                          (required)
+    "Atbach": g_atbah,           # א"ט ב"ח                          (required)
     "Avgad": g_avgad,           # א"ב ג"ד                          (required)
     "Siduri": g_siduri,         # Mispar Siduri (ordinal)         (researched)
     "Ribua": g_ribua,           # Mispar Meruba Prati (squared)   (researched)
@@ -373,7 +373,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Gadol":    "Gadol — מספר גדול",
     "Atbash":   "Atbash — אתב\"ש",
     "Albam":    "Albam — אלב\"ם",
-    "Atbah":    "Atbah — אטב\"ח",
+    "Atbach":    "Atbach — אטב\"ח",
     "Avgad":    "Avgad — אבג\"ד",
     "Siduri":   "Siduri — מספר סידורי",
     "Ribua":    "Ribua — מספר מרובע",
@@ -398,7 +398,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Gadol":    "Like Standard, but final forms count higher: ך=500 … ץ=900.",
     "Atbash":   "Mirror swap: א↔ת, ב↔ש, ג↔ר … then Standard values of swapped letters.",
     "Albam":    "ROT-11 swap: א↔ל, ב↔מ, ג↔נ … then Standard values of swapped letters.",
-    "Atbah":    "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
+    "Atbach":    "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
     "Avgad":    "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of shifted letters.",
     "Siduri":   "Ordinal position: א=1, ב=2, ג=3 … ת=22. Sequence, not value.",
     "Ribua":    "Sum of squared values: Σ v² per letter.",
@@ -1455,7 +1455,7 @@ def cipher_breakdown(cipher: str, consonants: str) -> Optional[List[Tuple[str, i
             swapped = AVGAD_MAP.get(base, base)
             val = STANDARD.get(_normalize_final(swapped), 0)
             result.append((f"{ch}→{swapped}", val))
-        elif cipher == "Atbah":
+        elif cipher == "Atbach":
             partner = ATBAH_MAP.get(base, base)
             val = ATBAH_VALUE.get(base, 0)
             result.append((f"{ch}↔{partner}", val))
@@ -1848,7 +1848,7 @@ def run_app() -> None:
                  "Hebrew": "אלב\"ם (Al-Bam)",
                  "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
                  "Earliest Source": "Explicitly detailed in Yalkut Shimoni (Yisro, Remez 271). Classical temurah in Sefer Yetzirah ch. 2 (3rd–6th c. CE)."},
-                {"Method": "Atbah",
+                {"Method": "Atbach",
                  "Hebrew": "אטב\"ח (At-Bach)",
                  "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
                  "Earliest Source": "Attributed to Rabbi Chiya (late 2nd/early 3rd c. CE). The phrase 'in the Atbah of Rabbi Chiya' (בְּאַטְבַּ״ח שֶׁל רַבִּי חִיָּיא) appears explicitly in BT Sukkah 52b. Also classified in the Baraita of 32 Hermeneutical Rules of R. Eliezer ben Yose ha-Gelili."},
