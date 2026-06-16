@@ -2667,7 +2667,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     ),
                     use_container_width=True,
                 )
-                st.markdown("**Drill into a pair**")
+                st.markdown("**Drill into a pair/s**")
                 dc1, dc2 = st.columns(2)
                 with dc1:
                     drill_a = st.selectbox(
@@ -2675,35 +2675,37 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
                     )
                 with dc2:
-                    drill_b = st.selectbox(
-                        "Method B", CIPHER_NAMES, index=0, key="xm_drill_b",
+                    drill_b_list = st.multiselect(
+                        "Method B (one or more)", CIPHER_NAMES,
+                        default=[CIPHER_NAMES[0]], key="xm_drill_b",
                         format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
                     )
                 drill_val = a_vals[drill_a]
-                st.markdown(
-                    f"**{drill_a}({raw.strip()}) = {drill_val}** "
-                    f"→ corpus units with **{drill_b} = {drill_val}**"
-                    + (" ± 1" if colel else "")
-                )
-                drill_res = search_value(
-                    conn, drill_b, drill_val, colel, effective_tracks or None, bounds or None
-                )
-                if drill_res.empty:
-                    st.info("No corpus unit matches this pair at the current filters.")
-                else:
-                    ev_drill = st.dataframe(
-                        drill_res, use_container_width=True, hide_index=True,
-                        on_select="rerun", selection_mode="single-row",
-                        key="xm_drill_sel",
+                for drill_b in (drill_b_list or [CIPHER_NAMES[0]]):
+                    st.markdown(
+                        f"**{drill_a}({raw.strip()}) = {drill_val}** "
+                        f"→ corpus units with **{drill_b} = {drill_val}**"
+                        + (" ± 1" if colel else "")
                     )
-                    if ev_drill.selection.rows:
-                        rd = drill_res.iloc[ev_drill.selection.rows[0]]
-                        with st.expander("📜 Verse detail", expanded=True):
-                            render_verse_detail(
-                                rd["Book"], rd["Chapter"], rd["Verse"],
-                                rd["Boundary"], matched_text=rd.get("Text"),
-                                active_method=drill_b,
-                            )
+                    drill_res = search_value(
+                        conn, drill_b, drill_val, colel, effective_tracks or None, bounds or None
+                    )
+                    if drill_res.empty:
+                        st.info(f"No corpus unit matches {drill_a}/{drill_b} at the current filters.")
+                    else:
+                        ev_drill = st.dataframe(
+                            drill_res, use_container_width=True, hide_index=True,
+                            on_select="rerun", selection_mode="single-row",
+                            key=f"xm_drill_sel_{drill_b}",
+                        )
+                        if ev_drill.selection.rows:
+                            rd = drill_res.iloc[ev_drill.selection.rows[0]]
+                            with st.expander("📜 Verse detail", expanded=True):
+                                render_verse_detail(
+                                    rd["Book"], rd["Chapter"], rd["Verse"],
+                                    rd["Boundary"], matched_text=rd.get("Text"),
+                                    active_method=drill_b,
+                                )
 
             with st.expander("🔍 All word-span matches", expanded=False):
                 st.caption(
