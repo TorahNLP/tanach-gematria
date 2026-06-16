@@ -499,6 +499,12 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
+# Ciphers excluded from correlation/balance heatmaps: KatanMispari saturates
+# (only 9 distinct values → always ~100% balance), Meshulash and HaMerubahKlali
+# produce hyperscale values (cubed / squared totals) that break Pearson correlation
+# and always show 0% balance.
+_HEATMAP_EXCLUDE: frozenset = frozenset({"KatanMispari", "Meshulash", "HaMerubahKlali"})
+
 # Display labels for cipher selector widgets. Internal names stay as short
 # CIPHER_NAMES keys (Python dicts, SQL columns); these labels are used only
 # in interactive selectors via format_func, never as DB column names.
@@ -590,7 +596,7 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
                         word_consonants: str = "") -> Dict[str, int]:
     """Return {cipher_name: value} for a cleaned consonant string.
 
-    HaNikud is dispatched to `cantillated`. Kaful, Mityashev, and Meshulash
+    HaNikud is dispatched to `cantillated`. HaAchor, Mityashev, and Boneeh
     are dispatched to `word_consonants` (space-separated words) so they can
     reset counters at each word boundary. Falls back to `consonants` when
     `word_consonants` is empty (correct for single-word units).
@@ -684,7 +690,7 @@ def split_halves_by_atnach(text: str) -> Tuple[str, str]:
 def split_halves_word_cons(text: str) -> Tuple[str, str]:
     """Like split_halves_by_atnach but returns space-separated word consonants for each half.
 
-    Used to feed word-boundary-aware ciphers (Kaful, Mityashev, Meshulash) the
+    Used to feed word-boundary-aware ciphers (HaAchor, Mityashev, Boneeh) the
     correct word structure for half-verse units.
     """
     idx = text.find(ATNACH)
@@ -1518,10 +1524,10 @@ def _xm_count_matrix(
     tracks: Optional[List[str]],
     boundaries: Optional[List[str]],
 ) -> pd.DataFrame:
-    """Build the 12×12 cross-method count matrix in a single SQL pass.
+    """Build the N×N cross-method count matrix in a single SQL pass.
 
-    Replaces 144 individual COUNT queries with one query containing 144
-    CASE WHEN expressions, scanning the units table once.
+    One query with N² CASE WHEN expressions (N = len(CIPHER_NAMES)),
+    scanning the units table once instead of issuing N² individual queries.
     """
     where, params = [], []
     if tracks:
@@ -1876,10 +1882,12 @@ def run_app() -> None:
         st.divider()
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
-        st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad. "
-                   "Researched additions: Siduri, Ribua, Kidmi, Achbi, HaNikud, Agdat, "
-                   "KatanMispari, Milui, Neelam, Meshulash, Kaful, Mityashev, "
-                   "KololEhad, KololOtiyot, HaAchor.")
+        st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
+                   "Value: Ribua, HaMerubahKlali, Meshulash, Kidmi, KatanMispari. "
+                   "Name-expansion: Milui, Neelam, Mispari, Ofanim, HaNikud. "
+                   "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
+                   "Word-structure: HaAchor, Mityashev, Boneeh, ReverseOrdinal. "
+                   "Kolel: KololEhad, KololOtiyot.")
 
     DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
 
@@ -2016,7 +2024,7 @@ def run_app() -> None:
                 "letter-by-letter breakdown for the chosen method. "
                 "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
                 "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a 12×12 matrix "
+                "Open **🔀 Cross-method coincidences** below the results to see a 29×29 matrix "
                 "showing how every cipher value of your input matches every corpus method — "
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
@@ -2026,7 +2034,7 @@ def run_app() -> None:
                 "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                 "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
                 "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                "Every row shows gematria totals under all 12 methods for that block. "
+                "Every row shows gematria totals under all 29 methods for that block. "
                 "Click a row to open the verse detail panel."
             )
 
@@ -2126,14 +2134,6 @@ def run_app() -> None:
                  "Hebrew": "נעלם (Mispar Neelam — Hidden)",
                  "Rule": "Like Milui, but drop the first letter of each spelling — only the hidden remainder counts. א→לף=110, ח→ית=410 …",
                  "Earliest Source": "Formally codified in Pardes Rimonim (Sha'ar HaGematria, Gate 30). Used in Kabbalah to identify hidden spiritual energies sustaining an outer visible concept."},
-                {"Method": "Meshulash",
-                 "Hebrew": "מספר משולש (Mispar Meshulash)",
-                 "Rule": "Stacked prefix sums: v₁ + (v₁+v₂) + (v₁+v₂+v₃) + … Each prefix sub-total is added to the running total. Note: distinct from Kidmi, which is a per-letter alphabet-triangular.",
-                 "Earliest Source": "Zohar; Pardes Rimonim (R. Moshe Cordovero, 1548)."},
-                {"Method": "Kaful",
-                 "Hebrew": "מספר כפול (Mispar Kaful)",
-                 "Rule": "Each letter's Standard value × its ordinal position within the unit: 1st×v₁ + 2nd×v₂ + … (e.g. אמת: א=1×1=1, מ=40×2=80, ת=400×3=1200 → total 1281).",
-                 "Earliest Source": "Detailed in Sefer Raziel HaMalach (medieval Kabbalistic compilation); used by Chassidei Ashkenaz (12th–13th c.) pietists."},
                 {"Method": "Mityashev",
                  "Hebrew": "מספר מיושב (Mispar Mityashev)",
                  "Rule": "Each letter × total letter count of its word: Σ(vᵢ × N). N resets per word. 3-letter word: every value × 3.",
@@ -2412,7 +2412,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         show["Parsha"].str.contains(q, case=False, na=False))
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
-                       "that shares that number, across all 12 methods.")
+                       "that shares that number, across all 29 methods.")
             t2_col_config = {
                 "Book":    st.column_config.TextColumn("Book", width="medium"),
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
@@ -2438,15 +2438,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
-                     "any of the 12 methods.")
+                     "any of the 29 methods.")
 
             sel_rows = event2.selection.rows
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
 
-                # Show this row's values across all 12 methods.
+                # Show this row's values across all 29 methods.
                 summary = {c: int(row2[c]) for c in CIPHER_NAMES if c in row2.index}
-                st.markdown("**Selected unit — values across all 12 methods:**")
+                st.markdown("**Selected unit — values across all 29 methods:**")
                 st.dataframe(pd.DataFrame([summary]),
                              use_container_width=True, hide_index=True)
 
@@ -2526,10 +2526,21 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         eff_a = t3_ma or CIPHER_NAMES
         eff_b = (t3_mb if t3_cross else eff_a) or CIPHER_NAMES
 
-        if ("Katan" in eff_a or "Katan" in eff_b) and int(t3_minval) < 41:
+        _low_cardinality = {"Katan", "KatanMispari"}
+        if any(c in eff_a or c in eff_b for c in _low_cardinality) and int(t3_minval) < 41:
+            triggered = [c for c in _low_cardinality if c in eff_a or c in eff_b]
             st.warning(
-                "⚠️ **Mispar Katan** collapses values to 1–40, producing a very high "
-                "match rate. Set **Min value ≥ 41** or deselect Katan to reduce noise.")
+                f"⚠️ **{' / '.join(triggered)}** collapse to very few distinct values "
+                "(Katan: 1–40; KatanMispari: 1–9), producing artificially high match rates. "
+                "Set **Min value ≥ 41** or deselect these methods to reduce noise.")
+
+        _hyperscale = {"Meshulash", "HaMerubahKlali"}
+        if any(c in eff_a or c in eff_b for c in _hyperscale):
+            triggered_h = [c for c in _hyperscale if c in eff_a or c in eff_b]
+            st.info(
+                f"ℹ️ **{' / '.join(triggered_h)}** produce very large values "
+                "(cubed or squared totals). Matches will be rare to nonexistent; "
+                "Colel ±1 has no practical effect at this scale.")
 
         # --- Build unified results ---
         frames = []
@@ -2685,7 +2696,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                        "Methods with high correlation produce similar rankings; "
                        "low/negative correlation highlights structurally distinct searches. "
                        "Hover any cell to see the exact value.")
-            numeric_cols = [c for c in CIPHER_NAMES if c in plot_df.columns]
+            numeric_cols = [c for c in CIPHER_NAMES
+                           if c in plot_df.columns and c not in _HEATMAP_EXCLUDE]
             corr = plot_df[numeric_cols].corr().round(2)
             fig_corr = px.imshow(
                 corr, text_auto=True, color_continuous_scale="RdBu_r",
@@ -2734,12 +2746,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                          expanded=False):
             import plotly.express as _px_xm
 
+            _BALANCE_COLS = [c for c in CIPHER_NAMES if c not in _HEATMAP_EXCLUDE]
+
             @st.cache_data(show_spinner="Computing cross-method balance matrix…")
             def _xm_balance_matrix(_conn):
                 cols = ", ".join(
                     f'SUM(CASE WHEN ABS(u1.{mx} - u2.{my}) <= 1 THEN 1 ELSE 0 END) '
                     f'AS "{mx}_vs_{my}"'
-                    for mx in CIPHER_NAMES for my in CIPHER_NAMES
+                    for mx in _BALANCE_COLS for my in _BALANCE_COLS
                 )
                 sql = (
                     f"SELECT COUNT(*) AS total_verses, {cols} "
@@ -2752,9 +2766,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 )
                 row = pd.read_sql_query(sql, _conn).iloc[0]
                 total = int(row["total_verses"]) or 1
-                data = [[int(row[f"{mx}_vs_{my}"]) / total for my in CIPHER_NAMES]
-                        for mx in CIPHER_NAMES]
-                return pd.DataFrame(data, index=CIPHER_NAMES, columns=CIPHER_NAMES), total
+                data = [[int(row[f"{mx}_vs_{my}"]) / total for my in _BALANCE_COLS]
+                        for mx in _BALANCE_COLS]
+                return pd.DataFrame(data, index=_BALANCE_COLS, columns=_BALANCE_COLS), total
 
             rate_df, total_verses = _xm_balance_matrix(conn)
             fig_xm = _px_xm.imshow(
