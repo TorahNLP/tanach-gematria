@@ -637,11 +637,13 @@ TRACK_LABELS: Dict[str, str] = {
     "Aggregate":   "Chapter / Parsha total",
 }
 BOUNDARY_LABELS: Dict[str, str] = {
-    "Word":       "Word (תיבה)",
-    "FirstHalf":  "First half-verse (before Asnachta)",
-    "SecondHalf": "Second half-verse (after Asnachta)",
-    "Verse":      "Verse (פסוק)",
-    "Perek":      "Chapter (פרק)",
+    "Word":          "Word (תיבה)",
+    "ZakefPhrase":   "Zakef phrase (זָקֵף — finest cantillation unit)",
+    "TiphchaPhrase": "Tipcha phrase (טִפְחָא — sub-half phrase unit)",
+    "FirstHalf":     "First half-verse (before Asnachta)",
+    "SecondHalf":    "Second half-verse (after Asnachta)",
+    "Verse":         "Verse (פסוק)",
+    "Perek":         "Chapter (פרק)",
     "Parsha":     "Torah portion (פרשה)",
     "Petucha":    "Open paragraph (Pesucha פ)",
     "Setuma":     "Closed paragraph (Setuma ס)",
@@ -678,9 +680,11 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
 # SECTION 2.  TEXT CLEANING & STRUCTURAL PARSING
 # ---------------------------------------------------------------------------
 
-ATNACH = "\u0591"          # HEBREW ACCENT ETNAHTA - marks the verse's major split
-MAQAF = "\u05BE"           # HEBREW PUNCTUATION MAQAF (word joiner)
-SOF_PASUQ = "\u05C3"       # HEBREW PUNCTUATION SOF PASUQ
+ATNACH      = "\u0591"     # HEBREW ACCENT ETNAHTA \u2014 major half-verse pause
+TIPCHA      = "\u0596"     # HEBREW ACCENT TIPEHA \u2014 sub-unit before ATNACH or SILLUQ
+ZAKEF_KATON = "\u0594"     # HEBREW ACCENT ZAQEF QATAN \u2014 second-tier disjunctive
+MAQAF       = "\u05BE"     # HEBREW PUNCTUATION MAQAF (word joiner)
+SOF_PASUQ   = "\u05C3"     # HEBREW PUNCTUATION SOF PASUQ
 
 # Paragraph markers as they appear in scribal / Sefaria text. We treat ONLY the
 # bracketed / parenthesised / sof-pasuq-adjacent isolated forms as structural,
@@ -785,6 +789,35 @@ def _tokenize_raw_words(text: str) -> List[str]:
     no_markers = _MARKER_STRIP_RE.sub(" ", text)
     toks = re.split(r"[\s" + re.escape(MAQAF) + r"]+", no_markers)
     return [t for t in toks if strip_to_consonants(t)]
+
+
+def _accent_phrases(cantillated: str, split_on: str) -> List[Tuple[str, str, str]]:
+    """Split cantillated verse text into phrase segments at words bearing any
+    character from `split_on`.  Each phrase ends with (and includes) the first
+    word carrying one of those accent marks; the final remainder is also returned.
+
+    Returns list of (consonants, word_cons, cantillated) tuples — one per phrase.
+    Empty / punctuation-only segments are suppressed.
+    """
+    raw = re.split(r"[\s" + re.escape(MAQAF) + r"]+", cantillated.strip())
+    result: List[Tuple[str, str, str]] = []
+    current: List[str] = []
+    for tok in raw:
+        if not tok:
+            continue
+        current.append(tok)
+        if any(a in tok for a in split_on):
+            ph = " ".join(current)
+            c = strip_to_consonants(ph)
+            if c:
+                result.append((c, " ".join(tokenize_words(ph)), ph))
+            current = []
+    if current:
+        ph = " ".join(current)
+        c = strip_to_consonants(ph)
+        if c:
+            result.append((c, " ".join(tokenize_words(ph)), ph))
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -1238,6 +1271,18 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         insert(f"{f.sub_id}_SH", f.book, f.chapter, f.verse, f.parsha,
                "SecondHalf", f.variant_track, f.second_half,
                cantillated=sh_cant, word_cons=sh_wc)
+        # TiphchaPhrase: split at TIPCHA and ATNACH — natural sub-half phrase units
+        for pi, (ph_c, ph_wc, ph_cant) in enumerate(
+                _accent_phrases(f.cantillated_text, TIPCHA + ATNACH), 1):
+            insert(f"{f.sub_id}_TP{pi}", f.book, f.chapter, f.verse, f.parsha,
+                   "TiphchaPhrase", f.variant_track, ph_c,
+                   cantillated=ph_cant, word_cons=ph_wc)
+        # ZakefPhrase: split at ZAKEF_KATON, TIPCHA and ATNACH — finest phrase unit
+        for pi, (ph_c, ph_wc, ph_cant) in enumerate(
+                _accent_phrases(f.cantillated_text, ZAKEF_KATON + TIPCHA + ATNACH), 1):
+            insert(f"{f.sub_id}_ZK{pi}", f.book, f.chapter, f.verse, f.parsha,
+                   "ZakefPhrase", f.variant_track, ph_c,
+                   cantillated=ph_cant, word_cons=ph_wc)
         for wi, w in enumerate(f.words, start=1):
             cw = raw_cant_words[wi - 1] if wi - 1 < len(raw_cant_words) else ""
             insert(f"{f.sub_id}_W{wi}", f.book, f.chapter, f.verse, f.parsha,
@@ -1626,6 +1671,66 @@ def normalize_query(raw: str) -> str:
     return strip_to_consonants(raw)
 
 
+def span_search(
+    conn: sqlite3.Connection,
+    target: int,
+    cipher: str,
+    max_span: int = 10,
+    colel: bool = False,
+    tracks: Optional[List[str]] = None,
+) -> pd.DataFrame:
+    """Find every contiguous multi-word span (2..max_span words) whose `cipher`
+    value equals `target` (or target±1 if colel).  Works for all 34 ciphers
+    because every cipher composes additively across words.
+
+    Returns a DataFrame with columns: Book, Ch, Vs, Track, Words, <cipher>.
+    """
+    import numpy as _np
+
+    track_cond = ""
+    params: list = []
+    if tracks:
+        track_cond = "AND variant_track IN (%s)" % ",".join("?" * len(tracks))
+        params = list(tracks)
+
+    sql = (
+        f"SELECT book, chapter, verse, variant_track, {cipher} "
+        f"FROM units WHERE boundary_type='Word' {track_cond} "
+        f"ORDER BY book, chapter, verse, variant_track, rowid"
+    )
+    df = pd.read_sql_query(sql, conn, params=params)
+    if df.empty:
+        return pd.DataFrame()
+
+    target_set = _np.array(
+        [target - 1, target, target + 1] if colel else [target], dtype=_np.int64
+    )
+
+    rows = []
+    for (book, ch, vs, track), grp in df.groupby(
+        ["book", "chapter", "verse", "variant_track"], sort=False
+    ):
+        vals = grp[cipher].to_numpy(dtype=_np.int64)
+        n = len(vals)
+        if n < 2:
+            continue
+        prefix = _np.concatenate([[0], _np.cumsum(vals)])
+        for span_len in range(2, min(max_span + 1, n + 1)):
+            span_vals = prefix[span_len:] - prefix[: n - span_len + 1]
+            hits = _np.where(_np.isin(span_vals, target_set))[0]
+            for i in hits:
+                rows.append({
+                    "Book":  book,
+                    "Ch":    int(ch),
+                    "Vs":    int(vs),
+                    "Track": track,
+                    "Words": f"{int(i)+1}–{int(i)+span_len}",
+                    cipher:  int(span_vals[i]),
+                })
+
+    return pd.DataFrame(rows)
+
+
 def _xm_count_matrix(
     conn: sqlite3.Connection,
     a_vals: Dict[str, int],
@@ -2008,9 +2113,11 @@ def run_app() -> None:
                    "Name-expansion (Maleh): MiluiMaleh, NeelAmMaleh, EmtzaiyotMaleh. "
                    "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
                    "Word-structure: HaAchor, Mityashev, Boneeh. "
-                   "Kolel: KololEhad, KololOtiyot.")
+                   "Kolel: KololEhad, KololOtiyot. "
+                   "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, SecondHalf, Verse, Perek, Parsha.")
 
-    DETAIL_BOUNDARIES = {"Word", "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
+    DETAIL_BOUNDARIES = {"Word", "ZakefPhrase", "TiphchaPhrase",
+                         "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
 
     def _paragraph_run(book, chapter, verse):
         """Return all VerseInputs in the same Petucha/Setuma block as (book, chapter, verse)."""
@@ -2062,7 +2169,7 @@ def run_app() -> None:
             return
         friendly_boundary = BOUNDARY_LABELS.get(boundary, boundary)
         st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
-        sub_unit = boundary in ("Word", "FirstHalf", "SecondHalf")
+        sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase", "FirstHalf", "SecondHalf")
         if sub_unit and v.text:
             matched_cons = strip_to_consonants(matched_text) if matched_text else None
             highlighted = _highlight_in_verse(v.text, boundary, matched_cons)
@@ -2429,7 +2536,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         with cc2:
             bounds = st.multiselect(
                 "Text units",
-                ["Word", "FirstHalf", "SecondHalf", "Verse",
+                ["Word", "ZakefPhrase", "TiphchaPhrase",
+                 "FirstHalf", "SecondHalf", "Verse",
                  "Perek", "Parsha", "Petucha", "Setuma"],
                 default=["Word", "Verse", "FirstHalf", "SecondHalf"],
                 format_func=lambda b: BOUNDARY_LABELS.get(b, b))
@@ -2563,6 +2671,40 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 rd["Boundary"], matched_text=rd.get("Text"),
                                 active_method=drill_b,
                             )
+
+            with st.expander("🔍 All word-span matches", expanded=False):
+                st.caption(
+                    "Scans every contiguous sequence of 2–N words in the corpus "
+                    "for matches to the same gematria value. Finds patterns that "
+                    "cross structural boundaries (e.g., last word of one phrase + "
+                    "first words of the next)."
+                )
+                sc1, sc2 = st.columns([2, 1])
+                with sc1:
+                    span_cipher = st.selectbox(
+                        "Cipher",
+                        CIPHER_NAMES,
+                        index=CIPHER_NAMES.index(cipher) if cipher in CIPHER_NAMES else 0,
+                        format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
+                        key="span_cipher",
+                    )
+                with sc2:
+                    span_max = st.slider("Max words in span", 2, 15, 7, key="span_max")
+                span_tgt = vals[span_cipher]
+                st.markdown(
+                    f"Searching **{span_cipher} = {span_tgt}**"
+                    + (f" (colel ±1: {span_tgt-1}–{span_tgt+1})" if colel else "")
+                )
+                span_df = span_search(
+                    conn, span_tgt, span_cipher,
+                    max_span=span_max, colel=colel,
+                    tracks=effective_tracks or None,
+                )
+                if span_df.empty:
+                    st.info("No multi-word span matches this value with the current settings.")
+                else:
+                    st.markdown(f"**{len(span_df)} span match(es)**")
+                    st.dataframe(span_df, use_container_width=True, hide_index=True)
         else:
             st.warning("Enter a Hebrew or transliterable phrase to search.")
 
