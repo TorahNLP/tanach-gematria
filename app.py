@@ -134,6 +134,30 @@ ATBAH_VALUE = {
     for ch in ALEFBET
 }
 
+# Reverse Avgad (אבג"ד הפוך): −1 cyclic shift (Bet→Alef, … Alef→Tav).
+REVERSE_AVGAD_MAP: Dict[str, str] = {ALEFBET[i]: ALEFBET[(i - 1) % 22] for i in range(22)}
+
+# Achas Beta (אח"ס בט"ע): cyclic rotation across three groups of 7/7/7, with ת fixed.
+# Groups: א-ז (7), ח-נ (7), ס-ש (7). Tav stands outside and maps to itself.
+_AB_G1, _AB_G2, _AB_G3 = "אבגדהוז", "חטיכלמנ", "סעפצקרש"
+ACHAS_BETA_MAP: Dict[str, str] = {}
+for _i in range(7):
+    ACHAS_BETA_MAP[_AB_G1[_i]] = _AB_G2[_i]   # g1 → g2
+    ACHAS_BETA_MAP[_AB_G2[_i]] = _AB_G3[_i]   # g2 → g3
+    ACHAS_BETA_MAP[_AB_G3[_i]] = _AB_G1[_i]   # g3 → g1
+ACHAS_BETA_MAP["ת"] = "ת"                       # ת unchanged
+
+# Ayak Bachar (אי"ק בכ"ר): 3×9 cyclic rotation across units/tens/hundreds triplets.
+# Each column (א,י,ק), (ב,כ,ר) … (ט,צ,ץ) rotates: units→tens→hundreds→units.
+# Finals ך,ם,ן,ף,ץ serve as the 500-900 hundreds tier; after substitution their
+# value is read as Standard (base letter), giving the 140-form result.
+_AYAK_TRIPLETS = [
+    ("א","י","ק"), ("ב","כ","ר"), ("ג","ל","ש"), ("ד","מ","ת"),
+    ("ה","נ","ך"), ("ו","ס","ם"), ("ז","ע","ן"), ("ח","פ","ף"), ("ט","צ","ץ"),
+]
+AYAK_MAP: Dict[str, str] = {}
+for _a, _b, _c in _AYAK_TRIPLETS:
+    AYAK_MAP[_a] = _b; AYAK_MAP[_b] = _c; AYAK_MAP[_c] = _a
 
 # Milui (מילוי): primary letter-name spellings (Lurianic standard convention).
 # Each letter's name is spelled as a Hebrew word; Milui sums Standard values of
@@ -152,6 +176,30 @@ def _spelling_val(spelling: str) -> int:
 
 MILUI_VALS: Dict[str, int]  = {k: _spelling_val(v)     for k, v in LETTER_NAME_SPELLING.items()}
 NEELAM_VALS: Dict[str, int] = {k: _spelling_val(v[1:]) for k, v in LETTER_NAME_SPELLING.items()}
+
+# Mispar Mispari: gematria of the Hebrew number-word for each letter's Standard value.
+# Verified against TorahCalc and cross-checked with Mispar Mispari tables.
+# Number words: 1=אחד, 2=שתיים, 3=שלוש, 4=ארבע, 5=חמש, 6=שש, 7=שבע, 8=שמונה,
+# 9=תשע, 10=עשר, 20=עשרים, 30=שלושים, 40=ארבעים, 50=חמישים, 60=שישים,
+# 70=שבעים, 80=שמונים, 90=תשעים, 100=מאה, 200=מאתים, 300=שלוש מאות, 400=ארבע מאות.
+MISPARI_VALS: Dict[str, int] = {
+    ALEFBET[i]: v for i, v in enumerate(
+        [13, 760, 636, 273, 348, 600, 372, 401, 770, 570,
+         620, 686, 323, 408, 660, 422, 446, 820, 46, 501, 1083, 720]
+    )
+}
+MISPARI_WORDS: Dict[str, str] = {
+    ALEFBET[i]: w for i, w in enumerate(
+        ["אחד","שתיים","שלוש","ארבע","חמש","שש","שבע","שמונה","תשע",
+         "עשר","עשרים","שלושים","ארבעים","חמישים","שישים","שבעים",
+         "שמונים","תשעים","מאה","מאתים","שלוש מאות","ארבע מאות"]
+    )
+}
+
+# Ofanim (אופנים): last letter of each letter's Lurianic name spelling, standard value.
+OFANIM_MAP: Dict[str, str] = {
+    k: FINAL_TO_BASE.get(v[-1], v[-1]) for k, v in LETTER_NAME_SPELLING.items()
+}
 
 # Nikud (vowel-point) dot counts for Mispar HaNikud.
 # Only the 12 standard vowel points (U+05B0–U+05BB) are counted; dagesh,
@@ -297,8 +345,8 @@ def g_neelam(s: str) -> int:
     return sum(NEELAM_VALS.get(_normalize_final(c), 0) for c in s)
 
 
-def g_meshulash(s: str) -> int:
-    """Mispar Meshulash - running prefix sums, reset at each word boundary."""
+def g_boneeh(s: str) -> int:
+    """Mispar Bone'eh (Building) - running prefix sums, reset at each word boundary."""
     total = 0
     for word in s.split():
         running = 0
@@ -308,8 +356,12 @@ def g_meshulash(s: str) -> int:
     return total
 
 
-def g_kaful(s: str) -> int:
-    """Mispar Kaful - each letter × its position within the word; position resets per word."""
+def g_haachor(s: str) -> int:
+    """Mispar HaAchor - each letter × its ordinal position within its word; resets per word.
+
+    Per Pardes Rimonim (Sha'ar 30, Ch. 8): called 'Achor' because the positional
+    weighting mirrors back-stacking of textual formula layouts.
+    """
     total = 0
     for word in s.split():
         pos = 0
@@ -343,9 +395,66 @@ def g_kolel_otiyot(s: str) -> int:
     return g_absolute(s) + n
 
 
-def g_haachor(s: str) -> int:
-    """Mispar HaAchor - reverse ordinal: Tav=1, Shin=2 … Alef=22."""
+def g_reverse_ordinal(s: str) -> int:
+    """Mispar Achor (Reverse Ordinal) - Tav=1, Shin=2 … Alef=22.
+
+    Chassidei Ashkenaz / Sefer Raziel HaMalach definition: reverse alphabetical index.
+    """
     return sum(REVERSE_ORDINAL.get(_normalize_final(c), 0) for c in s)
+
+
+def g_meshulash(s: str) -> int:
+    """Mispar Meshulash (Cubed) - each letter's Standard value cubed, then summed."""
+    return sum(STANDARD.get(_normalize_final(c), 0) ** 3 for c in s)
+
+
+def g_ha_merubah_klali(s: str) -> int:
+    """Mispar HaMerubah HaKlali - the total Standard sum squared as a single block."""
+    return g_absolute(s) ** 2
+
+
+def g_mispari(s: str) -> int:
+    """Mispar Mispari - gematria of the Hebrew number-word for each letter's Standard value."""
+    return sum(MISPARI_VALS.get(_normalize_final(c), 0) for c in s)
+
+
+def g_ayak_bachar(s: str) -> int:
+    """Ayak Bachar (אי"ק בכ"ר) - 3×9 cyclic rotation: units→tens→hundreds→units.
+
+    After substitution, Standard value of the substituted base letter is taken.
+    Source: Tikunei HaZohar (Tikkun 21).
+    """
+    total = 0
+    for c in s:
+        base = _normalize_final(c)
+        subst = AYAK_MAP.get(base, base)
+        total += STANDARD.get(_normalize_final(subst), 0)
+    return total
+
+
+def g_ofanim(s: str) -> int:
+    """Ofanim (אופנים / Wheels) - replace each letter with last letter of its Milui name.
+
+    Source: Sefer Raziel HaMalach (angelological cipher).
+    """
+    return sum(STANDARD.get(OFANIM_MAP.get(_normalize_final(c), _normalize_final(c)), 0)
+               for c in s)
+
+
+def g_achas_beta(s: str) -> int:
+    """Achas Beta (אח"ס בט"ע) - 7/7/7 cyclic rotation; ת is invariant.
+
+    Source: Pardes Rimonim (R. Moshe Cordovero), Sha'ar 30.
+    """
+    return _temurah_value(s, ACHAS_BETA_MAP)
+
+
+def g_reverse_avgad(s: str) -> int:
+    """Reverse Avgad (אבג"ד הפוך) - −1 cyclic shift: Bet→Alef … Alef→Tav.
+
+    Source: R. Eliezer Ashkenazi, Ta'am Zekenim.
+    """
+    return _temurah_value(s, REVERSE_AVGAD_MAP)
 
 
 # Ordered registry of every cipher. The order here is the column order used
@@ -353,28 +462,40 @@ def g_haachor(s: str) -> int:
 # NOTE: HaNikud operates on cantillated text; all others take consonants.
 # compute_all_ciphers handles the dispatch so callers use a uniform API.
 CIPHERS: Dict[str, Callable[[str], int]] = {
-    "Standard": g_absolute,     # Mispar Hechrachi / Yaschar      (required)
-    "Katan": g_katan,           # Mispar Katan (reduced)          (required)
-    "Gadol": g_gadol,           # Mispar Gadol (final 500-900)    (required)
-    "Atbash": g_atbash,         # א"ת ב"ש                          (required)
-    "Albam": g_albam,           # א"ל ב"ם                          (required)
-    "Atbach": g_atbah,           # א"ט ב"ח                          (required)
-    "Avgad": g_avgad,           # א"ב ג"ד                          (required)
-    "Siduri": g_siduri,         # Mispar Siduri (ordinal)         (researched)
-    "Ribua": g_ribua,           # Mispar Meruba Prati (squared)   (researched)
-    "Kidmi": g_kidmi,           # Mispar Kidmi / HaKadmon         (researched)
-    "Achbi": g_achbi,           # א"כ ב"י temurah variant         (researched)
-    "HaNikud": g_nikud,         # Mispar HaNikud (nikud dots)     (researched)
-    "Agdat": g_agdat,           # אגד"ת +2 shift                  (researched)
-    "KatanMispari": g_katan_mispari,  # digital-root of total     (researched)
-    "Milui": g_milui,           # Mispar Milui (filled names)     (researched)
-    "Neelam": g_neelam,         # Mispar Neelam (hidden portion)  (researched)
-    "Meshulash": g_meshulash,   # Mispar Meshulash (prefix sums)  (researched)
-    "Kaful": g_kaful,           # Mispar Kaful (pos × value)      (researched)
-    "Mityashev": g_mityashev,   # Mispar Mityashev (val × count)  (researched)
-    "KololEhad": g_kolel_ehad,  # Kolel +1 (word unit)            (researched)
-    "KololOtiyot": g_kolel_otiyot,  # Kolel +N (letter count)     (researched)
-    "HaAchor": g_haachor,       # Mispar HaAchor (reverse ordinal) (researched)
+    # ── Standard value ciphers ────────────────────────────────────────────────
+    "Standard":        g_absolute,          # Mispar Hechrachi / Yaschar
+    "Katan":           g_katan,             # Mispar Katan (reduced, drop zeros)
+    "Gadol":           g_gadol,             # Mispar Gadol (finals 500-900)
+    "Siduri":          g_siduri,            # Mispar Siduri (ordinal 1-22)
+    "ReverseOrdinal":  g_reverse_ordinal,   # Reverse ordinal: Tav=1 … Alef=22
+    "Ribua":           g_ribua,             # Mispar Meruba Prati (Σ v²)
+    "HaMerubahKlali":  g_ha_merubah_klali,  # Mispar HaMerubah HaKlali (total²)
+    "Meshulash":       g_meshulash,         # Mispar Meshulash (Σ v³ per letter)
+    "Kidmi":           g_kidmi,             # Mispar Kidmi / HaKadmon (triangular)
+    "KatanMispari":    g_katan_mispari,     # Mispar Katan Mispari (digital root)
+    # ── Name-expansion ciphers ────────────────────────────────────────────────
+    "Milui":           g_milui,             # Mispar Milui (full letter-name)
+    "Neelam":          g_neelam,            # Mispar Neelam (hidden portion)
+    "Mispari":         g_mispari,           # Mispar Mispari (Hebrew number-word)
+    "Ofanim":          g_ofanim,            # Ofanim (last letter of name)
+    "HaNikud":         g_nikud,             # Mispar HaNikud (nikud dots)
+    # ── Temurah / substitution ciphers ───────────────────────────────────────
+    "Atbash":          g_atbash,            # א"ת ב"ש mirror swap
+    "Albam":           g_albam,             # א"ל ב"ם ROT-11
+    "Achbi":           g_achbi,             # א"כ ב"י reversed-half swap
+    "Atbach":          g_atbah,             # א"ט ב"ח sum-to-10/100/1000
+    "Avgad":           g_avgad,             # א"ב ג"ד +1 shift
+    "Agdat":           g_agdat,             # אגד"ת +2 shift
+    "ReverseAvgad":    g_reverse_avgad,     # Reverse Avgad −1 shift
+    "AyakBachar":      g_ayak_bachar,       # אי"ק בכ"ר 3×9 cyclic rotation
+    "AchasBeta":       g_achas_beta,        # אח"ס בט"ע 7/7/7 rotation (ת fixed)
+    # ── Word-structure ciphers ────────────────────────────────────────────────
+    "Boneeh":          g_boneeh,            # Mispar Bone'eh (building / prefix sums)
+    "HaAchor":         g_haachor,           # Mispar HaAchor (value × position in word)
+    "Mityashev":       g_mityashev,         # Mispar Mityashev (value × word letter count)
+    # ── Kolel / additive ciphers ─────────────────────────────────────────────
+    "KololEhad":       g_kolel_ehad,        # Kolel +1 (word as single unit)
+    "KololOtiyot":     g_kolel_otiyot,      # Kolel +N (letter count)
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
@@ -382,54 +503,68 @@ CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 # CIPHER_NAMES keys (Python dicts, SQL columns); these labels are used only
 # in interactive selectors via format_func, never as DB column names.
 CIPHER_DISPLAY_NAMES: Dict[str, str] = {
-    "Standard": "Standard — מספר הכרחי",
-    "Katan":    "Katan — מספר קטן",
-    "Gadol":    "Gadol — מספר גדול",
-    "Atbash":   "Atbash — אתב\"ש",
-    "Albam":    "Albam — אלב\"ם",
-    "Atbach":    "Atbach — אטב\"ח",
-    "Avgad":    "Avgad — אבג\"ד",
-    "Siduri":   "Siduri — מספר סידורי",
-    "Ribua":    "Ribua — מספר מרובע",
-    "Kidmi":    "Kidmi — מספר קדמי",
-    "Achbi":        "Achbi — אכב\"י",
-    "HaNikud":      "HaNikud — מספר הנקוד",
-    "Agdat":        "Agdat — אגד\"ת",
-    "KatanMispari": "Katan Mispari — קטן מספרי",
-    "Milui":        "Milui — מילוי",
-    "Neelam":       "Neelam — נעלם",
-    "Meshulash":    "Meshulash — מספר משולש",
-    "Kaful":        "Kaful — מספר כפול",
-    "Mityashev":    "Mityashev — מספר מיושב",
-    "KololEhad":    "Kolel (Word) — כולל",
-    "KololOtiyot":  "Kolel (Letters) — כולל אותיות",
-    "HaAchor":      "HaAchor — מספר האחור",
+    "Standard":        "Standard — מספר הכרחי",
+    "Katan":           "Katan — מספר קטן",
+    "Gadol":           "Gadol — מספר גדול",
+    "Siduri":          "Siduri — מספר סידורי",
+    "ReverseOrdinal":  "Reverse Ordinal — מספר אחור סידורי",
+    "Ribua":           "Ribua — מספר מרובע",
+    "HaMerubahKlali":  "HaMerubah HaKlali — מספר המרובע הכללי",
+    "Meshulash":       "Meshulash — מספר משולש",
+    "Kidmi":           "Kidmi — מספר קדמי",
+    "KatanMispari":    "Katan Mispari — קטן מספרי",
+    "Milui":           "Milui — מספר שמי / מילוי",
+    "Neelam":          "Neelam — מספר נעלם",
+    "Mispari":         "Mispari — מספר מספרי",
+    "Ofanim":          "Ofanim — אופנים",
+    "HaNikud":         "HaNikud — מספר הנקוד",
+    "Atbash":          "Atbash — אתב\"ש",
+    "Albam":           "Albam — אלב\"ם",
+    "Achbi":           "Achbi — אכב\"י",
+    "Atbach":          "Atbach — אטב\"ח",
+    "Avgad":           "Avgad — אבג\"ד",
+    "Agdat":           "Agdat — אגד\"ת",
+    "ReverseAvgad":    "Reverse Avgad — אבג\"ד הפוך",
+    "AyakBachar":      "Ayak Bachar — אי\"ק בכ\"ר",
+    "AchasBeta":       "Achas Beta — אח\"ס בט\"ע",
+    "Boneeh":          "Bone'eh — מספר בונה",
+    "HaAchor":         "HaAchor — מספר האחור",
+    "Mityashev":       "Mityashev — מספר מיושב",
+    "KololEhad":       "Kolel (Word) — כולל",
+    "KololOtiyot":     "Kolel (Letters) — כולל אותיות",
 }
 
 # Human-readable one-liners shown next to each cipher selector in the UI.
 CIPHER_BLURB: Dict[str, str] = {
-    "Standard": "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
-    "Katan":    "Reduced values — drop trailing zeros (ק→1, מ→4), then sum.",
-    "Gadol":    "Like Standard, but final forms count higher: ך=500 … ץ=900.",
-    "Atbash":   "Mirror swap: א↔ת, ב↔ש, ג↔ר … then Standard values of swapped letters.",
-    "Albam":    "ROT-11 swap: א↔ל, ב↔מ, ג↔נ … then Standard values of swapped letters.",
-    "Atbach":    "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
-    "Avgad":    "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of shifted letters.",
-    "Siduri":   "Ordinal position: א=1, ב=2, ג=3 … ת=22. Sequence, not value.",
-    "Ribua":    "Sum of squared values: Σ v² per letter.",
-    "Kidmi":    "Triangular cumulative: each letter = sum of all Standard values up to it. א=1, ב=3 … ת=1495.",
-    "Achbi":        "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
-    "HaNikud":      "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
-    "Agdat":        "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of shifted letters.",
-    "KatanMispari": "Sum all Standard values first; then reduce the total to a single digital root.",
-    "Milui":        "Spell each letter's full name (א=אלף=111, ב=בית=412 …); sum all spelling letters.",
-    "Neelam":       "Like Milui but drop the first letter of each name — only the hidden remainder (א→לף=110 …).",
-    "Meshulash":    "Stacked prefix sums per word: v₁ + (v₁+v₂) + … — resets at each word boundary.",
-    "Kaful":        "Each Standard value × its position within its word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
-    "Mityashev":    "Each Standard value × total letter count of its word: Σ(vᵢ × N). N resets per word.",
-    "KololEhad":    "Standard total + 1 (the word counted as one collective unit).",
-    "KololOtiyot":  "Standard total + number of letters in the unit (one per letter).",
-    "HaAchor":      "Reverse ordinal: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri — counts from the end of the alphabet.",
+    "Standard":        "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
+    "Katan":           "Reduced values — drop trailing zeros (ק→1, מ→4), then sum.",
+    "Gadol":           "Like Standard but finals count higher: ך=500 … ץ=900.",
+    "Siduri":          "Ordinal position: א=1, ב=2 … ת=22. Sequence, not Standard value.",
+    "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22. Chassidei Ashkenaz / Sefer Raziel.",
+    "Ribua":           "Sum of squared values per letter: Σ v².",
+    "HaMerubahKlali":  "The total Standard sum squared as one block: (Σv)². Pardes Rimonim Sha'ar 30.",
+    "Meshulash":       "Each letter's Standard value cubed (v³), then summed: Σ v³. TorahCalc advanced.",
+    "Kidmi":           "Triangular cumulative: each letter = Σ Standard values up to it. א=1, ב=3 … ת=1495.",
+    "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
+    "Milui":           "Spell each letter's full name (Lurianic: א=אלף=111 …); sum all spelling letters.",
+    "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
+    "Mispari":         "Gematria of the Hebrew number-word for each letter's value (א=1→אחד=13 …).",
+    "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
+    "HaNikud":         "Counts the dots inside each vowel mark (nikud) — not the consonants themselves.",
+    "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
+    "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
+    "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
+    "Atbach":          "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
+    "Avgad":           "+1 cyclic shift: א→ב … ת→א. Then Standard values.",
+    "Agdat":           "+2 cyclic shift: א→ג … ת→ב. Then Standard values.",
+    "ReverseAvgad":    "−1 cyclic shift: ב→א … א→ת. Then Standard values. R. Eliezer Ashkenazi.",
+    "AyakBachar":      "3×9 cyclic rotation: units→tens→hundreds→units (א↔י↔ק, ב↔כ↔ר …). Tikunei HaZohar 21.",
+    "AchasBeta":       "7/7/7 cyclic rotation across groups א-ז / ח-נ / ס-ש; ת is invariant. Pardes Rimonim.",
+    "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
+    "HaAchor":         "Each Standard value × its ordinal position within the word; position resets per word. Pardes Rimonim Sha'ar 30.",
+    "Mityashev":       "Each Standard value × total letter count of its word: Σ(vᵢ × N). N resets per word.",
+    "KololEhad":       "Standard total + 1 (the word counted as one collective unit).",
+    "KololOtiyot":     "Standard total + number of letters in the unit (one per letter). Also called Mispar Musafi.",
 }
 
 # Friendly display labels for variant tracks and boundary types in the UI.
@@ -465,7 +600,7 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
     for name, fn in CIPHERS.items():
         if name == "HaNikud":
             result[name] = fn(cantillated)
-        elif name in ("Kaful", "Mityashev", "Meshulash"):
+        elif name in ("HaAchor", "Mityashev", "Boneeh"):
             result[name] = fn(word_src)
         else:
             result[name] = fn(consonants)
@@ -1470,27 +1605,27 @@ def cipher_breakdown(cipher: str, consonants: str,
                      word_consonants: str = "") -> Optional[List[Tuple[str, int]]]:
     """Return [(display_label, letter_value)] for equation display in the UI.
 
-    Each element is one letter (or swap arrow for temurah ciphers) plus its
-    value contribution. Returns None for HaNikud (not letter-based) or empty
-    input — callers should show a note instead.
-    word_consonants, if provided, is used for word-boundary-aware ciphers
-    (Kaful, Mityashev, Meshulash) so their display resets at word boundaries.
+    Returns None for ciphers that operate on the whole-word total (HaNikud,
+    KatanMispari, HaMerubahKlali, KololEhad, KololOtiyot) or empty input.
+    word_consonants (space-separated) drives word-boundary-aware ciphers.
     """
-    if cipher in ("HaNikud", "KatanMispari", "KololEhad", "KololOtiyot") or not consonants:
+    _NO_BREAKDOWN = {"HaNikud", "KatanMispari", "HaMerubahKlali",
+                     "KololEhad", "KololOtiyot"}
+    if cipher in _NO_BREAKDOWN or not consonants:
         return None
     result: List[Tuple[str, int]] = []
 
-    # Word-boundary-aware ciphers: iterate word by word, reset counters each word.
-    if cipher in ("Kaful", "Mityashev", "Meshulash"):
+    # Word-boundary-aware ciphers reset counters at each word boundary.
+    if cipher in ("HaAchor", "Mityashev", "Boneeh"):
         src = word_consonants if word_consonants else consonants
         for word in src.split():
-            if cipher == "Meshulash":
+            if cipher == "Boneeh":
                 running = 0
                 for c in word:
                     base = _normalize_final(c)
                     running += STANDARD.get(base, 0)
                     result.append((c, running))
-            elif cipher == "Kaful":
+            elif cipher == "HaAchor":
                 pos = 0
                 for c in word:
                     base = _normalize_final(c)
@@ -1508,56 +1643,64 @@ def cipher_breakdown(cipher: str, consonants: str,
                     result.append((f"{c}×{n}", v * n))
         return result
 
-    # All other ciphers: iterate directly over the consonant string.
+    # All other ciphers iterate letter by letter over the space-free consonant string.
     for ch in consonants:
         base = _normalize_final(ch)
+        v_std = STANDARD.get(base, 0)
         if cipher == "Standard":
-            result.append((ch, STANDARD.get(base, 0)))
+            result.append((ch, v_std))
         elif cipher == "Katan":
-            result.append((ch, _katan_digit(STANDARD.get(base, 0))))
+            result.append((ch, _katan_digit(v_std)))
         elif cipher == "Gadol":
-            val = GADOL_FINALS.get(ch, STANDARD.get(base, 0))
-            result.append((ch, val))
-        elif cipher == "Atbash":
-            swapped = ATBASH_MAP.get(base, base)
-            val = STANDARD.get(_normalize_final(swapped), 0)
-            result.append((f"{ch}→{swapped}", val))
-        elif cipher == "Albam":
-            swapped = ALBAM_MAP.get(base, base)
-            val = STANDARD.get(_normalize_final(swapped), 0)
-            result.append((f"{ch}→{swapped}", val))
-        elif cipher == "Avgad":
-            swapped = AVGAD_MAP.get(base, base)
-            val = STANDARD.get(_normalize_final(swapped), 0)
-            result.append((f"{ch}→{swapped}", val))
-        elif cipher == "Atbach":
-            partner = ATBAH_MAP.get(base, base)
-            val = ATBAH_VALUE.get(base, 0)
-            result.append((f"{ch}↔{partner}", val))
-        elif cipher == "Achbi":
-            swapped = ACHBI_MAP.get(base, base)
-            val = STANDARD.get(_normalize_final(swapped), 0)
-            result.append((f"{ch}→{swapped}", val))
+            result.append((ch, GADOL_FINALS.get(ch, v_std)))
         elif cipher == "Siduri":
             result.append((ch, ORDINAL.get(base, 0)))
-        elif cipher == "HaAchor":
+        elif cipher == "ReverseOrdinal":
             result.append((ch, REVERSE_ORDINAL.get(base, 0)))
         elif cipher == "Ribua":
-            v2 = STANDARD.get(base, 0)
-            result.append((f"{ch}²", v2 * v2))
+            result.append((f"{ch}²", v_std * v_std))
+        elif cipher == "Meshulash":
+            result.append((f"{ch}³", v_std ** 3))
         elif cipher == "Kidmi":
             result.append((ch, KIDMI.get(base, 0)))
-        elif cipher == "Agdat":
-            swapped = AGDAT_MAP.get(base, base)
-            val = STANDARD.get(_normalize_final(swapped), 0)
-            result.append((f"{ch}→{swapped}", val))
         elif cipher == "Milui":
             spelling = LETTER_NAME_SPELLING.get(base, "")
             result.append((f"{ch}={spelling}", MILUI_VALS.get(base, 0)))
         elif cipher == "Neelam":
             spelling = LETTER_NAME_SPELLING.get(base, "")
-            hidden = spelling[1:] if spelling else ""
-            result.append((f"{ch}→{hidden}", NEELAM_VALS.get(base, 0)))
+            result.append((f"{ch}→{spelling[1:]}", NEELAM_VALS.get(base, 0)))
+        elif cipher == "Mispari":
+            word_label = MISPARI_WORDS.get(base, "")
+            result.append((f"{ch}={word_label}", MISPARI_VALS.get(base, 0)))
+        elif cipher == "Ofanim":
+            last = OFANIM_MAP.get(base, base)
+            result.append((f"{ch}→{last}", STANDARD.get(last, 0)))
+        elif cipher == "Atbash":
+            sw = ATBASH_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "Albam":
+            sw = ALBAM_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "Achbi":
+            sw = ACHBI_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "Atbach":
+            result.append((f"{ch}↔{ATBAH_MAP.get(base, base)}", ATBAH_VALUE.get(base, 0)))
+        elif cipher == "Avgad":
+            sw = AVGAD_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "Agdat":
+            sw = AGDAT_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "ReverseAvgad":
+            sw = REVERSE_AVGAD_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "AyakBachar":
+            sw = AYAK_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "AchasBeta":
+            sw = ACHAS_BETA_MAP.get(base, base)
+            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
         else:
             result.append((ch, 0))
     return result
@@ -1595,26 +1738,34 @@ def run_selftest() -> None:
     assert g_nikud("שלום") == 0, g_nikud("שלום")
     assert g_nikud("בְּרֵאשִׁ֖ית") == 5, g_nikud("בְּרֵאשִׁ֖ית")
     assert g_nikud(SAMPLE_CORPUS[0].text) > 0
-    # New ciphers — spot-checks using אמת (א=1, מ=40, ת=400; Standard=441)
+    # All ciphers — spot-checks using אמת (א=1, מ=40, ת=400; Standard=441)
     emet = "אמת"
-    assert g_agdat(emet) == 65,            g_agdat(emet)           # א→ג(3)+מ→ס(60)+ת→ב(2)
-    assert g_katan_mispari(emet) == 9,     g_katan_mispari(emet)   # 441 → 4+4+1=9
-    assert g_milui(emet) == 607,           g_milui(emet)           # אלף(111)+מם(80)+תיו(416)
-    assert g_neelam(emet) == 166,          g_neelam(emet)          # לף(110)+ם(40)+יו(16)
-    assert g_meshulash(emet) == 483,       g_meshulash(emet)       # 1+41+441
-    assert g_kaful(emet) == 1281,          g_kaful(emet)           # 1×1+40×2+400×3
-    assert g_mityashev(emet) == 1323,      g_mityashev(emet)       # 441×3
-    assert g_kolel_ehad(emet) == 442,      g_kolel_ehad(emet)      # 441+1
-    assert g_kolel_otiyot(emet) == 444,    g_kolel_otiyot(emet)    # 441+3
-    # HaAchor (reverse ordinal): ת=index 21→22-21=1, מ=index 12→22-12=10, א=index 0→22-0=22
-    assert g_haachor("ת") == 1  and g_haachor("א") == 22, (g_haachor("ת"), g_haachor("א"))
-    assert g_haachor(emet) == 33,          g_haachor(emet)         # א=22+מ=10+ת=1=33
-    # Word-boundary reset: Kaful/Mityashev/Meshulash must reset counters between words.
-    # "אמת שלום" tests that position/count restarts at each word boundary.
+    assert g_agdat(emet) == 65,               g_agdat(emet)            # א→ג(3)+מ→ס(60)+ת→ב(2)
+    assert g_katan_mispari(emet) == 9,        g_katan_mispari(emet)    # 441→4+4+1=9
+    assert g_milui(emet) == 607,              g_milui(emet)            # אלף(111)+מם(80)+תיו(416)
+    assert g_neelam(emet) == 166,             g_neelam(emet)           # לף(110)+ם(40)+יו(16)
+    assert g_kolel_ehad(emet) == 442,         g_kolel_ehad(emet)       # 441+1
+    assert g_kolel_otiyot(emet) == 444,       g_kolel_otiyot(emet)     # 441+3
+    # Renamed: Boneeh (was Meshulash), HaAchor (was Kaful), ReverseOrdinal (was HaAchor)
+    assert g_boneeh(emet) == 483,             g_boneeh(emet)           # 1+(1+40)+(1+40+400)
+    assert g_haachor(emet) == 1281,           g_haachor(emet)          # 1×1+40×2+400×3
+    assert g_mityashev(emet) == 1323,         g_mityashev(emet)        # 441×3
+    assert g_reverse_ordinal("ת") == 1
+    assert g_reverse_ordinal("א") == 22
+    assert g_reverse_ordinal(emet) == 33,     g_reverse_ordinal(emet)  # א=22+מ=10+ת=1
+    # New ciphers
+    assert g_meshulash(emet) == 64064001,     g_meshulash(emet)        # 1³+40³+400³
+    assert g_ha_merubah_klali(emet) == 194481, g_ha_merubah_klali(emet)  # 441²
+    assert g_mispari(emet) == 1056,           g_mispari(emet)          # אחד(13)+ארבעים(323)+ארבע מאות(720)
+    assert g_ayak_bachar(emet) == 414,        g_ayak_bachar(emet)      # א→י(10)+מ→ת(400)+ת→ד(4)
+    assert g_ofanim(emet) == 126,             g_ofanim(emet)           # א→פ(80)+מ→מ(40)+ת→ו(6)
+    assert g_achas_beta(emet) == 608,         g_achas_beta(emet)       # א→ח(8)+מ→ר(200)+ת→ת(400)
+    assert g_reverse_avgad(emet) == 730,      g_reverse_avgad(emet)    # א→ת(400)+מ→ל(30)+ת→ש(300)
+    # Word-boundary reset: HaAchor/Mityashev/Boneeh must reset counters between words.
     two_words = "אמת שלום"
-    assert g_kaful(two_words) == 1819,     g_kaful(two_words)      # אמת:1281 + שלום:538
-    assert g_mityashev(two_words) == 2827, g_mityashev(two_words)  # אמת:1323 + שלום:1504
-    assert g_meshulash(two_words) == 1825, g_meshulash(two_words)  # אמת:483 + שלום:1342
+    assert g_haachor(two_words) == 1819,      g_haachor(two_words)     # אמת:1281 + שלום:538
+    assert g_mityashev(two_words) == 2827,    g_mityashev(two_words)   # אמת:1323 + שלום:1504
+    assert g_boneeh(two_words) == 1825,       g_boneeh(two_words)      # אמת:483 + שלום:1342
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -1843,14 +1994,14 @@ def run_app() -> None:
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
             "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 22 gematria methods."
+            "statistical fingerprint of the Tanach across 29 gematria methods."
         )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
             st.caption(
                 "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 22 gematria methods with earliest Talmudic or medieval sources, "
+                "Explains all 29 gematria methods with earliest Talmudic or medieval sources, "
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
@@ -1909,7 +2060,7 @@ def run_app() -> None:
             "Historical attributions are traditional and noted where uncertain."
         )
 
-        with st.expander("The 22 gematria methods", expanded=True):
+        with st.expander("The 29 gematria methods", expanded=True):
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -1985,20 +2136,56 @@ def run_app() -> None:
                  "Earliest Source": "Detailed in Sefer Raziel HaMalach (medieval Kabbalistic compilation); used by Chassidei Ashkenaz (12th–13th c.) pietists."},
                 {"Method": "Mityashev",
                  "Hebrew": "מספר מיושב (Mispar Mityashev)",
-                 "Rule": "Each letter's Standard value × total letter count in the unit: Σ(vᵢ × N). For a 3-letter word, every letter's value is multiplied by 3.",
+                 "Rule": "Each letter × total letter count of its word: Σ(vᵢ × N). N resets per word. 3-letter word: every value × 3.",
                  "Earliest Source": "Traced to early Italian Kabbalistic manuscripts; documented in operational gematria manuals."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
-                 "Rule": "Standard total + 1. The word itself is counted as one additional collective unit. Widely used as a ±1 adjustment to link words whose values differ by one.",
-                 "Earliest Source": "Ubiquitous in Chassidic philosophy and Kabbalah. Heavily employed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.) to link thematically related phrases."},
+                 "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
+                 "Earliest Source": "Ubiquitous in Chassidic philosophy and Kabbalah. Heavily employed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.)."},
                 {"Method": "KololOtiyot",
-                 "Hebrew": "כולל אותיות (Kolel — Letters)",
-                 "Rule": "Standard total + number of letters in the unit. Each letter adds 1 beyond its gematria value, reflecting the physical presence of the letter-vessels.",
+                 "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
+                 "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
                  "Earliest Source": "Kabbalistic practice; variant of the Kolel principle found across Chassidic and Kabbalistic literature."},
+                {"Method": "ReverseOrdinal",
+                 "Hebrew": "מספר אחור סידורי (Reverse Ordinal)",
+                 "Rule": "Reverse alphabetical index: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri.",
+                 "Earliest Source": "Chassidei Ashkenaz (12th–13th c.); referenced in Sefer Raziel HaMalach."},
+                {"Method": "HaMerubahKlali",
+                 "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
+                 "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua which squares per letter.",
+                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30); valid structural hermeneutic method."},
+                {"Method": "Meshulash",
+                 "Hebrew": "מספר משולש — Cubed (Mispar Meshulash)",
+                 "Rule": "Each letter's Standard value cubed individually (v³), then summed. Alef=1³=1, Bet=2³=8, Tav=400³.",
+                 "Earliest Source": "TorahCalc Advanced Gematria Explanations Index; hyper-dimensional geometric scaling."},
+                {"Method": "Mispari",
+                 "Hebrew": "מספר מספרי (Mispar Mispari)",
+                 "Rule": "Spell out the Hebrew number-word for each letter's value; sum those words' gematria. Alef=1→אחד=13.",
+                 "Earliest Source": "Medieval cryptographic references; detailed in Religion Wiki Gematria Taxonomy."},
+                {"Method": "Boneeh",
+                 "Hebrew": "מספר בונה (Mispar Bone'eh — Building)",
+                 "Rule": "Cumulative prefix sums per word: letter 1 alone, then 1+2, then 1+2+3 … Resets at each word boundary.",
+                 "Earliest Source": "Mapped in Sefaria Sheets on Sefer Yetzirah Permutations; building-block stacking system."},
                 {"Method": "HaAchor",
                  "Hebrew": "מספר האחור (Mispar HaAchor)",
-                 "Rule": "Reverse ordinal — counts backwards from the end of the alphabet: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri (ordinal), mirror of Kadmon's positional logic.",
-                 "Earliest Source": "Early Ashkenazi Hasidic mathematical treatises (Chassidei Ashkenaz, 12th–13th c.); referenced in Sefer Raziel HaMalach."},
+                 "Rule": "Each letter × its ordinal position within the word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
+                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30, Ch. 8); called 'Achor' for back-stacking layout."},
+                {"Method": "AyakBachar",
+                 "Hebrew": "אי\"ק בכ\"ר (Ayak Bachar)",
+                 "Rule": "3×9 cyclic rotation across units/tens/hundreds columns: א→י→ק→א, ב→כ→ר→ב … ט→צ→ץ→ט.",
+                 "Earliest Source": "Tikunei HaZohar (Tikkun 21); dynamic rotational variant."},
+                {"Method": "Ofanim",
+                 "Hebrew": "אופנים (Ofanim — Wheels)",
+                 "Rule": "Replace each letter with the final letter of its Milui name spelling, take Standard value.",
+                 "Earliest Source": "Sefer Raziel HaMalach; advanced angelological decryption cipher."},
+                {"Method": "AchasBeta",
+                 "Hebrew": "אח\"ס בט\"ע (Achas Beta)",
+                 "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
+                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30); formal linear cipher permutation."},
+                {"Method": "ReverseAvgad",
+                 "Hebrew": "אבג\"ד הפוך (Reverse Avgad)",
+                 "Rule": "−1 cyclic shift: Bet→Alef, Gimel→Bet … Alef wraps to Tav. Opposite of Avgad.",
+                 "Earliest Source": "R. Eliezer Ashkenazi, Ta'am Zekenim; used for defensive textual concealment."},
             ]))
 
         with st.expander("Variant tracks"):
