@@ -1490,25 +1490,45 @@ def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
 
 
 def search_value_all_methods(
-    conn: sqlite3.Connection, value: int, limit_per_method: int = 50
+    conn: sqlite3.Connection, value: int, limit_per_method: int = 50,
+    colel: bool = False, tracks: Optional[List[str]] = None,
+    boundaries: Optional[List[str]] = None,
 ) -> pd.DataFrame:
-    """Search `value` across all 12 ciphers in a single UNION ALL query.
+    """Search `value` across all ciphers in a single UNION ALL query.
 
     Returns a DataFrame with a leading 'Method' column so the caller can see
-    which cipher produced each match.
+    which cipher produced each match. Supports Colel (±1), track, and boundary
+    filters. When tracks is None, defaults to Ksiv-only (preserves old behavior).
     """
     unions, params = [], []
     for c in CIPHER_NAMES:
-        # Each branch must be wrapped in a subquery for LIMIT to be valid inside UNION ALL
+        where, branch_params = [], []
+        if colel:
+            where.append(f"{c} BETWEEN ? AND ?")
+            branch_params += [value - 1, value + 1]
+        else:
+            where.append(f"{c}=?")
+            branch_params.append(value)
+        if tracks:
+            where.append("variant_track IN (%s)" % ",".join("?" * len(tracks)))
+            branch_params += list(tracks)
+        else:
+            where.append("variant_track='Ksiv'")
+        if boundaries:
+            where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
+            branch_params += list(boundaries)
         unions.append(
             f"SELECT * FROM ("
             f"SELECT '{c}' AS Method, book AS Book, chapter AS Chapter, "
             f"verse AS Verse, boundary_type AS Boundary, variant_track AS Track, "
             f"consonants AS Text, {c} AS Value, sub_id AS SubID "
-            f"FROM units WHERE {c}=? AND variant_track='Ksiv' LIMIT {limit_per_method})"
+            f"FROM units WHERE " + " AND ".join(where) +
+            f" LIMIT {int(limit_per_method)})"
         )
-        params.append(value)
-    sql = "SELECT * FROM (" + " UNION ALL ".join(unions) + ") ORDER BY Method, Book, Chapter, Verse"
+        params += branch_params
+    sql = ("SELECT * FROM (" + " UNION ALL ".join(unions) +
+           ") ORDER BY Method, ABS(Value - ?), Book, Chapter, Verse")
+    params.append(value)
     return pd.read_sql_query(sql, conn, params=params)
 
 
@@ -2252,18 +2272,37 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
     # ======================= TAB 1: PHRASE MATCHER =======================
     with tab1:
         st.subheader("Phrase & Name Matcher")
-        c1, c2 = st.columns([3, 2])
-        with c1:
-            raw = st.text_input(
-                "Hebrew phrase or name",
-                value="שלום", help="Type or paste Hebrew. Nikud and ta'amim are "
-                "stripped automatically; only the 22 consonants are counted.")
-        with c2:
-            colel = st.toggle("Rule of the Colel (±1)", value=False,
-                              help="Also match Value−1 and Value+1.")
-        cons = normalize_query(raw)
-        word_cons = " ".join(tokenize_words(raw))
-        st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
+        mode = st.radio("Search by", ["Hebrew text", "Gematria value"],
+                        horizontal=True, key="t1_mode")
+
+        if mode == "Hebrew text":
+            c1, c2 = st.columns([3, 2])
+            with c1:
+                raw = st.text_input(
+                    "Hebrew phrase or name",
+                    value="שלום", help="Type or paste Hebrew. Nikud and ta'amim are "
+                    "stripped automatically; only the 22 consonants are counted.")
+            with c2:
+                colel = st.toggle("Rule of the Colel (±1)", value=False,
+                                  key="t1_text_colel",
+                                  help="Also match Value−1 and Value+1.")
+            cons = normalize_query(raw)
+            word_cons = " ".join(tokenize_words(raw))
+            st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
+        else:
+            nc1, nc2 = st.columns([3, 2])
+            with nc1:
+                num_raw = st.number_input(
+                    "Gematria value", min_value=1, max_value=10_000_000,
+                    value=2701, step=1, key="t1_num",
+                    help="Search every method for corpus units equal to this value.")
+            with nc2:
+                colel = st.toggle("Rule of the Colel (±1)", value=False,
+                                  key="t1_num_colel",
+                                  help="Also match Value−1 and Value+1.")
+            target = int(num_raw)
+            cons = ""
+            word_cons = ""
 
         cc1, cc2 = st.columns(2)
         with cc1:
@@ -2286,7 +2325,35 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         if any(b in (bounds or []) for b in ("Perek", "Parsha")) and "Aggregate" not in effective_tracks:
             effective_tracks.append("Aggregate")
 
-        if cons:
+        if mode == "Gematria value":
+            res_num = search_value_all_methods(
+                conn, target, limit_per_method=50, colel=colel,
+                tracks=effective_tracks or None, boundaries=bounds or None)
+            st.markdown(
+                f"#### Corpus units equal to **{target}**"
+                + (f" (Colel window {target-1}–{target+1})" if colel else "")
+                + f" — {len(res_num)} match(es) across all methods")
+            if res_num.empty:
+                st.info(
+                    f"No corpus unit equals {target} under any of the {len(CIPHER_NAMES)} "
+                    "methods at the current filters. Try enabling Colel, widening the "
+                    "Text units filter, or checking a different track.")
+            else:
+                res_num_disp = res_num.copy()
+                res_num_disp["Method"] = res_num_disp["Method"].map(
+                    lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
+                event_num = st.dataframe(
+                    res_num_disp, use_container_width=True, hide_index=True,
+                    on_select="rerun", selection_mode="single-row", key="t1_num_sel")
+                sel_num = event_num.selection.rows
+                if sel_num:
+                    row_num = res_num.iloc[sel_num[0]]
+                    with st.expander("📜 Verse detail", expanded=True):
+                        render_verse_detail(
+                            row_num["Book"], row_num["Chapter"], row_num["Verse"],
+                            row_num["Boundary"], matched_text=row_num.get("Text"),
+                            active_method=row_num["Method"])
+        elif cons:
             payload = search_phrase(conn, cons, word_consonants=word_cons, colel=colel,
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
