@@ -2592,7 +2592,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             if kbd_open:
                 with _kbd_slot.container(border=True):
                     # ── Consonants ──────────────────────────────────────────────
-                    for _row in ["אבגדהוזחטי", "כלמנסעפצקר", "שתךםןףץ"]:
+                    for _row in ["יטחזוהדגבא", "רקצפעסנמלכ", "ץףןםךתש"]:
                         _cols = st.columns(len(_row))
                         for _col, _ch in zip(_cols, _row):
                             _col.button(_ch, key=f"hk_{_ch}",
