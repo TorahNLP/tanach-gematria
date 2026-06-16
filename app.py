@@ -1532,17 +1532,17 @@ def run_selftest() -> None:
     assert g_nikud("שלום") == 0, g_nikud("שלום")
     assert g_nikud("בְּרֵאשִׁ֖ית") == 5, g_nikud("בְּרֵאשִׁ֖ית")
     assert g_nikud(SAMPLE_CORPUS[0].text) > 0
-    # New ciphers — spot-checks using חבד (ח=8, ב=2, ד=4)
-    chabad = "חבד"
-    assert g_agdat(chabad) == 20,          g_agdat(chabad)        # ח→י(10)+ב→ד(4)+ד→ו(6)
-    assert g_katan_mispari(chabad) == 5,   g_katan_mispari(chabad) # 14 → 1+4=5
-    assert g_milui(chabad) == 1264,        g_milui(chabad)         # חית+בית+דלת
-    assert g_neelam(chabad) == 1250,       g_neelam(chabad)        # ית+ית+לת
-    assert g_meshulash(chabad) == 32,      g_meshulash(chabad)     # 8+10+14
-    assert g_kaful(chabad) == 24,          g_kaful(chabad)         # 8×1+2×2+4×3
-    assert g_mityashev(chabad) == 42,      g_mityashev(chabad)     # (8+2+4)×3
-    assert g_kolel_ehad(chabad) == 15,     g_kolel_ehad(chabad)    # 14+1
-    assert g_kolel_otiyot(chabad) == 17,   g_kolel_otiyot(chabad)  # 14+3
+    # New ciphers — spot-checks using אמת (א=1, מ=40, ת=400; Standard=441)
+    emet = "אמת"
+    assert g_agdat(emet) == 65,            g_agdat(emet)           # א→ג(3)+מ→ס(60)+ת→ב(2)
+    assert g_katan_mispari(emet) == 9,     g_katan_mispari(emet)   # 441 → 4+4+1=9
+    assert g_milui(emet) == 607,           g_milui(emet)           # אלף(111)+מם(80)+תיו(416)
+    assert g_neelam(emet) == 166,          g_neelam(emet)          # לף(110)+ם(40)+יו(16)
+    assert g_meshulash(emet) == 483,       g_meshulash(emet)       # 1+41+441
+    assert g_kaful(emet) == 1281,          g_kaful(emet)           # 1×1+40×2+400×3
+    assert g_mityashev(emet) == 1323,      g_mityashev(emet)       # 441×3
+    assert g_kolel_ehad(emet) == 442,      g_kolel_ehad(emet)      # 441+1
+    assert g_kolel_otiyot(emet) == 444,    g_kolel_otiyot(emet)    # 441+3
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -1898,7 +1898,7 @@ def run_app() -> None:
                  "Earliest Source": "Zohar; Pardes Rimonim (R. Moshe Cordovero, 1548)."},
                 {"Method": "Kaful",
                  "Hebrew": "מספר כפול (Mispar Kaful)",
-                 "Rule": "Each letter's Standard value × its ordinal position within the unit: 1st letter × v₁ + 2nd letter × v₂ + … (ח in position 1 = 8×1=8; ב in position 2 = 2×2=4 …).",
+                 "Rule": "Each letter's Standard value × its ordinal position within the unit: 1st×v₁ + 2nd×v₂ + … (e.g. אמת: א=1×1=1, מ=40×2=80, ת=400×3=1200 → total 1281).",
                  "Earliest Source": "Detailed in Sefer Raziel HaMalach (medieval Kabbalistic compilation); used by Chassidei Ashkenaz (12th–13th c.) pietists."},
                 {"Method": "Mityashev",
                  "Hebrew": "מספר מיושב (Mispar Mityashev)",
