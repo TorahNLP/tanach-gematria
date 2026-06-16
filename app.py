@@ -2534,18 +2534,19 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         horizontal=True, key="t1_mode")
 
         if mode == "Hebrew text":
-            _KBD_KEY  = "t1_hebrew"
+            _KBD_KEY  = "t1_hebrew"      # widget key (only valid while text_input is rendered)
+            _KBD_BUF  = "t1_hebrew_buf"  # durable accumulation buffer — never used as widget key
             _KBD_OPEN = "t1_kbd_open"
-            if _KBD_KEY not in st.session_state:
-                st.session_state[_KBD_KEY] = ""
+            if _KBD_BUF not in st.session_state:
+                st.session_state[_KBD_BUF] = ""
 
             def _kbd_add(ch):
-                st.session_state[_KBD_KEY] = st.session_state.get(_KBD_KEY, "") + ch
+                st.session_state[_KBD_BUF] = st.session_state.get(_KBD_BUF, "") + ch
             def _kbd_bksp():
-                v = st.session_state.get(_KBD_KEY, "")
-                st.session_state[_KBD_KEY] = v[:-1] if v else ""
+                v = st.session_state.get(_KBD_BUF, "")
+                st.session_state[_KBD_BUF] = v[:-1] if v else ""
             def _kbd_clear():
-                st.session_state[_KBD_KEY] = ""
+                st.session_state[_KBD_BUF] = ""
             def _kbd_toggle():
                 st.session_state[_KBD_OPEN] = not st.session_state.get(_KBD_OPEN, False)
 
@@ -2554,7 +2555,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             with c1:
                 if kbd_open:
                     # Non-focusable display — suppresses device keyboard on mobile
-                    _txt = st.session_state.get(_KBD_KEY, "")
+                    _txt = st.session_state.get(_KBD_BUF, "")
                     st.markdown(
                         f'<div style="border:1px solid #ccc;border-radius:6px;'
                         f'padding:8px 12px;min-height:2.6em;font-size:1.15em;'
@@ -2567,11 +2568,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         unsafe_allow_html=True)
                     raw = _txt
                 else:
+                    # Seed the widget from the buffer (only before the widget is created)
+                    if _KBD_KEY not in st.session_state:
+                        st.session_state[_KBD_KEY] = st.session_state.get(_KBD_BUF, "")
                     raw = st.text_input(
                         "Hebrew phrase or name", key=_KBD_KEY,
                         placeholder="e.g. שלום",
                         help="Type or paste Hebrew. Nikud and ta'amim are "
                         "stripped automatically; only the 22 consonants are counted.")
+                    st.session_state[_KBD_BUF] = raw  # sync manual typing back to buffer
             with c2:
                 colel = st.toggle("Rule of the Colel (±1)", value=False,
                                   key="t1_text_colel",
