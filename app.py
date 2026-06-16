@@ -2531,7 +2531,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             _KBD_KEY  = "t1_hebrew"
             _KBD_OPEN = "t1_kbd_open"
             if _KBD_KEY not in st.session_state:
-                st.session_state[_KBD_KEY] = "שלום"
+                st.session_state[_KBD_KEY] = ""
 
             def _kbd_add(ch):
                 st.session_state[_KBD_KEY] = st.session_state.get(_KBD_KEY, "") + ch
@@ -2563,6 +2563,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 else:
                     raw = st.text_input(
                         "Hebrew phrase or name", key=_KBD_KEY,
+                        placeholder="e.g. שלום",
                         help="Type or paste Hebrew. Nikud and ta'amim are "
                         "stripped automatically; only the 22 consonants are counted.")
             with c2:
@@ -2588,9 +2589,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # ── Nikud ───────────────────────────────────────────────────
                     st.caption("Nikud (vowel marks — click after consonant)")
                     _NIKUD = [
-                        ("◌ַ", "ַ"), ("◌ָ", "ָ"), ("◌ֵ", "ֵ"),
-                        ("◌ֶ", "ֶ"), ("◌ִ", "ִ"), ("◌ֹ", "ֹ"),
-                        ("◌ֻ", "ֻ"), ("◌ּ", "ּ"), ("◌ְ", "ְ"),
+                        ("פַּתָּח ◌ַ", "ַ"), ("קָמַץ ◌ָ", "ָ"), ("צֵירֵי ◌ֵ", "ֵ"),
+                        ("סְגוֹל ◌ֶ", "ֶ"), ("חִירִיק ◌ִ", "ִ"), ("חוֹלָם ◌ֹ", "ֹ"),
+                        ("קֻבּוּץ ◌ֻ", "ֻ"), ("דָּגֵשׁ ◌ּ", "ּ"), ("שְׁוָא ◌ְ", "ְ"),
                     ]
                     _nc = st.columns(len(_NIKUD))
                     for _col, (_lbl, _mark) in zip(_nc, _NIKUD):
@@ -2609,7 +2610,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 
             cons = normalize_query(raw)
             word_cons = " ".join(tokenize_words(raw))
-            st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
+            _sc1, _sc2 = st.columns([4, 1])
+            with _sc1:
+                st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
+            with _sc2:
+                if st.button("🔍 Search", key="t1_search_btn", type="primary",
+                             use_container_width=True, disabled=not cons):
+                    st.session_state["t1_committed"] = {
+                        "cons": cons, "raw": raw, "wcons": word_cons}
         else:
             nc1, nc2 = st.columns([3, 2])
             with nc1:
@@ -2675,12 +2683,16 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             row_num["Book"], row_num["Chapter"], row_num["Verse"],
                             row_num["Boundary"], matched_text=row_num.get("Text"),
                             active_method=row_num["Method"])
-        elif cons:
-            payload = search_phrase(conn, cons, cantillated=raw,
-                                    word_consonants=word_cons, colel=colel,
+        elif _committed := st.session_state.get("t1_committed"):
+            _c_cons  = _committed["cons"]
+            _c_raw   = _committed["raw"]
+            _c_wcons = _committed["wcons"]
+            payload = search_phrase(conn, _c_cons, cantillated=_c_raw,
+                                    word_consonants=_c_wcons, colel=colel,
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
-            st.markdown("#### Computed values across all methods")
+            st.markdown(f"#### Results for `{_c_cons}`")
+            st.markdown("**Computed values across all methods**")
             st.dataframe(pd.DataFrame([vals]), use_container_width=True,
                          hide_index=True)
 
@@ -2752,7 +2764,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 drill_val = a_vals[drill_a]
                 for drill_b in (drill_b_list or [CIPHER_NAMES[0]]):
                     st.markdown(
-                        f"**{drill_a}({raw.strip()}) = {drill_val}** "
+                        f"**{drill_a}({_c_raw.strip()}) = {drill_val}** "
                         f"→ corpus units with **{drill_b} = {drill_val}**"
                         + (" ± 1" if colel else "")
                     )
