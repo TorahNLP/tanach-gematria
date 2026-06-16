@@ -2588,8 +2588,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                           use_container_width=True)
                 st.markdown("</div>", unsafe_allow_html=True)
 
+            _kbd_slot = st.empty()
             if kbd_open:
-                with st.container(border=True):
+                with _kbd_slot.container(border=True):
                     # ── Consonants ──────────────────────────────────────────────
                     for _row in ["אבגדהוזחטי", "כלמנסעפצקר", "שתךםןףץ"]:
                         _cols = st.columns(len(_row))
@@ -2597,18 +2598,19 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             _col.button(_ch, key=f"hk_{_ch}",
                                         on_click=_kbd_add, args=(_ch,),
                                         use_container_width=True)
-                    # ── Nikud ───────────────────────────────────────────────────
-                    st.caption("Nikud (vowel marks — click after consonant)")
+                    # ── Nikud (3×3 grid: symbol on top, name below) ─────────────
+                    st.caption("Nikud — click after the consonant")
                     _NIKUD = [
-                        ("פַּתָּח ◌ַ", "ַ"), ("קָמַץ ◌ָ", "ָ"), ("צֵירֵי ◌ֵ", "ֵ"),
-                        ("סְגוֹל ◌ֶ", "ֶ"), ("חִירִיק ◌ִ", "ִ"), ("חוֹלָם ◌ֹ", "ֹ"),
-                        ("קֻבּוּץ ◌ֻ", "ֻ"), ("דָּגֵשׁ ◌ּ", "ּ"), ("שְׁוָא ◌ְ", "ְ"),
+                        ("פַּתָּח", "ַ"), ("קָמַץ", "ָ"), ("צֵירֵי", "ֵ"),
+                        ("סְגוֹל", "ֶ"), ("חִירִיק", "ִ"), ("חוֹלָם", "ֹ"),
+                        ("קֻבּוּץ", "ֻ"), ("דָּגֵשׁ", "ּ"), ("שְׁוָא", "ְ"),
                     ]
-                    _nc = st.columns(len(_NIKUD))
-                    for _col, (_lbl, _mark) in zip(_nc, _NIKUD):
-                        _col.button(_lbl, key=f"hk_{_mark}",
-                                    on_click=_kbd_add, args=(_mark,),
-                                    use_container_width=True)
+                    for _ni in range(0, len(_NIKUD), 3):
+                        _nc = st.columns(3)
+                        for _col, (_name, _mark) in zip(_nc, _NIKUD[_ni:_ni+3]):
+                            _col.button(f"◌{_mark}\n{_name}", key=f"hk_{_mark}",
+                                        on_click=_kbd_add, args=(_mark,),
+                                        use_container_width=True)
                     # ── Controls ────────────────────────────────────────────────
                     _ctl1, _ctl2, _ctl3 = st.columns(3)
                     _ctl1.button("Space", key="hk_space",
