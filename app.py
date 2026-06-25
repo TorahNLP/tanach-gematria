@@ -2540,8 +2540,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 raw = st.text_input(
                     "Hebrew phrase or name", key="t1_hebrew",
                     placeholder="e.g. שלום",
-                    help="Type or paste Hebrew. Nikud and ta'amim are "
-                    "stripped automatically; only the 22 consonants are counted.")
+                    help="Type or paste Hebrew. For consonant-based ciphers, "
+                    "nikud and ta'amim are ignored. For vowel-mark ciphers "
+                    "(HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot) "
+                    "the nikud you type IS used — include vowel marks for accurate results.")
             with c2:
                 colel = st.toggle("Rule of the Colel (±1)", value=False,
                                   key="t1_text_colel",
@@ -2713,6 +2715,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 "Show matches for method(s)", CIPHER_NAMES, default=[CIPHER_NAMES[0]],
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
             active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
+            _NIKUD_CIPHERS = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
+            _has_nikud = any("ְ" <= ch <= "ׇ" for ch in _c_raw)
+            if any(c in _NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
+                st.warning(
+                    "One or more selected methods (HaNekudot / ImHaNekudot / Milui) "
+                    "count vowel marks. Your input has no nikud, so their values will "
+                    "be 0 or equal to Standard. Add nikud to your text for accurate results.")
             for cipher in active_ciphers:
                 st.caption(CIPHER_BLURB.get(cipher, ""))
                 res = payload["results"][cipher]
