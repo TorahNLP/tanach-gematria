@@ -2845,7 +2845,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
                                 "Verse", active_method=span_cipher)
         else:
-            st.warning("Enter a Hebrew or transliterable phrase to search.")
+            st.warning("Enter a Hebrew phrase to search.")
 
     # ===================== TAB 2: STRUCTURAL EXPLORER =====================
     with tab2:
