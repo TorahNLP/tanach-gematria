@@ -2540,10 +2540,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 raw = st.text_input(
                     "Hebrew phrase or name", key="t1_hebrew",
                     placeholder="e.g. שלום",
-                    help="Type or paste Hebrew. For consonant-based ciphers, "
-                    "nikud and ta'amim are ignored. For vowel-mark ciphers "
-                    "(HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot) "
-                    "the nikud you type IS used — include vowel marks for accurate results.")
+                    help="Nikud and ta'amim are ignored for most ciphers. "
+                    "For HaNekudot / ImHaNekudot / Milui ciphers, include nikud for accurate results.")
             with c2:
                 colel = st.toggle("Rule of the Colel (±1)", value=False,
                                   key="t1_text_colel",
