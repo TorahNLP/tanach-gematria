@@ -459,14 +459,16 @@ def g_ha_merubah_klali(s: str) -> int:
 def g_ayak_bachar(s: str) -> int:
     """Ayak Bachar (אי"ק בכ"ר) - 3×9 cyclic rotation: units→tens→hundreds→units.
 
-    After substitution, Standard value of the substituted base letter is taken.
+    Input finals are normalised to base before lookup. The substituted letter
+    for the hundreds tier is a final form (ך ם ן ף ץ) valued at 500–900 via
+    GADOL_FINALS; other substituted letters use STANDARD.
     Source: Tikunei HaZohar (Tikkun 21).
     """
     total = 0
     for c in s:
         base = _normalize_final(c)
         subst = AYAK_MAP.get(base, base)
-        total += STANDARD.get(_normalize_final(subst), 0)
+        total += GADOL_FINALS.get(subst, STANDARD.get(subst, 0))
     return total
 
 
@@ -1327,6 +1329,13 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                    block[0].chapter, block[0].verse, block[0].parsha,
                    f.paragraph_marker, "Aggregate", cons, word_cons=word_cons_block)
             block = []
+    if block:  # flush verses after the last paragraph marker
+        block_n += 1
+        cons = "".join(m.full_consonants for m in block)
+        word_cons_block = " ".join(w for m in block for w in m.words)
+        insert(f"BLOCK_Open_{block_n}", block[0].book,
+               block[0].chapter, block[0].verse, block[0].parsha,
+               "Open", "Aggregate", cons, word_cons=word_cons_block)
 
     conn.commit()
 
@@ -1339,7 +1348,6 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
         cur.execute(f"CREATE INDEX idx_{c} ON units({c})")
     conn.commit()
 
-    build_pattern_log(conn)
     return conn
 
 
@@ -1347,70 +1355,9 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
 # SECTION 6.  PATTERN RECOGNITION & ECHO-MATCHING
 # ---------------------------------------------------------------------------
 
-def build_pattern_log(conn: sqlite3.Connection) -> None:
-    """Scan the DB and populate a `patterns` table of noteworthy anomalies."""
-    cur = conn.cursor()
-    cur.execute("""
-        CREATE TABLE patterns (
-            pattern_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-            pattern_type TEXT,
-            cipher       TEXT,
-            value_a      INTEGER,
-            value_b      INTEGER,
-            ref_a        TEXT,
-            ref_b        TEXT,
-            detail       TEXT
-        )
-    """)
-
-    df = pd.read_sql_query(
-        "SELECT sub_id, book, chapter, verse, parsha, boundary_type, "
-        "variant_track, " + ", ".join(CIPHER_NAMES) + " FROM units", conn)
-
-    def log(ptype, cipher, va, vb, ra, rb, detail):
-        cur.execute(
-            "INSERT INTO patterns(pattern_type,cipher,value_a,value_b,ref_a,ref_b,detail)"
-            " VALUES (?,?,?,?,?,?,?)",
-            (ptype, cipher, int(va), int(vb), ra, rb, detail))
-
-    # --- 6a. Internal verse balance: FirstHalf == SecondHalf (+/- Colel 1) ---
-    fh = df[df.boundary_type == "FirstHalf"]
-    sh = df[df.boundary_type == "SecondHalf"]
-    fh_idx = {(r.book, r.chapter, r.verse, r.variant_track): r for _, r in fh.iterrows()}
-    sh_idx = {(r.book, r.chapter, r.verse, r.variant_track): r for _, r in sh.iterrows()}
-    for key in fh_idx:
-        if key not in sh_idx:
-            continue
-        a, b = fh_idx[key], sh_idx[key]
-        for c in CIPHER_NAMES:
-            if a[c] == 0 or b[c] == 0:
-                continue
-            diff = abs(int(a[c]) - int(b[c]))
-            if diff <= 1:
-                kind = "exact" if diff == 0 else "colel±1"
-                log("InternalBalance", c, a[c], b[c],
-                    f"{a.book} {a.chapter}:{a.verse} 1st-half [{key[3]}]",
-                    f"{a.book} {a.chapter}:{a.verse} 2nd-half [{key[3]}]",
-                    f"halves balanced ({kind})")
-
-    # --- 6b. Proximity echoes: adjacent full verses share a value ---
-    vfull = df[(df.boundary_type == "Verse") & (df.variant_track == "Ksiv")]
-    vfull = vfull.sort_values(["book", "chapter", "verse"]).reset_index(drop=True)
-    for i in range(len(vfull) - 1):
-        r0, r1 = vfull.iloc[i], vfull.iloc[i + 1]
-        if r0.book != r1.book:
-            continue
-        adjacent = (r0.chapter == r1.chapter and r1.verse == r0.verse + 1)
-        if not adjacent:
-            continue
-        for c in CIPHER_NAMES:
-            if r0[c] and r0[c] == r1[c]:
-                log("ProximityEcho", c, r0[c], r1[c],
-                    f"{r0.book} {r0.chapter}:{r0.verse}",
-                    f"{r1.book} {r1.chapter}:{r1.verse}",
-                    "adjacent verses share value")
-
-    conn.commit()
+# build_pattern_log and the patterns table were removed — Tab 3 rebuilds
+# every pattern live via internal_balance_matches / proximity_echo_matches /
+# whole_unit_echo_matches, making the prebuilt table dead code.
 
 
 # ---------------------------------------------------------------------------
@@ -1457,7 +1404,7 @@ def internal_balance_matches(
                 "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
                 "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-                f"AND u1.{ma} > ? AND u2.{mb} > ? "
+                f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 f"AND ABS(u1.{ma} - u2.{mb}) <= ? "
                 f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
                 conn, params=[min_value, min_value, tol, limit],
@@ -1489,7 +1436,8 @@ def proximity_echo_matches(
             "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u2.verse=u1.verse+1 "
             "WHERE u1.boundary_type='Verse' AND u2.boundary_type='Verse' "
             "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-            f"AND u1.{m} > ? AND ABS(u1.{m} - u2.{m}) <= ? LIMIT ?",
+            f"AND u1.{m} >= ? AND ABS(u1.{m} - u2.{m}) <= ? "
+            f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
             conn, params=[min_value, tol, limit],
         )
         if not df.empty:
@@ -1525,8 +1473,9 @@ def whole_unit_echo_matches(
                 f"FROM units u1 JOIN units u2 ON u1.{ma} = u2.{mb} "
                 "WHERE u1.boundary_type=? AND u2.boundary_type=? "
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-                f"AND u1.{ma} > ? AND u2.{mb} > ? "
+                f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 "AND u1.rowid != u2.rowid "
+                "ORDER BY u1.book, u1.chapter, u1.verse, u2.rowid "
                 "LIMIT ?",
                 conn, params=[boundary, boundary, min_value, min_value, limit],
             )
@@ -1800,7 +1749,7 @@ def extremes_table(conn: sqlite3.Connection,
             "Structure": b, "Count": int(col.count()),
             "Max": int(col.max()), "Min": int(col.min()),
             "Mean": round(float(col.mean()), 1),
-            "Median": float(col.median()),
+            "Median": round(float(col.median()), 1),
             "StdDev": round(float(sd), 1) if pd.notna(sd := col.std()) else 0.0,
         })
     return pd.DataFrame(rows)
@@ -1866,6 +1815,8 @@ def cipher_breakdown(cipher: str, consonants: str,
                 for c in word:
                     base = _normalize_final(c)
                     v = STANDARD.get(base, 0)
+                    if not v:
+                        continue
                     result.append((f"{c}×{n}", v * n))
         return result
 
@@ -2041,8 +1992,7 @@ def run_selftest() -> None:
 
     conn = build_database(SAMPLE_CORPUS)
     n_units = conn.execute("SELECT COUNT(*) FROM units").fetchone()[0]
-    n_pat = conn.execute("SELECT COUNT(*) FROM patterns").fetchone()[0]
-    print(f"  DB built: {n_units} units, {n_pat} patterns logged  OK")
+    print(f"  DB built: {n_units} units  OK")
 
     res = search_value(conn, "Standard", 2701)
     assert (res["Value"] == 2701).any()
@@ -2104,7 +2054,14 @@ def run_app() -> None:
                 st.rerun()
         return conn, n, verse_index
 
-    conn, n_loaded, verse_index = get_connection("")
+    with st.sidebar:
+        _extra_refs = st.text_input(
+            "Extra Sefaria refs (semicolon-separated)", "",
+            key="sefaria_refs",
+            help="e.g. Genesis 1; Psalms 23 — appended to the bundled corpus. "
+                 "Adding refs triggers a full rebuild (~20–30 s).")
+
+    conn, n_loaded, verse_index = get_connection(_extra_refs)
 
     with st.sidebar:
         st.header("⚙️ Corpus")
@@ -2145,8 +2102,8 @@ def run_app() -> None:
         import re as _re
         if boundary in ("FirstHalf", "SecondHalf") and ATNACH in cantillated:
             idx = cantillated.index(ATNACH)
-            end = cantillated.find(" ", idx)
-            split = end if end != -1 else len(cantillated)
+            m_split = _re.search(r"[\s־׃]", cantillated[idx:])
+            split = idx + m_split.start() if m_split else len(cantillated)
             first, rest = cantillated[:split], cantillated[split:]
             if boundary == "FirstHalf":
                 return f"<mark>{first}</mark>{rest}"
@@ -2275,14 +2232,14 @@ def run_app() -> None:
             st.markdown("**1 · Phrase & Name Matcher**")
             st.markdown(
                 "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
-                "cantillation down to the 22 consonants and computes values across all 12 methods "
+                "cantillation down to the 22 consonants and computes values across all 34 methods "
                 "simultaneously. Select a method to see every matching structural unit in the "
                 "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
                 "to open the full cantillated verse with the matched portion highlighted and a "
                 "letter-by-letter breakdown for the chosen method. "
                 "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
                 "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a 36×36 matrix"
+                "Open **🔀 Cross-method coincidences** below the results to see a 34×34 matrix"
                 "showing how every cipher value of your input matches every corpus method — "
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
@@ -2292,7 +2249,7 @@ def run_app() -> None:
                 "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                 "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
                 "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                "Every row shows gematria totals under all 36 methods for that block."
+                "Every row shows gematria totals under all 34 methods for that block."
                 "Click a row to open the verse detail panel."
             )
 
@@ -2301,7 +2258,9 @@ def run_app() -> None:
                 "The engine automatically scans the corpus for three structural patterns:\n"
                 "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
                 "share the same gematria value, or differ by only 1 (Colel).\n"
-                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n\n"
+                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n"
+                "- **Cross-Method Echo** — two units anywhere in Tanach whose value under one method "
+                "equals another unit's value under a different method.\n\n"
                 "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
                 "pick any two methods and find verses where the first half under method X equals "
                 "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
@@ -2311,7 +2270,7 @@ def run_app() -> None:
             st.markdown("**4 · Macro Statistical Dashboard**")
             st.markdown(
                 "High-level statistics across the full corpus: highest and lowest values by structure, "
-                "value-distribution histograms, a 36-method correlation heatmap, a per-book fingerprint "
+                "value-distribution histograms, a 32-method correlation heatmap, a per-book fingerprint "
                 "chart, and integer ranges with no verse representation. All charts are interactive — "
                 "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
                 "bottom shows, for every method pair, the fraction of verses whose first half "
@@ -2541,7 +2500,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     "Hebrew phrase or name", key="t1_hebrew",
                     placeholder="e.g. שלום",
                     help="Nikud and ta'amim are ignored for most ciphers. "
-                    "For HaNekudot / ImHaNekudot / Milui ciphers, include nikud for accurate results.")
+                    "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results.")
             with c2:
                 colel = st.toggle("Rule of the Colel (±1)", value=False,
                                   key="t1_text_colel",
@@ -2717,9 +2676,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             _has_nikud = any("ְ" <= ch <= "ׇ" for ch in _c_raw)
             if any(c in _NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
                 st.warning(
-                    "One or more selected methods (HaNekudot / ImHaNekudot / Milui) "
-                    "count vowel marks. Your input has no nikud, so their values will "
-                    "be 0 or equal to Standard. Add nikud to your text for accurate results.")
+                    "One or more selected methods (HaNekudot / ImHaNekudot / "
+                    "MiluiNekudot / ImMiluiNekudot) count vowel marks. "
+                    "Your input has no nikud, so their values will be 0 or equal to Standard. "
+                    "Add nikud for accurate results.")
             for cipher in active_ciphers:
                 st.caption(CIPHER_BLURB.get(cipher, ""))
                 res = payload["results"][cipher]
@@ -2879,7 +2839,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         show["Parsha"].str.contains(q, case=False, na=False))
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
-                       "that shares that number, across all 36 methods.")
+                       "that shares that number, across all 34 methods.")
             t2_col_config = {
                 "Book":    st.column_config.TextColumn("Book", width="medium"),
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
@@ -2905,15 +2865,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
-                     "any of the 36 methods.")
+                     "any of the 34 methods.")
 
             sel_rows = event2.selection.rows
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
 
-                # Show this row's values across all 36 methods.
+                # Show this row's values across all 34 methods.
                 summary = {c: int(row2[c]) for c in CIPHER_NAMES if c in row2.index}
-                st.markdown("**Selected unit — values across all 36 methods:**")
+                st.markdown("**Selected unit — values across all 34 methods:**")
                 st.dataframe(pd.DataFrame([summary]),
                              use_container_width=True, hide_index=True)
 
