@@ -150,7 +150,7 @@ ACHAS_BETA_MAP["ת"] = "ת"                       # ת unchanged
 # Ayak Bachar (אי"ק בכ"ר): 3×9 cyclic rotation across units/tens/hundreds triplets.
 # Each column (א,י,ק), (ב,כ,ר) … (ט,צ,ץ) rotates: units→tens→hundreds→units.
 # Finals ך,ם,ן,ף,ץ serve as the 500-900 hundreds tier; after substitution their
-# value is read as Standard (base letter), giving the 140-form result.
+# value is read via GADOL_FINALS (500-900); other substituted letters use STANDARD.
 _AYAK_TRIPLETS = [
     ("א","י","ק"), ("ב","כ","ר"), ("ג","ל","ש"), ("ד","מ","ת"),
     ("ה","נ","ך"), ("ו","ס","ם"), ("ז","ע","ן"), ("ח","פ","ף"), ("ט","צ","ץ"),
@@ -1885,7 +1885,7 @@ def cipher_breakdown(cipher: str, consonants: str,
             result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
         elif cipher == "AyakBachar":
             sw = AYAK_MAP.get(base, base)
-            result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+            result.append((f"{ch}→{sw}", GADOL_FINALS.get(sw, STANDARD.get(_normalize_final(sw), 0))))
         elif cipher == "AchasBeta":
             sw = ACHAS_BETA_MAP.get(base, base)
             result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
@@ -1945,6 +1945,8 @@ def run_selftest() -> None:
     assert g_reverse_ordinal(emet) == 33,     g_reverse_ordinal(emet)  # א=22+מ=10+ת=1
     assert g_ha_merubah_klali(emet) == 194481, g_ha_merubah_klali(emet)  # 441²
     assert g_ayak_bachar(emet) == 414,        g_ayak_bachar(emet)      # א→י(10)+מ→ת(400)+ת→ד(4)
+    assert g_ayak_bachar("נ") == 500,        g_ayak_bachar("נ")       # נ→ך (hundreds tier, Gadol=500)
+    assert g_ayak_bachar("ע") == 700,        g_ayak_bachar("ע")       # ע→ן (hundreds tier, Gadol=700)
     assert g_ofanim(emet) == 126,             g_ofanim(emet)           # א→פ(80)+מ→מ(40)+ת→ו(6)
     assert g_achas_beta(emet) == 608,         g_achas_beta(emet)       # א→ח(8)+מ→ר(200)+ת→ת(400)
     assert g_reverse_avgad(emet) == 730,      g_reverse_avgad(emet)    # א→ת(400)+מ→ל(30)+ת→ש(300)
