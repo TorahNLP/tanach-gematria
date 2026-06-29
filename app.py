@@ -1894,7 +1894,195 @@ def cipher_breakdown(cipher: str, consonants: str,
     return result
 
 
-# SECTION 9.  SELF-TEST  (python app.py selftest)
+# ---------------------------------------------------------------------------
+# SECTION 9.  PRINT / EXPORT  (build_print_html)
+# ---------------------------------------------------------------------------
+
+def build_print_html(query_info, match_info, breakdown_rows, active_method,
+                     colel, vals) -> str:
+    """Return a self-contained HTML document suitable for window.print()."""
+    import html as _h
+    from datetime import date as _d
+    e = _h.escape
+
+    _NIKUD_SET = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
+    _GLOSS = {
+        "Word": "single word",
+        "FirstHalf": "first half (up to the etnachta ֑)",
+        "SecondHalf": "second half (after the etnachta ֑)",
+        "TiphchaPhrase": "phrase up to the tiphcha ֖",
+        "ZakefPhrase": "phrase up to the zakef ֔",
+        "Verse": "full verse (פסוק)",
+        "Petucha": "open paragraph (פ Petucha)",
+        "Setuma": "closed paragraph (ס Setuma)",
+        "Perek": "chapter (פרק Perek)",
+        "Parsha": "Torah portion (פרשה Parsha)",
+    }
+
+    today   = _d.today().strftime("%Y-%m-%d")
+    method  = e(CIPHER_DISPLAY_NAMES.get(active_method, active_method))
+    val     = vals.get(active_method, 0) if vals else 0
+    boundary = match_info.get("boundary", "Verse")
+    book    = e(str(match_info.get("book", "")))
+    ch      = e(str(match_info.get("chapter", "")))
+    vs      = e(str(match_info.get("verse", "")))
+    gloss   = e(_GLOSS.get(boundary, boundary))
+    # convert screen <mark> to print-safe highlight span
+    hl_verse = (match_info.get("highlighted_html", "") or "")
+    hl_verse = hl_verse.replace("<mark>", '<span class="hl">').replace("</mark>", "</span>")
+
+    # ── Section 1: query ─────────────────────────────────────────────────────
+    if query_info:
+        raw  = e(query_info.get("raw", ""))
+        cons = e(query_info.get("cons", ""))
+        colel_txt = "Applied (±1)" if colel else "Not applied"
+        sec1 = f"""
+<div class="sec">
+  <div class="sec-title">Search Query</div>
+  <table class="kv">
+    <tr><td class="kl">Input</td><td class="kv-val rtl">{raw}</td></tr>
+    <tr><td class="kl">Consonants searched</td><td class="kv-val rtl">{cons}</td></tr>
+    <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
+    <tr><td class="kl">Value</td><td class="kv-val big">{val}</td></tr>
+    <tr><td class="kl">Colel (±1)</td><td class="kv-val">{colel_txt}</td></tr>
+  </table>
+</div>"""
+    else:
+        sec1 = ""
+
+    # ── Section 2: source match ───────────────────────────────────────────────
+    sec2 = f"""
+<div class="sec">
+  <div class="sec-title">Source Text</div>
+  <p class="ref"><strong>{book} {ch}:{vs}</strong> &nbsp;·&nbsp; <em class="gloss">{gloss}</em></p>
+  <div class="verse rtl">{hl_verse}</div>
+</div>"""
+
+    # ── Section 3: breakdown ─────────────────────────────────────────────────
+    nikud_warn = ""
+    is_nikud = active_method in _NIKUD_SET
+    no_nikud = query_info and not any("ְ" <= c <= "ׇ"
+                                      for c in query_info.get("raw", ""))
+    if is_nikud and no_nikud:
+        nikud_warn = ('<div class="warn">⚠ This cipher counts vowel marks only. '
+                      'The input has no nikud — value is 0. '
+                      'Re-enter with vowel points for a meaningful result.</div>')
+
+    if breakdown_rows:
+        has_sep = any("→" in lbl or "=" in lbl or "↔" in lbl
+                      for lbl, _ in breakdown_rows)
+        if has_sep:
+            # Detect column header labels by cipher
+            if active_method in ("Milui", "MiluiMaleh"):
+                h1, h2 = "אות", "שם מלא"
+            elif active_method in ("Neelam", "NeelAmMaleh"):
+                h1, h2 = "אות", "נסתר"
+            elif active_method in ("Emtzaiyot", "EmtzaiyotMaleh"):
+                h1, h2 = "אות", "אמצעי"
+            elif active_method == "AyakBachar":
+                h1, h2 = "אות", "מוחלף (מאות)"
+            else:
+                h1, h2 = "אות", "מוחלף"
+            body = ""
+            for lbl, v in breakdown_rows:
+                for sep in ("=", "→", "↔"):
+                    if sep in lbl:
+                        p = lbl.split(sep, 1)
+                        body += (f"<tr><td class='rtl'>{e(p[0])}</td>"
+                                 f"<td class='rtl'>{e(p[1])}</td>"
+                                 f"<td class='num'>{v}</td></tr>")
+                        break
+                else:
+                    body += (f"<tr><td class='rtl' colspan='2'>{e(lbl)}</td>"
+                             f"<td class='num'>{v}</td></tr>")
+            total = sum(v for _, v in breakdown_rows)
+            foot = (f"<tfoot><tr><td colspan='2' class='rtl'><strong>סה״כ</strong></td>"
+                    f"<td class='num'><strong>{total}</strong></td></tr></tfoot>")
+            tbl = (f"<table class='bd'><thead><tr>"
+                   f"<th class='rtl'>{h1}</th><th class='rtl'>{h2}</th><th>ערך</th>"
+                   f"</tr></thead><tbody>{body}</tbody>{foot}</table>")
+        else:
+            body = "".join(f"<tr><td class='rtl'>{e(lbl)}</td>"
+                           f"<td class='num'>{v}</td></tr>"
+                           for lbl, v in breakdown_rows)
+            total = sum(v for _, v in breakdown_rows)
+            foot = (f"<tfoot><tr><td class='rtl'><strong>סה״כ</strong></td>"
+                    f"<td class='num'><strong>{total}</strong></td></tr></tfoot>")
+            tbl = (f"<table class='bd'><thead><tr>"
+                   f"<th class='rtl'>אות</th><th>ערך</th>"
+                   f"</tr></thead><tbody>{body}</tbody>{foot}</table>")
+
+        note = ('<p class="fn">* AyakBachar maps to the hundreds tier — '
+                'final forms (ך ם ן ף ץ) carry 500–900.</p>'
+                if active_method == "AyakBachar" else "")
+        sec3 = f"""
+<div class="sec">
+  <div class="sec-title">Calculation — {method}</div>
+  {nikud_warn}{tbl}{note}
+</div>"""
+    else:
+        sec3 = f"""
+<div class="sec">
+  <div class="sec-title">Calculation — {method}</div>
+  {nikud_warn}
+  <p>Total value: <strong>{val}</strong></p>
+  <p class="fn">Letter-by-letter breakdown is not available for vowel-mark ciphers.</p>
+</div>"""
+
+    css = """
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@400;700&display=swap');
+@page{size:A4 portrait;margin:14mm}
+*{box-sizing:border-box}
+body{font-family:'Noto Serif Hebrew','SBL Hebrew','Times New Roman',serif;
+     font-size:12pt;color:#000;background:#fff;margin:0;padding:10px;direction:ltr}
+.rtl{direction:rtl;unicode-bidi:isolate}
+.ph{display:flex;justify-content:space-between;border-bottom:2px solid #000;
+    padding-bottom:5px;margin-bottom:14px;font-size:9pt}
+.pf{border-top:1px solid #000;margin-top:14px;padding-top:3px;
+    font-size:8pt;color:#555}
+.sec{margin-bottom:16px;break-inside:avoid}
+.sec-title{font-size:12pt;font-weight:bold;border-bottom:1px solid #000;
+           margin-bottom:6px;padding-bottom:2px}
+.kv{width:100%;border-collapse:collapse}
+.kv td{padding:2px 6px;vertical-align:top}
+.kl{width:38%;font-weight:bold;color:#333}
+.big{font-size:18pt;font-weight:bold}
+.ref{font-size:11pt;margin:3px 0}
+.gloss{color:#444;font-size:9pt}
+.verse{font-size:15pt;line-height:2.4;border:1px solid #bbb;
+       padding:8px 14px;margin:6px 0;text-align:right;direction:rtl}
+.hl{background:#ddd;text-decoration:underline;border:1px solid #000;
+    padding:0 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
+table.bd{width:100%;border-collapse:collapse;margin-top:6px}
+table.bd thead th{background:#f0f0f0;border:1px solid #000;padding:4px 7px;font-weight:bold}
+table.bd tbody td{border:1px solid #bbb;padding:3px 7px}
+table.bd tfoot td{border-top:3px double #000;padding:4px 7px}
+.num{text-align:center;direction:ltr}
+.warn{border:2px solid #000;padding:7px 10px;font-weight:bold;margin-bottom:8px}
+.fn{font-size:9pt;color:#555;font-style:italic;margin-top:5px}
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  thead{display:table-header-group}
+  body{padding:0}
+}"""
+
+    return f"""<!DOCTYPE html>
+<html lang="he">
+<head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Gematria — {book} {ch}:{vs}</title>
+<style>{css}</style></head>
+<body>
+<div class="ph"><span><strong>Tanach Gematria Engine</strong></span><span>{today}</span></div>
+{sec1}{sec2}{sec3}
+<div class="pf">Generated by Tanach Gematria Search &amp; Structural Pattern Engine</div>
+<script>
+window.onload=function(){{setTimeout(function(){{window.focus();window.print();}},400);}};
+</script>
+</body></html>"""
+
+
+# SECTION 10.  SELF-TEST  (python app.py selftest)
 # ---------------------------------------------------------------------------
 
 def run_selftest() -> None:
@@ -2155,7 +2343,8 @@ def run_app() -> None:
         return cantillated
 
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
-                            active_method=None):
+                            active_method=None, query_info=None, colel=False):
+        import streamlit.components.v1 as _components
         if boundary not in DETAIL_BOUNDARIES:
             return
         v = verse_index.get((book, int(chapter), int(verse)))
@@ -2165,11 +2354,14 @@ def run_app() -> None:
         friendly_boundary = BOUNDARY_LABELS.get(boundary, boundary)
         st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
         sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase", "FirstHalf", "SecondHalf")
+        highlighted_html = ""
         if sub_unit and v.text:
             matched_cons = strip_to_consonants(matched_text) if matched_text else None
             highlighted = _highlight_in_verse(v.text, boundary, matched_cons)
+            highlighted_html = highlighted
             st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
         else:
+            highlighted_html = v.text or ""
             st.markdown(f"**Cantillated:** {v.text}")
         # Values: matched sub-unit when available, full verse otherwise
         if sub_unit and matched_text:
@@ -2191,11 +2383,12 @@ def run_app() -> None:
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
         st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
         # Letter-by-letter breakdown for the active method
+        breakdown_rows = None
         if active_method and active_method in CIPHERS:
-            breakdown = cipher_breakdown(active_method, cons, w_cons)
-            if breakdown:
-                parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown)
-                total = sum(val for _, val in breakdown)
+            breakdown_rows = cipher_breakdown(active_method, cons, w_cons)
+            if breakdown_rows:
+                parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown_rows)
+                total = sum(val for _, val in breakdown_rows)
                 st.caption(f"**{active_method}:** {parts} = {total}")
         if boundary in ("Petucha", "Setuma"):
             run = _paragraph_run(book, chapter, verse)
@@ -2203,6 +2396,28 @@ def run_app() -> None:
                 st.markdown("**Full paragraph block:**")
                 for rv in run:
                     st.markdown(f"- {rv.book} {rv.chapter}:{rv.verse} — {rv.text}")
+        # ── Print / Export ───────────────────────────────────────────────────
+        _uid = f"{book}_{chapter}_{verse}_{boundary}_{active_method}"
+        _print_key   = f"do_print_{_uid}"
+        _html_doc = build_print_html(
+            query_info,
+            {"book": book, "chapter": chapter, "verse": verse,
+             "boundary": boundary, "highlighted_html": highlighted_html},
+            breakdown_rows, active_method or "Standard", colel, vals,
+        )
+        _pc, _dc = st.columns(2)
+        with _pc:
+            if st.button("🖨️ Print / Save PDF", key=f"pr_{_uid}",
+                         help="Opens browser print dialog. Choose 'Save as PDF' to export."):
+                st.session_state[_print_key] = True
+        with _dc:
+            st.download_button("📄 Download HTML", _html_doc,
+                               file_name=f"gematria_{book}_{chapter}_{verse}.html",
+                               mime="text/html", key=f"dl_{_uid}",
+                               help="Download and open in any browser to print later.")
+        if st.session_state.get(_print_key):
+            _components.html(_html_doc, height=1, scrolling=False)
+            st.session_state[_print_key] = False
 
     tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
         "📖 Guide & Sources",
@@ -2656,7 +2871,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         render_verse_detail(
                             row_num["Book"], row_num["Chapter"], row_num["Verse"],
                             row_num["Boundary"], matched_text=row_num.get("Text"),
-                            active_method=row_num["Method"])
+                            active_method=row_num["Method"],
+                            query_info=st.session_state.get("t1_committed"),
+                            colel=colel)
         elif _committed := st.session_state.get("t1_committed"):
             _c_cons  = _committed["cons"]
             _c_raw   = _committed["raw"]
@@ -2703,7 +2920,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         with st.expander("📜 Verse detail", expanded=True):
                             render_verse_detail(
                                 row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
-                                matched_text=row.get("Text"), active_method=cipher)
+                                matched_text=row.get("Text"), active_method=cipher,
+                                query_info=st.session_state.get("t1_committed"),
+                                colel=colel)
 
             with st.expander("🔀 Cross-method coincidences", expanded=False):
                 st.caption(
