@@ -2270,14 +2270,6 @@ def run_app() -> None:
     # App view (?view=app): the PWA opens here. Guide + Tabs 1-2 only,
     # classical cipher set by default. The regular site is unaffected.
     app_view = st.query_params.get("view") == "app"
-    if app_view:
-        st.markdown(
-            "<style>"
-            ".stTabs [data-baseweb='tab-list'] button:nth-child(4),"
-            ".stTabs [data-baseweb='tab-list'] button:nth-child(5)"
-            "{display:none !important;}"
-            "</style>",
-            unsafe_allow_html=True)
     @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
@@ -2491,14 +2483,16 @@ def run_app() -> None:
     # Streamlit always opens on the first-listed tab — no separate "default
     # tab" API — so app view reorders the tuple to put the matcher first and
     # drops the "1 ·"/"2 ·" numbering (meaningless with only 2 tabs visible).
+    # Tabs 3/4 are not created at all in app view (their `with` blocks below
+    # are guarded), so no CSS hiding is involved and their heavy pattern/stats
+    # code never runs on phones.
     if app_view:
-        tab1, tab_guide, tab2, tab3, tab4 = st.tabs([
+        tab1, tab_guide, tab2 = st.tabs([
             "Phrase & Name Matcher",
             "📖 Guide & Sources",
             "Scriptural Structural Explorer",
-            "3 · Textual Echoes & Anomalies",
-            "4 · Macro Statistical Dashboard",
         ])
+        tab3 = tab4 = None
     else:
         tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
             "📖 Guide & Sources",
@@ -3232,7 +3226,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 active_method=str(rm.get("Method", "")))
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
-    with tab3:
+    # Guarded for app view (tab3 is None there). The two-space `with` keeps
+    # the original body indentation valid without re-indenting the block.
+    if tab3 is not None:
+      with tab3:
         st.subheader("Textual Echoes & Anomalies")
 
         # --- Filter controls ---
@@ -3404,7 +3401,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                                 active_method=meth)
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
-    with tab4:
+    # Guarded for app view (tab4 is None there); see tab3 note above.
+    if tab4 is not None:
+      with tab4:
         st.subheader("Macro Statistical Dashboard")
 
         st.markdown("#### Highs & lows by structure — Standard method")
