@@ -552,7 +552,7 @@ CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 # All other methods stay available behind the "Advanced methods" toggle.
 BASIC_CIPHERS: List[str] = [
     "Standard", "Katan", "Gadol", "Siduri",
-    "Atbash", "Albam", "Atbach", "AyakBachar",
+    "Atbash", "Albam", "Atbach", "AchasBeta",
 ]
 
 # Ciphers excluded from correlation/balance heatmaps: KatanMispari saturates
