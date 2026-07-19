@@ -2302,6 +2302,15 @@ def run_app() -> None:
     # App view (?view=app): the PWA opens here. Guide + Tabs 1-2 only,
     # classical cipher set by default. The regular site is unaffected.
     app_view = st.query_params.get("view") == "app"
+    if app_view:
+        # No sidebar in the app: its content is skipped below; this hides the
+        # leftover expander chevron (best-effort, selectors vary by version).
+        st.markdown(
+            "<style>"
+            "[data-testid='stSidebarCollapsedControl'],"
+            "[data-testid='collapsedControl']{display:none !important;}"
+            "</style>",
+            unsafe_allow_html=True)
     @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
@@ -2337,16 +2346,20 @@ def run_app() -> None:
                 st.rerun()
         return conn, n, verse_index
 
-    with st.sidebar:
-        _extra_refs = st.text_input(
-            "Extra Sefaria refs (semicolon-separated)", "",
-            key="sefaria_refs",
-            help=_tip("e.g. Genesis 1; Psalms 23 — appended to the bundled corpus. "
-                      "Adding refs triggers a full rebuild (~20–30 s)."))
+    if app_view:
+        _extra_refs = ""
+    else:
+        with st.sidebar:
+            _extra_refs = st.text_input(
+                "Extra Sefaria refs (semicolon-separated)", "",
+                key="sefaria_refs",
+                help=_tip("e.g. Genesis 1; Psalms 23 — appended to the bundled corpus. "
+                          "Adding refs triggers a full rebuild (~20–30 s)."))
 
     conn, n_loaded, verse_index = get_connection(_extra_refs)
 
-    with st.sidebar:
+    if not app_view:
+      with st.sidebar:
         st.header("⚙️ Corpus")
         st.caption(f"{n_loaded:,} Masoretic verses — loaded from bundled corpus.")
         st.divider()
