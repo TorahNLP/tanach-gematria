@@ -2514,8 +2514,13 @@ def run_app() -> None:
         st.markdown(
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
-            "Search for phrases and names, explore structural patterns, and analyse the "
-            "statistical fingerprint of the Tanach across 34 gematria methods."
+            + ("Search for phrases and names and explore the Tanach's structure. "
+               "The app shows the classical (Talmud-attested) methods by default — "
+               "turn on **Advanced methods** in any tab for all 34. "
+               "Pattern scanning and the statistical dashboard live on the full site."
+               if app_view else
+               "Search for phrases and names, explore structural patterns, and analyse the "
+               "statistical fingerprint of the Tanach across 34 gematria methods.")
         )
         st.divider()
 
@@ -2527,7 +2532,8 @@ def run_app() -> None:
                 "Also contains the full Masoretic variant registry."
             )
 
-            st.markdown("**1 · Phrase & Name Matcher**")
+            st.markdown("**Phrase & Name Matcher**" if app_view else
+                        "**1 · Phrase & Name Matcher**")
             st.markdown(
                 "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
                 "cantillation down to the 22 consonants and computes values across all 34 methods "
@@ -2542,7 +2548,8 @@ def run_app() -> None:
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
 
-            st.markdown("**2 · Scriptural Structural Explorer**")
+            st.markdown("**Scriptural Structural Explorer**" if app_view else
+                        "**2 · Scriptural Structural Explorer**")
             st.markdown(
                 "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                 "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
@@ -2551,29 +2558,30 @@ def run_app() -> None:
                 "Click a row to open the verse detail panel."
             )
 
-            st.markdown("**3 · Textual Echoes & Anomalies**")
-            st.markdown(
-                "The engine automatically scans the corpus for three structural patterns:\n"
-                "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
-                "share the same gematria value, or differ by only 1 (Colel).\n"
-                "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n"
-                "- **Cross-Method Echo** — two units anywhere in Tanach whose value under one method "
-                "equals another unit's value under a different method.\n\n"
-                "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
-                "pick any two methods and find verses where the first half under method X equals "
-                "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
-                "Filter by pattern type or method, then click a row to see the referenced verses."
-            )
+            if not app_view:
+                st.markdown("**3 · Textual Echoes & Anomalies**")
+                st.markdown(
+                    "The engine automatically scans the corpus for three structural patterns:\n"
+                    "- **Internal Balance** — a verse whose two halves (split at the Asnachta mark) "
+                    "share the same gematria value, or differ by only 1 (Colel).\n"
+                    "- **Proximity Echo** — two consecutive verses sharing the same value under a given method.\n"
+                    "- **Cross-Method Echo** — two units anywhere in Tanach whose value under one method "
+                    "equals another unit's value under a different method.\n\n"
+                    "A **Cross-Method Half-Verse Balance** section below the pattern table lets you "
+                    "pick any two methods and find verses where the first half under method X equals "
+                    "the second half under method Y — a cross-method extension of Internal Balance.\n\n"
+                    "Filter by pattern type or method, then click a row to see the referenced verses."
+                )
 
-            st.markdown("**4 · Macro Statistical Dashboard**")
-            st.markdown(
-                "High-level statistics across the full corpus: highest and lowest values by structure, "
-                "value-distribution histograms, a 32-method correlation heatmap, a per-book fingerprint "
-                "chart, and integer ranges with no verse representation. All charts are interactive — "
-                "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
-                "bottom shows, for every method pair, the fraction of verses whose first half "
-                "(row method) equals the second half (column method)."
-            )
+                st.markdown("**4 · Macro Statistical Dashboard**")
+                st.markdown(
+                    "High-level statistics across the full corpus: highest and lowest values by structure, "
+                    "value-distribution histograms, a 32-method correlation heatmap, a per-book fingerprint "
+                    "chart, and integer ranges with no verse representation. All charts are interactive — "
+                    "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
+                    "bottom shows, for every method pair, the fraction of verses whose first half "
+                    "(row method) equals the second half (column method)."
+                )
 
 
         st.divider()
