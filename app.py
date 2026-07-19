@@ -2266,6 +2266,17 @@ def _inject_pwa_head() -> None:
 _inject_pwa_head()
 
 
+def _tip(text: str):
+    """Widget tooltip text — suppressed in app view (?view=app).
+
+    Streamlit's hover tooltips clip and misposition on phone screens, and the
+    app's Guide page covers the same explanations, so the PWA renders no `?`
+    icons at all.
+    """
+    import streamlit as st
+    return None if st.query_params.get("view") == "app" else text
+
+
 def run_app() -> None:
     import streamlit as st
 
@@ -2330,8 +2341,8 @@ def run_app() -> None:
         _extra_refs = st.text_input(
             "Extra Sefaria refs (semicolon-separated)", "",
             key="sefaria_refs",
-            help="e.g. Genesis 1; Psalms 23 — appended to the bundled corpus. "
-                 "Adding refs triggers a full rebuild (~20–30 s).")
+            help=_tip("e.g. Genesis 1; Psalms 23 — appended to the bundled corpus. "
+                      "Adding refs triggers a full rebuild (~20–30 s)."))
 
     conn, n_loaded, verse_index = get_connection(_extra_refs)
 
@@ -2490,13 +2501,13 @@ def run_app() -> None:
         _pc, _dc = st.columns(2)
         with _pc:
             if st.button("🖨️ Print / Save PDF", key=f"pr_{_uid}",
-                         help="Opens browser print dialog. Choose 'Save as PDF' to export."):
+                         help=_tip("Opens browser print dialog. Choose 'Save as PDF' to export.")):
                 st.session_state[_print_key] = True
         with _dc:
             st.download_button("📄 Download HTML", _html_doc,
                                file_name=f"gematria_{book}_{chapter}_{verse}.html",
                                mime="text/html", key=f"dl_{_uid}",
-                               help="On iPhone/iPad: use this — open the downloaded file in Safari and print from there. On desktop: alternative to the Print button.")
+                               help=_tip("On iPhone/iPad: use this — open the downloaded file in Safari and print from there. On desktop: alternative to the Print button."))
         if st.session_state.get(_print_key):
             _components.html(_html_doc, height=1, scrolling=False)
             st.session_state[_print_key] = False
@@ -2850,16 +2861,17 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 raw = st.text_input(
                     "Hebrew phrase or name", key="t1_hebrew",
                     placeholder="e.g. שלום",
-                    help="Nikud and ta'amim are ignored for most ciphers. "
-                    "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results.")
+                    help=_tip("Nikud and ta'amim are ignored for most ciphers. "
+                              "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results."))
             with c2:
                 colel = st.toggle("כולל (±1)", value=False,
                                   key="t1_text_colel",
-                                  help="Rule of the Colel: also match Value−1 "
-                                       "and Value+1. Not applied to methods "
-                                       "where ±1 is built in or meaningless "
-                                       "(Kolel methods, KatanMispari, "
-                                       "HaMerubahKlali, HaNekudot).")
+                                  help=_tip("Rule of the Colel: also match "
+                                            "Value−1 and Value+1. Not applied "
+                                            "to methods where ±1 is built in "
+                                            "or meaningless (Kolel methods, "
+                                            "KatanMispari, HaMerubahKlali, "
+                                            "HaNekudot)."))
 
             # ── ON-SCREEN HEBREW KEYBOARD (disabled — kept for potential revival) ──────
             # Removed because Streamlit's widget-key lifecycle wiped the accumulation
@@ -2951,15 +2963,16 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 num_raw = st.number_input(
                     "Gematria value", min_value=1, max_value=10_000_000,
                     value=2701, step=1, key="t1_num",
-                    help="Search every method for corpus units equal to this value.")
+                    help=_tip("Search every method for corpus units equal to this value."))
             with nc2:
                 colel = st.toggle("כולל (±1)", value=False,
                                   key="t1_num_colel",
-                                  help="Rule of the Colel: also match Value−1 "
-                                       "and Value+1. Not applied to methods "
-                                       "where ±1 is built in or meaningless "
-                                       "(Kolel methods, KatanMispari, "
-                                       "HaMerubahKlali, HaNekudot).")
+                                  help=_tip("Rule of the Colel: also match "
+                                            "Value−1 and Value+1. Not applied "
+                                            "to methods where ±1 is built in "
+                                            "or meaningless (Kolel methods, "
+                                            "KatanMispari, HaMerubahKlali, "
+                                            "HaNekudot)."))
             target = int(num_raw)
             cons = ""
             word_cons = ""
