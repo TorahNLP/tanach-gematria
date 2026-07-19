@@ -2252,6 +2252,21 @@ def run_app() -> None:
                        page_icon="📜", layout="wide",
                        initial_sidebar_state="collapsed")
 
+    # Content text (verses, breakdowns, guide prose) in a serif Hebrew face —
+    # matches the print view's Noto Serif Hebrew and renders nikud/taamim more
+    # legibly. UI chrome (buttons, tabs, labels) stays in Streamlit's sans.
+    # Slight size bump for vowel-mark legibility, most visible on phones.
+    st.markdown(
+        "<style>"
+        "@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+Hebrew:wght@400;700&display=swap');"
+        "[data-testid='stMarkdownContainer'] p,"
+        "[data-testid='stMarkdownContainer'] li,"
+        "[data-testid='stMarkdownContainer'] blockquote{"
+        "font-family:'Noto Serif Hebrew',Georgia,'Times New Roman',serif;"
+        "font-size:1.05rem;}"
+        "</style>",
+        unsafe_allow_html=True)
+
     # App view (?view=app): the PWA opens here. Guide + Tabs 1-2 only,
     # classical cipher set by default. The regular site is unaffected.
     app_view = st.query_params.get("view") == "app"

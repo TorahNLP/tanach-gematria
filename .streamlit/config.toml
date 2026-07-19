@@ -1,3 +1,13 @@
 [server]
 # Serve ./static at /app/static — used for the PWA manifest and icons.
 enableStaticServing = true
+
+# Indigo accent to match the PWA icon/manifest branding. Light and dark
+# variants are both defined so the app keeps following the viewer's system
+# preference (needs streamlit >= 1.46 for [theme.dark]).
+[theme]
+base = "light"
+primaryColor = "#4F46E5"
+
+[theme.dark]
+primaryColor = "#A5B4FC"
