@@ -2894,7 +2894,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
             active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
             _NIKUD_CIPHERS = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
-            _has_nikud = any("ְ" <= ch <= "ׇ" for ch in _c_raw)
+            _has_nikud = any(ch in NIKUD_VALS for ch in _c_raw)
             if any(c in _NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
                 st.warning(
                     "One or more selected methods (HaNekudot / ImHaNekudot / "
