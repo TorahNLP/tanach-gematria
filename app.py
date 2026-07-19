@@ -559,6 +559,22 @@ APP_CIPHER_ORDER: List[str] = BASIC_CIPHERS + [
     c for c in CIPHER_NAMES if c not in BASIC_CIPHERS
 ]
 
+# Methods the ±1 Colel search tolerance is NOT applied to, because ±1 is
+# either already built in, incoherent, or mathematically dead there:
+#  - KololEhad / KololOtiyot — the kolel adjustment is the method's own
+#    definition; applying the toggle too would stack the same leniency twice.
+#  - KatanMispari — digital root, only 9 possible values; a ±1 window spans a
+#    third of the entire value space and a "match" stops meaning anything.
+#  - HaMerubahKlali — the squared grand total is not an additive sum, so
+#    "count the word itself as one" has no referent: (S+1)² ≠ S² + 1.
+#  - HaNekudot — every mark value is even (dot=10, line=6), so every total is
+#    even and target±1 (odd) can never match another HaNekudot value.
+# All other methods are additive letter-sums on which the traditional kolel
+# logic operates, so the tolerance stays available for them.
+COLEL_EXEMPT: frozenset = frozenset({
+    "KololEhad", "KololOtiyot", "KatanMispari", "HaMerubahKlali", "HaNekudot",
+})
+
 # Ciphers excluded from correlation/balance heatmaps: KatanMispari saturates
 # (only 9 distinct values → always ~100% balance), HaMerubahKlali produces
 # hyperscale squared totals that break Pearson correlation and always show 0% balance.
@@ -1513,7 +1529,7 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
         raise ValueError(f"Unknown cipher {cipher!r}")
     where = []
     params: List = []
-    if colel:
+    if colel and cipher not in COLEL_EXEMPT:
         where.append(f"{cipher} BETWEEN ? AND ?")
         params += [value - 1, value + 1]
     else:
@@ -1540,7 +1556,7 @@ def count_value(conn: sqlite3.Connection, cipher: str, value: int,
                 boundaries: Optional[List[str]] = None) -> int:
     """Exact match count (no LIMIT) — used for coincidence-rate denominators."""
     where, params = [], []
-    if colel:
+    if colel and cipher not in COLEL_EXEMPT:
         where.append(f"{cipher} BETWEEN ? AND ?")
         params += [value - 1, value + 1]
     else:
@@ -1597,7 +1613,7 @@ def search_value_all_methods(
     unions, params = [], []
     for c in CIPHER_NAMES:
         where, branch_params = [], []
-        if colel:
+        if colel and c not in COLEL_EXEMPT:
             where.append(f"{c} BETWEEN ? AND ?")
             branch_params += [value - 1, value + 1]
         else:
@@ -1721,7 +1737,8 @@ def _xm_count_matrix(
     for ma in CIPHER_NAMES:
         v = int(a_vals[ma])
         for mb in CIPHER_NAMES:
-            cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}" if colel
+            cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}"
+                    if colel and mb not in COLEL_EXEMPT
                     else f"{mb} = {v}")
             cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
     sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
@@ -2559,7 +2576,7 @@ def run_app() -> None:
                 "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
                 "to open the full cantillated verse with the matched portion highlighted and a "
                 "letter-by-letter breakdown for the chosen method. "
-                "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
+                "Toggle **כולל (±1)** to also match values one above or below — "
                 "a standard leniency in traditional gematria practice. "
                 "Open **🔀 Cross-method coincidences** below the results to see a matrix "
                 "showing how every cipher value of your input matches every corpus method — "
@@ -2808,6 +2825,13 @@ The *Colel* (כּוֹלֵל, "the inclusive / the whole") permits adding or subt
 This principle appears throughout Kabbalistic and Hasidic commentary and is invoked by various authorities (including the Vilna Gaon and Baal HaTurim–style annotations). Its precise origin is diffuse; present it as a traditional/widely-used principle rather than pinning it to a single text.
 
 **How the toggle works in this engine:** when enabled, `search_value` matches `target−1`, `target`, and `target+1` (SQL `BETWEEN`), and results are ordered by proximity (`ABS(cipher − value)`). The internal-balance detector likewise flags half-verses equal within ±1 as `colel±1`.
+
+**Methods the toggle deliberately skips** (their matches stay exact even with כולל on):
+
+- **KololEhad / KololOtiyot** — the kolel adjustment *is* the method; applying the tolerance too would count the same leniency twice.
+- **KatanMispari** — a digital root has only 9 possible values, so a ±1 window would span a third of the whole space and matches would stop meaning anything.
+- **HaMerubahKlali** — the squared grand total is not an additive sum; "counting the word itself as one" has no coherent referent there, since (S+1)² ≠ S²+1.
+- **HaNekudot** — every vowel-mark value is even (dot = 10, line = 6), so every total is even and a ±1 (odd) target can never equal another HaNekudot value.
 """)
 
     # ======================= TAB 1: PHRASE MATCHER =======================
@@ -2829,9 +2853,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     help="Nikud and ta'amim are ignored for most ciphers. "
                     "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results.")
             with c2:
-                colel = st.toggle("Rule of the Colel (±1)", value=False,
+                colel = st.toggle("כולל (±1)", value=False,
                                   key="t1_text_colel",
-                                  help="Also match Value−1 and Value+1.")
+                                  help="Rule of the Colel: also match Value−1 "
+                                       "and Value+1. Not applied to methods "
+                                       "where ±1 is built in or meaningless "
+                                       "(Kolel methods, KatanMispari, "
+                                       "HaMerubahKlali, HaNekudot).")
 
             # ── ON-SCREEN HEBREW KEYBOARD (disabled — kept for potential revival) ──────
             # Removed because Streamlit's widget-key lifecycle wiped the accumulation
@@ -2925,9 +2953,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     value=2701, step=1, key="t1_num",
                     help="Search every method for corpus units equal to this value.")
             with nc2:
-                colel = st.toggle("Rule of the Colel (±1)", value=False,
+                colel = st.toggle("כולל (±1)", value=False,
                                   key="t1_num_colel",
-                                  help="Also match Value−1 and Value+1.")
+                                  help="Rule of the Colel: also match Value−1 "
+                                       "and Value+1. Not applied to methods "
+                                       "where ±1 is built in or meaningless "
+                                       "(Kolel methods, KatanMispari, "
+                                       "HaMerubahKlali, HaNekudot).")
             target = int(num_raw)
             cons = ""
             word_cons = ""
@@ -3267,7 +3299,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 "Cross-method", False, key="t3_cross",
                 help="When on, all A×B method combinations are tested. "
                      "When off, only same-method (A=B) patterns.")
-            t3_colel = st.toggle("Colel (±1)", False, key="t3_colel")
+            t3_colel = st.toggle("כולל (±1)", False, key="t3_colel")
 
         col_pt, col_bnd, col_mv, col_foc = st.columns([3, 2, 2, 3])
         with col_pt:
