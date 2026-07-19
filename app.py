@@ -548,6 +548,13 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
+# Classical / Talmud-attested methods shown by default in app view (?view=app).
+# All other methods stay available behind the "Advanced methods" toggle.
+BASIC_CIPHERS: List[str] = [
+    "Standard", "Katan", "Gadol", "Siduri",
+    "Atbash", "Albam", "Atbach", "AyakBachar",
+]
+
 # Ciphers excluded from correlation/balance heatmaps: KatanMispari saturates
 # (only 9 distinct values → always ~100% balance), HaMerubahKlali produces
 # hyperscale squared totals that break Pearson correlation and always show 0% balance.
@@ -2205,12 +2212,57 @@ def run_selftest() -> None:
 # SECTION 10.  STREAMLIT USER INTERFACE
 # ---------------------------------------------------------------------------
 
+_PWA_HEAD_SNIPPET = (
+    '<link rel="manifest" href="./app/static/manifest.json"/>'
+    '<meta name="theme-color" content="#312e81"/>'
+    '<link rel="apple-touch-icon" href="./app/static/icon-180.png"/>'
+    '<meta name="apple-mobile-web-app-capable" content="yes"/>'
+    '<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>'
+    '<meta name="apple-mobile-web-app-title" content="Gematria"/>'
+)
+
+
+def _inject_pwa_head() -> None:
+    """Patch Streamlit's served index.html with PWA manifest/meta tags.
+
+    Streamlit offers no supported way to add tags to <head>, so we edit the
+    package's static index.html (the standard workaround). Idempotent; runs at
+    import so the Docker build step (`python app.py builddb`) bakes the patched
+    file into the image. Static assets live in ./static (requires
+    server.enableStaticServing, see .streamlit/config.toml).
+    """
+    try:
+        import streamlit as _stlib
+        idx = pathlib.Path(_stlib.__file__).parent / "static" / "index.html"
+        html = idx.read_text(encoding="utf-8")
+        if "app/static/manifest.json" not in html:
+            idx.write_text(html.replace("<head>", "<head>" + _PWA_HEAD_SNIPPET, 1),
+                           encoding="utf-8")
+    except Exception:
+        pass  # PWA tags are an enhancement — never block the app over them
+
+
+_inject_pwa_head()
+
+
 def run_app() -> None:
     import streamlit as st
 
     st.set_page_config(page_title="Tanach Gematria Engine",
                        page_icon="📜", layout="wide",
                        initial_sidebar_state="collapsed")
+
+    # App view (?view=app): the PWA opens here. Guide + Tabs 1-2 only,
+    # classical cipher set by default. The regular site is unaffected.
+    app_view = st.query_params.get("view") == "app"
+    if app_view:
+        st.markdown(
+            "<style>"
+            ".stTabs [data-baseweb='tab-list'] button:nth-child(4),"
+            ".stTabs [data-baseweb='tab-list'] button:nth-child(5)"
+            "{display:none !important;}"
+            "</style>",
+            unsafe_allow_html=True)
     @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
@@ -2885,12 +2937,20 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
             st.markdown(f"#### Results for `{_c_cons}`")
-            st.markdown("**Computed values across all methods**")
-            st.dataframe(pd.DataFrame([vals]), use_container_width=True,
-                         hide_index=True)
+            _t1_opts = CIPHER_NAMES
+            if app_view and not st.toggle(
+                    "Advanced methods", key="t1_adv",
+                    help="Off: classical (Talmud-attested) methods only. "
+                         "On: all 34 methods."):
+                _t1_opts = BASIC_CIPHERS
+            st.markdown("**Computed values across all methods**"
+                        if _t1_opts is CIPHER_NAMES else
+                        "**Computed values — classical methods**")
+            st.dataframe(pd.DataFrame([{k: vals[k] for k in _t1_opts if k in vals}]),
+                         use_container_width=True, hide_index=True)
 
             ciphers_sel = st.multiselect(
-                "Show matches for method(s)", CIPHER_NAMES, default=[CIPHER_NAMES[0]],
+                "Show matches for method(s)", _t1_opts, default=[_t1_opts[0]],
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
             active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
             _NIKUD_CIPHERS = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
@@ -3040,6 +3100,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
     # ===================== TAB 2: STRUCTURAL EXPLORER =====================
     with tab2:
         st.subheader("Scriptural Structural Explorer")
+        t2_ciphers = CIPHER_NAMES
+        if app_view and not st.toggle(
+                "Advanced methods", key="t2_adv",
+                help="Off: classical (Talmud-attested) methods only. "
+                     "On: all 34 methods."):
+            t2_ciphers = BASIC_CIPHERS
         kind = st.radio(
             "Browse by",
             ["Perek", "Parsha", "Petucha", "Setuma", "Verse",
@@ -3051,7 +3117,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             st.info(f"No {BOUNDARY_LABELS.get(kind, kind)} units in the loaded corpus yet.")
         else:
             display_cols = (["book", "chapter", "verse", "parsha",
-                             "variant_track"] + CIPHER_NAMES)
+                             "variant_track"] + t2_ciphers)
             show = df[[c for c in display_cols if c in df.columns]].rename(
                 columns={"book": "Book", "chapter": "Chapter", "verse": "Verse",
                          "parsha": "Parsha", "variant_track": "Track"})
@@ -3070,7 +3136,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 "Parsha":  st.column_config.TextColumn("Parsha", width="medium"),
                 "Track":   st.column_config.TextColumn("Track", width="small"),
             }
-            for _c in CIPHER_NAMES:
+            for _c in t2_ciphers:
                 t2_col_config[_c] = st.column_config.NumberColumn(_c, width="small")
             event2 = st.dataframe(
                 show, use_container_width=True, hide_index=True,
@@ -3084,7 +3150,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 
             cipher_pick = st.selectbox(
                 "Look up matches for which method's value?",
-                CIPHER_NAMES, index=0, key="t2_cipher_pick",
+                t2_ciphers, index=0, key="t2_cipher_pick",
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
@@ -3095,8 +3161,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 row2 = show.iloc[sel_rows[0]]
 
                 # Show this row's values across all 34 methods.
-                summary = {c: int(row2[c]) for c in CIPHER_NAMES if c in row2.index}
-                st.markdown("**Selected unit — values across all 34 methods:**")
+                summary = {c: int(row2[c]) for c in t2_ciphers if c in row2.index}
+                st.markdown("**Selected unit — values across all 34 methods:**"
+                            if t2_ciphers is CIPHER_NAMES else
+                            "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
                              use_container_width=True, hide_index=True)
 

@@ -1,0 +1,3 @@
+[server]
+# Serve ./static at /app/static — used for the PWA manifest and icons.
+enableStaticServing = true
