@@ -548,11 +548,15 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
-# Classical / Talmud-attested methods shown by default in app view (?view=app).
-# All other methods stay available behind the "Advanced methods" toggle.
+# Classical / Talmud-attested methods, listed first in app view (?view=app).
 BASIC_CIPHERS: List[str] = [
     "Standard", "Katan", "Gadol", "Siduri",
     "Atbash", "Albam", "Atbach", "AchasBeta",
+]
+
+# App view offers every method; classical ones are listed first.
+APP_CIPHER_ORDER: List[str] = BASIC_CIPHERS + [
+    c for c in CIPHER_NAMES if c not in BASIC_CIPHERS
 ]
 
 # Ciphers excluded from correlation/balance heatmaps: KatanMispari saturates
@@ -2480,19 +2484,27 @@ def run_app() -> None:
             _components.html(_html_doc, height=1, scrolling=False)
             st.session_state[_print_key] = False
 
-    # Streamlit always opens on the first-listed tab — no separate "default
-    # tab" API — so app view reorders the tuple to put the matcher first and
-    # drops the "1 ·"/"2 ·" numbering (meaningless with only 2 tabs visible).
-    # Tabs 3/4 are not created at all in app view (their `with` blocks below
-    # are guarded), so no CSS hiding is involved and their heavy pattern/stats
-    # code never runs on phones.
+    # App view has no tabs at all: it is the search page, with the Guide on a
+    # separate page reached by button (?page=guide). Unused sections are None
+    # and their `with` blocks below are guarded, so their code never runs.
     if app_view:
-        tab1, tab_guide, tab2 = st.tabs([
-            "Phrase & Name Matcher",
-            "📖 Guide & Sources",
-            "Scriptural Structural Explorer",
-        ])
-        tab3 = tab4 = None
+        tab2 = tab3 = tab4 = None
+        if st.query_params.get("page") == "guide":
+            tab1 = None
+            if st.button("← Back to Gematria Search"):
+                st.query_params["page"] = "search"
+                st.rerun()
+            tab_guide = st.container()
+        else:
+            tab_guide = None
+            _hd_l, _hd_r = st.columns([3, 1])
+            with _hd_l:
+                st.title("Gematria Search")
+            with _hd_r:
+                if st.button("📖 Guide & Sources"):
+                    st.query_params["page"] = "guide"
+                    st.rerun()
+            tab1 = st.container()
     else:
         tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
             "📖 Guide & Sources",
@@ -2503,15 +2515,18 @@ def run_app() -> None:
         ])
 
     # ===================== TAB GUIDE: GUIDE & SOURCES ==================
-    with tab_guide:
-        st.title("Tanach Gematria Search & Structural Pattern Engine")
+    # Guarded: tab_guide is None on the app-view search page.
+    if tab_guide is not None:
+      with tab_guide:
+        st.title("Guide & Sources" if app_view else
+                 "Tanach Gematria Search & Structural Pattern Engine")
         st.markdown(
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
-            + ("Search for phrases and names and explore the Tanach's structure. "
-               "The app shows the classical (Talmud-attested) methods by default — "
-               "turn on **Advanced methods** in any tab for all 34. "
-               "Pattern scanning and the statistical dashboard live on the full site."
+            + ("Search for names, words, and phrases across all 34 gematria "
+               "methods — the classical (Talmud-attested) methods are listed "
+               "first. Structural browsing, pattern scanning, and the "
+               "statistical dashboard live on the full site."
                if app_view else
                "Search for phrases and names, explore structural patterns, and analyse the "
                "statistical fingerprint of the Tanach across 34 gematria methods.")
@@ -2520,37 +2535,46 @@ def run_app() -> None:
 
         with st.expander("How to use this app", expanded=True):
             st.caption(
+                "📖 **Guide & Sources** (this page) — Start here. "
+                "Explains all 34 gematria methods with earliest Talmudic or medieval sources,"
+                "reading tracks, boundary types, and the Rule of the Colel. "
+                "Also contains the full Masoretic variant registry."
+                if app_view else
                 "📖 **Guide & Sources** (this tab) — Start here. "
                 "Explains all 34 gematria methods with earliest Talmudic or medieval sources,"
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
 
-            st.markdown("**Phrase & Name Matcher**" if app_view else
+            st.markdown("**Gematria Search**" if app_view else
                         "**1 · Phrase & Name Matcher**")
             st.markdown(
                 "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
-                "cantillation down to the 22 consonants and computes values across all 34 methods "
-                "simultaneously. Select a method to see every matching structural unit in the "
+                "cantillation down to the 22 consonants and computes values "
+                + ("across all 34 methods simultaneously — classical "
+                   "(Talmud-attested) methods appear first in the method list. "
+                   if app_view else
+                   "across all 34 methods simultaneously. ")
+                + "Select a method to see every matching structural unit in the "
                 "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
                 "to open the full cantillated verse with the matched portion highlighted and a "
                 "letter-by-letter breakdown for the chosen method. "
                 "Toggle **Rule of the Colel (±1)** to also match values one above or below — "
                 "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a 34×34 matrix"
+                "Open **🔀 Cross-method coincidences** below the results to see a matrix "
                 "showing how every cipher value of your input matches every corpus method — "
                 "rare coincidences are highlighted, and you can drill into any pair."
             )
 
-            st.markdown("**Scriptural Structural Explorer**" if app_view else
-                        "**2 · Scriptural Structural Explorer**")
-            st.markdown(
-                "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
-                "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
-                "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                "Every row shows gematria totals under all 34 methods for that block."
-                "Click a row to open the verse detail panel."
-            )
+            if not app_view:
+                st.markdown("**2 · Scriptural Structural Explorer**")
+                st.markdown(
+                    "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
+                    "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
+                    "closed paragraph (Setuma ס), or individual Verse (פסוק). "
+                    "Every row shows gematria totals under all 34 methods for that block."
+                    "Click a row to open the verse detail panel."
+                )
 
             if not app_view:
                 st.markdown("**3 · Textual Echoes & Anomalies**")
@@ -2787,8 +2811,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 """)
 
     # ======================= TAB 1: PHRASE MATCHER =======================
-    with tab1:
-        st.subheader("Phrase & Name Matcher")
+    # Guarded: tab1 is None on the app-view guide page.
+    if tab1 is not None:
+      with tab1:
+        if not app_view:
+            st.subheader("Phrase & Name Matcher")
         mode = st.radio("Search by", ["Hebrew text", "Gematria value"],
                         horizontal=True, key="t1_mode")
 
@@ -2966,15 +2993,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
             st.markdown(f"#### Results for `{_c_cons}`")
-            _t1_opts = CIPHER_NAMES
-            if app_view and not st.toggle(
-                    "Advanced methods", key="t1_adv",
-                    help="Off: classical (Talmud-attested) methods only. "
-                         "On: all 34 methods."):
-                _t1_opts = BASIC_CIPHERS
-            st.markdown("**Computed values across all methods**"
-                        if _t1_opts is CIPHER_NAMES else
-                        "**Computed values — classical methods**")
+            # App view: all methods, classical (Talmud-attested) ones first.
+            _t1_opts = APP_CIPHER_ORDER if app_view else CIPHER_NAMES
+            st.markdown("**Computed values across all methods**")
             st.dataframe(pd.DataFrame([{k: vals[k] for k in _t1_opts if k in vals}]),
                          use_container_width=True, hide_index=True)
 
@@ -3127,14 +3148,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             st.warning("Enter a Hebrew phrase to search.")
 
     # ===================== TAB 2: STRUCTURAL EXPLORER =====================
-    with tab2:
+    # Guarded: tab2 does not exist in app view.
+    if tab2 is not None:
+      with tab2:
         st.subheader("Scriptural Structural Explorer")
         t2_ciphers = CIPHER_NAMES
-        if app_view and not st.toggle(
-                "Advanced methods", key="t2_adv",
-                help="Off: classical (Talmud-attested) methods only. "
-                     "On: all 34 methods."):
-            t2_ciphers = BASIC_CIPHERS
         kind = st.radio(
             "Browse by",
             ["Perek", "Parsha", "Petucha", "Setuma", "Verse",
