@@ -2488,13 +2488,25 @@ def run_app() -> None:
             _components.html(_html_doc, height=1, scrolling=False)
             st.session_state[_print_key] = False
 
-    tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
-        "📖 Guide & Sources",
-        "1 · Phrase & Name Matcher",
-        "2 · Scriptural Structural Explorer",
-        "3 · Textual Echoes & Anomalies",
-        "4 · Macro Statistical Dashboard",
-    ])
+    # Streamlit always opens on the first-listed tab — no separate "default
+    # tab" API — so app view reorders the tuple to put the matcher first and
+    # drops the "1 ·"/"2 ·" numbering (meaningless with only 2 tabs visible).
+    if app_view:
+        tab1, tab_guide, tab2, tab3, tab4 = st.tabs([
+            "Phrase & Name Matcher",
+            "📖 Guide & Sources",
+            "Scriptural Structural Explorer",
+            "3 · Textual Echoes & Anomalies",
+            "4 · Macro Statistical Dashboard",
+        ])
+    else:
+        tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
+            "📖 Guide & Sources",
+            "1 · Phrase & Name Matcher",
+            "2 · Scriptural Structural Explorer",
+            "3 · Textual Echoes & Anomalies",
+            "4 · Macro Statistical Dashboard",
+        ])
 
     # ===================== TAB GUIDE: GUIDE & SOURCES ==================
     with tab_guide:
