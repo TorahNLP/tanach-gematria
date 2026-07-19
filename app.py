@@ -676,6 +676,9 @@ BOUNDARY_LABELS: Dict[str, str] = {
     "Parsha":     "Torah portion (פרשה)",
     "Petucha":    "Open paragraph (Pesucha פ)",
     "Setuma":     "Closed paragraph (Setuma ס)",
+    # Not a stored boundary_type — a contiguous run of words found by
+    # span_search, rendered through the same detail view.
+    "WordSpan":   "Word span (contiguous words)",
 }
 
 
@@ -818,6 +821,51 @@ def _tokenize_raw_words(text: str) -> List[str]:
     no_markers = _MARKER_STRIP_RE.sub(" ", text)
     toks = re.split(r"[\s" + re.escape(MAQAF) + r"]+", no_markers)
     return [t for t in toks if strip_to_consonants(t)]
+
+
+def mark_word_span(cantillated: str, i0: int, i1: int) -> str:
+    """Wrap words [i0, i1) of `cantillated` in <mark>, leaving all other
+    characters (separators, maqaf, paragraph markers, sof pasuq) untouched.
+
+    Word indices are those of tokenize_words(), so the token walk here must
+    count exactly what tokenize_words() keeps — letter-less tokens and
+    standalone paragraph markers are skipped without advancing the counter, or
+    the highlight slides off by one.  `word_span_token_count` asserts that
+    correspondence in the test suite.
+    """
+    marker_spans = [m.span() for m in _MARKER_STRIP_RE.finditer(cantillated)]
+
+    def _is_marker(a: int, b: int) -> bool:
+        # Fully-contained only: a marker fused onto a word (הארץ׃פ) is still one
+        # counted word for tokenize_words().
+        return any(s <= a and b <= e for s, e in marker_spans)
+
+    out: List[str] = []
+    wi = pos = 0
+    for m in re.finditer(r"[^\s" + re.escape(MAQAF) + r"]+", cantillated):
+        s, e = m.span()
+        out.append(cantillated[pos:s])
+        tok = m.group()
+        if strip_to_consonants(tok) and not _is_marker(s, e):
+            out.append(f"<mark>{tok}</mark>" if i0 <= wi < i1 else tok)
+            wi += 1
+        else:
+            out.append(tok)
+        pos = e
+    out.append(cantillated[pos:])
+    return "".join(out)
+
+
+def word_span_token_count(cantillated: str) -> int:
+    """Number of words mark_word_span() counts — must equal len(tokenize_words())."""
+    marker_spans = [m.span() for m in _MARKER_STRIP_RE.finditer(cantillated)]
+    n = 0
+    for m in re.finditer(r"[^\s" + re.escape(MAQAF) + r"]+", cantillated):
+        s, e = m.span()
+        if strip_to_consonants(m.group()) and not any(
+                a <= s and e <= b for a, b in marker_spans):
+            n += 1
+    return n
 
 
 def _accent_phrases(cantillated: str, split_on: str) -> List[Tuple[str, str, str]]:
@@ -1665,7 +1713,12 @@ def span_search(
     value equals `target` (or target±1 if colel).  Works for all 34 ciphers
     because every cipher composes additively across words.
 
-    Returns a DataFrame with columns: Book, Ch, Vs, Track, Words, <cipher>.
+    Returns a DataFrame with columns: Book, Ch, Vs, Track, Words, <cipher>,
+    plus half-open word offsets `_w0`/`_w1` (0-indexed, `_w1` exclusive) for the
+    detail renderer.  The offsets index into tokenize_words() of the track's
+    source text — Word units are built from it (see verse_forks) — so they stay
+    aligned with the DB row order this scan walks.  Underscore-prefixed columns
+    are internal and dropped before display.
     """
     import numpy as _np
 
@@ -1708,6 +1761,8 @@ def span_search(
                     "Track": track,
                     "Words": f"{int(i)+1}–{int(i)+span_len}",
                     cipher:  int(span_vals[i]),
+                    "_w0":   int(i),
+                    "_w1":   int(i) + span_len,
                 })
 
     return pd.DataFrame(rows)
@@ -2243,24 +2298,78 @@ _PWA_HEAD_SNIPPET = (
 )
 
 
+# Replaces Streamlit's "running man" status icon with a Hebrew letter that
+# reshuffles while the app is busy.  Lives in <head> rather than a component
+# because components render in a sandboxed iframe that cannot reach the parent
+# DOM (the same restriction that blocks window.print(); see BUILD.md).
+#
+# NOTE: [data-testid="stStatusWidget"] is a Streamlit *internal* id.  It is not
+# covered by any API stability promise, which is why requirements.txt pins
+# streamlit — an unpinned rebuild could change the id and silently drop this
+# back to the default icon.  Failure is cosmetic: no widget, no letters, app
+# unaffected.
+_LOADER_HEAD_SNIPPET = (
+    "<style>"
+    '[data-testid="stStatusWidget"] img,'
+    '[data-testid="stStatusWidget"] svg{display:none !important;}'
+    ".gem-nakdan{font-family:'Noto Serif Hebrew',David,'Times New Roman',serif;"
+    "font-size:1.15rem;font-weight:700;line-height:1;color:#4F46E5;"
+    "display:inline-block;min-width:1.25em;text-align:center;"
+    "font-feature-settings:'liga' 0;}"
+    "@media (prefers-color-scheme:dark){.gem-nakdan{color:#A5B4FC;}}"
+    "</style>"
+    "<script>(function(){"
+    # 22 base letters + 5 finals, per the chosen letter set.
+    'var L="אבגדהוזחטיכךלמםנןסעפףצץקרשת".split("");'
+    # Reject anything shown in the last 4 ticks: pure random draws the same
+    # glyph twice in a row often enough to read as a frozen spinner.
+    "var recent=[];"
+    "function pick(){for(var t=0;t<40;t++){"
+    "var c=L[Math.floor(Math.random()*L.length)];"
+    "if(recent.indexOf(c)===-1){recent.push(c);"
+    "if(recent.length>4){recent.shift();}return c;}}"
+    "return L[Math.floor(Math.random()*L.length)];}"
+    # One self-healing interval: the widget is created and destroyed by
+    # Streamlit on every run, so re-query each tick rather than caching a node.
+    "setInterval(function(){"
+    'var w=document.querySelector(\'[data-testid="stStatusWidget"]\');'
+    "if(!w){return;}"
+    'var el=w.querySelector(".gem-nakdan");'
+    "if(!el){el=document.createElement(\"span\");"
+    'el.className="gem-nakdan";w.insertBefore(el,w.firstChild);}'
+    "el.textContent=pick();},140);"
+    "})();</script>"
+)
+
+
 def _inject_pwa_head() -> None:
-    """Patch Streamlit's served index.html with PWA manifest/meta tags.
+    """Patch Streamlit's served index.html with PWA + loader-icon tags.
 
     Streamlit offers no supported way to add tags to <head>, so we edit the
     package's static index.html (the standard workaround). Idempotent; runs at
     import so the Docker build step (`python app.py builddb`) bakes the patched
     file into the image. Static assets live in ./static (requires
     server.enableStaticServing, see .streamlit/config.toml).
+
+    Each snippet carries its own marker: a previously-patched index.html (a
+    local venv from an earlier release) must still receive newly-added
+    snippets, so one shared guard would wrongly skip them all.
     """
     try:
         import streamlit as _stlib
         idx = pathlib.Path(_stlib.__file__).parent / "static" / "index.html"
         html = idx.read_text(encoding="utf-8")
-        if "app/static/manifest.json" not in html:
-            idx.write_text(html.replace("<head>", "<head>" + _PWA_HEAD_SNIPPET, 1),
-                           encoding="utf-8")
+        original = html
+        for marker, snippet in (
+            ("app/static/manifest.json", _PWA_HEAD_SNIPPET),
+            ("gem-nakdan", _LOADER_HEAD_SNIPPET),
+        ):
+            if marker not in html:
+                html = html.replace("<head>", "<head>" + snippet, 1)
+        if html != original:
+            idx.write_text(html, encoding="utf-8")
     except Exception:
-        pass  # PWA tags are an enhancement — never block the app over them
+        pass  # Head tags are an enhancement — never block the app over them
 
 
 _inject_pwa_head()
@@ -2376,7 +2485,8 @@ def run_app() -> None:
                    "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, SecondHalf, Verse, Perek, Parsha.")
 
     DETAIL_BOUNDARIES = {"Word", "ZakefPhrase", "TiphchaPhrase",
-                         "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma"}
+                         "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma",
+                         "WordSpan"}
 
     def _paragraph_run(book, chapter, verse):
         """Return all VerseInputs in the same Petucha/Setuma block as (book, chapter, verse)."""
@@ -2393,9 +2503,15 @@ def run_app() -> None:
                 block = []
         return block or None
 
-    def _highlight_in_verse(cantillated: str, boundary: str, matched_cons) -> str:
+    def _highlight_in_verse(cantillated: str, boundary: str, matched_cons,
+                            span_range=None) -> str:
         """Return cantillated text as HTML with the matched sub-unit wrapped in <mark>."""
         import re as _re
+        if boundary == "WordSpan" and span_range:
+            # Index-based, not consonant-matching: a span's consonant string can
+            # recur inside the same verse, and the "Word" branch below marks only
+            # the first occurrence.
+            return mark_word_span(cantillated, span_range[0], span_range[1])
         if boundary in ("FirstHalf", "SecondHalf") and ATNACH in cantillated:
             idx = cantillated.index(ATNACH)
             m_split = _re.search(r"[\s־׃]", cantillated[idx:])
@@ -2449,7 +2565,8 @@ def run_app() -> None:
         return cantillated
 
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
-                            active_method=None, query_info=None, colel=False):
+                            active_method=None, query_info=None, colel=False,
+                            span_range=None, track=None):
         import streamlit.components.v1 as _components
         if boundary not in DETAIL_BOUNDARIES:
             return
@@ -2457,35 +2574,78 @@ def run_app() -> None:
         if v is None:
             st.info("Source text not available for this unit.")
             return
+        # Each variant fork tokenizes its own source text (see verse_forks), so a
+        # match on a non-Ksiv track must be rendered and scored against that
+        # text — verse_index holds the Ksiv reading by default.
+        src_text = v.text
+        if track == "Kri" and getattr(v, "kri_text", None):
+            src_text = v.kri_text
+        # A word span is not a stored boundary: reconstruct it from the word
+        # offsets so the displayed text, the consonants, and the cipher values
+        # all describe the span rather than the whole verse.
+        span_w_cons = span_cons = None
+        variant_consonantal_only = False
+        if boundary == "WordSpan" and span_range:
+            _i0, _i1 = span_range
+            matched_text = " ".join(_tokenize_raw_words(src_text)[_i0:_i1])
+            _tok = tokenize_words(src_text)
+            if (track == "TextVariant" and getattr(v, "doublet_from", None)
+                    and getattr(v, "doublet_to", None)):
+                # The doublet is defined on bare consonants (e.g. אחר → ואחר) and
+                # usually has no counterpart in the cantillated text, so it is
+                # applied per word exactly as verse_forks builds the fork's word
+                # list.  Consequence: the cantillated line shows the Ksiv
+                # spelling while the values follow the variant reading — flagged
+                # to the reader below rather than silently diverging.
+                _sub = [w.replace(v.doublet_from, v.doublet_to, 1)
+                        if v.doublet_from in w else w for w in _tok]
+                variant_consonantal_only = _sub[_i0:_i1] != _tok[_i0:_i1]
+                _tok = _sub
+            span_w_cons = " ".join(_tok[_i0:_i1])
+            span_cons = "".join(_tok[_i0:_i1])
         friendly_boundary = BOUNDARY_LABELS.get(boundary, boundary)
         st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
-        sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase", "FirstHalf", "SecondHalf")
+        sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase",
+                                "FirstHalf", "SecondHalf", "WordSpan")
         highlighted_html = ""
-        if sub_unit and v.text:
+        if sub_unit and src_text:
             matched_cons = strip_to_consonants(matched_text) if matched_text else None
-            highlighted = _highlight_in_verse(v.text, boundary, matched_cons)
+            highlighted = _highlight_in_verse(src_text, boundary, matched_cons,
+                                              span_range=span_range)
             highlighted_html = highlighted
             st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
         else:
-            highlighted_html = v.text or ""
-            st.markdown(f"**Cantillated:** {v.text}")
+            highlighted_html = src_text or ""
+            st.markdown(f"**Cantillated:** {src_text}")
         # Values: matched sub-unit when available, full verse otherwise
-        if sub_unit and matched_text:
+        if span_cons is not None:
+            cons = span_cons
+            st.markdown(f"**Matched consonants:** `{cons}`")
+            if variant_consonantal_only:
+                st.caption("Textual-variant track: the variant reading exists in "
+                           "the consonantal text only, so the cantillated line "
+                           "above shows the Ksiv spelling while the values below "
+                           "follow the variant.")
+        elif sub_unit and matched_text:
             cons = strip_to_consonants(matched_text)
             st.markdown(f"**Matched consonants:** `{cons}`")
         else:
-            cons = strip_to_consonants(v.text)
+            cons = strip_to_consonants(src_text)
             st.markdown(f"**Consonants:** `{cons}`")
         # Derive word-boundary-aware consonants for Kaful/Mityashev/Meshulash
         if boundary == "FirstHalf":
-            w_cons, _ = split_halves_word_cons(v.text)
+            w_cons, _ = split_halves_word_cons(src_text)
         elif boundary == "SecondHalf":
-            _, w_cons = split_halves_word_cons(v.text)
+            _, w_cons = split_halves_word_cons(src_text)
         elif boundary == "Word":
             w_cons = cons
+        elif boundary == "WordSpan":
+            # Must keep spaces: collapsing a multi-word span into one token
+            # changes what the word-aware ciphers compute.
+            w_cons = span_w_cons or cons
         else:
-            w_cons = " ".join(tokenize_words(v.text))
-        cantillated_src = matched_text if (sub_unit and matched_text) else v.text
+            w_cons = " ".join(tokenize_words(src_text))
+        cantillated_src = matched_text if (sub_unit and matched_text) else src_text
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
         st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
         # Letter-by-letter breakdown for the active method
@@ -3192,8 +3352,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.info("No multi-word span matches this value with the current settings.")
                 else:
                     st.markdown(f"**{len(span_df)} span match(es)**")
+                    # Internal offset columns stay out of the table; row order is
+                    # unchanged, so selection indices still address span_df.
+                    span_show = span_df[[c for c in span_df.columns
+                                         if not c.startswith("_")]]
                     span_event = st.dataframe(
-                        span_df, use_container_width=True, hide_index=True,
+                        span_show, use_container_width=True, hide_index=True,
                         on_select="rerun", selection_mode="single-row", key="span_sel")
                     span_sel = span_event.selection.rows
                     if span_sel:
@@ -3201,7 +3365,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         with st.expander("📜 Verse detail", expanded=True):
                             render_verse_detail(
                                 sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
-                                "Verse", active_method=span_cipher)
+                                "WordSpan", active_method=span_cipher,
+                                span_range=(int(sr["_w0"]), int(sr["_w1"])),
+                                track=sr["Track"], colel=colel)
         else:
             st.warning("Enter a Hebrew phrase to search.")
 
