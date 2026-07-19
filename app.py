@@ -2540,7 +2540,7 @@ def run_app() -> None:
             tab_guide = None
             _hd_l, _hd_r = st.columns([3, 1])
             with _hd_l:
-                st.title("Gematria Search")
+                st.title("Tanach Gematria Search")
             with _hd_r:
                 if st.button("📖 Guide & Sources"):
                     st.query_params["page"] = "guide"
