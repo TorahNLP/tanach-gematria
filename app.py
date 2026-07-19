@@ -3057,11 +3057,23 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # ── Simple text input (keyboard widget removed — see commented block below) ──
             c1, c2 = st.columns([4, 2])
             with c1:
-                raw = st.text_input(
-                    "Hebrew phrase or name", key="t1_hebrew",
-                    placeholder="e.g. שלום",
-                    help=_tip("Nikud and ta'amim are ignored for most ciphers. "
-                              "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results."))
+                # The input and its Search button live in a form so that typing
+                # and clicking Search works in one go. st.text_input only sends
+                # its value to the server on Enter or blur, so a bare button had
+                # to be disabled until then (the value, hence `cons`, was still
+                # empty) — and simply enabling it hits Streamlit's two-click
+                # problem, where the first click merely blurs the input and is
+                # swallowed. A form's submit button collects the current widget
+                # values and submits them in a single round trip. Enter still
+                # submits, since that is a form's built-in behaviour.
+                with st.form("t1_text_search", border=False):
+                    raw = st.text_input(
+                        "Hebrew phrase or name", key="t1_hebrew",
+                        placeholder="e.g. שלום",
+                        help=_tip("Nikud and ta'amim are ignored for most ciphers. "
+                                  "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results."))
+                    submitted = st.form_submit_button(
+                        "🔍 Search", type="primary", use_container_width=True)
             with c2:
                 colel = st.toggle("כולל (±1)", value=False,
                                   key="t1_text_colel",
@@ -3148,14 +3160,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 
             cons = normalize_query(raw)
             word_cons = " ".join(tokenize_words(raw))
-            _sc1, _sc2 = st.columns([4, 1])
-            with _sc1:
-                st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
-            with _sc2:
-                if st.button("🔍 Search", key="t1_search_btn", type="primary",
-                             use_container_width=True, disabled=not cons):
+            st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
+            if submitted:
+                if cons:
                     st.session_state["t1_committed"] = {
                         "cons": cons, "raw": raw, "wcons": word_cons}
+                else:
+                    # The button is always enabled now, so an empty submit is
+                    # possible and should say why nothing happened.
+                    st.warning("Enter a Hebrew phrase or name to search.")
         else:
             nc1, nc2 = st.columns([3, 2])
             with nc1:
