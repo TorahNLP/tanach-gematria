@@ -856,6 +856,27 @@ def mark_word_span(cantillated: str, i0: int, i1: int) -> str:
     return "".join(out)
 
 
+# Tracks that represent an actual alternative reading.  "Aggregate" is a storage
+# tag for Perek/Parsha rows, not a reading tradition, so it never counts as one.
+VARIANT_TRACKS = frozenset({"Kri", "TextVariant"})
+
+
+def drop_uniform_track(df, app_view: bool = False):
+    """Drop the Track column unless these rows genuinely contain a variant.
+
+    The reading tracks agree across the overwhelming majority of the corpus, so
+    a Track column reading "Ksiv" on every row is noise: it poses a variant
+    question where none exists.  The column earns its place only when a row on
+    screen actually carries a different reading.  App view is Ksiv-only, so it
+    never shows the column at all.
+    """
+    if "Track" not in getattr(df, "columns", []):
+        return df
+    if app_view or not set(df["Track"].unique()) & VARIANT_TRACKS:
+        return df.drop(columns=["Track"])
+    return df
+
+
 def word_span_token_count(cantillated: str) -> int:
     """Number of words mark_word_span() counts — must equal len(tokenize_words())."""
     marker_spans = [m.span() for m in _MARKER_STRIP_RE.finditer(cantillated)]
@@ -2420,6 +2441,11 @@ def run_app() -> None:
             "[data-testid='collapsedControl']{display:none !important;}"
             "</style>",
             unsafe_allow_html=True)
+
+    def hide_uniform_track(df):
+        """Drop the Track column unless these rows genuinely vary (see module fn)."""
+        return drop_uniform_track(df, app_view)
+
     @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
@@ -3150,21 +3176,45 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             cons = ""
             word_cons = ""
 
-        cc1, cc2 = st.columns(2)
-        with cc1:
-            tracks = st.multiselect(
-                "Reading tracks",
-                ["Ksiv", "Kri", "TextVariant"],
-                default=["Ksiv"],
-                format_func=lambda t: TRACK_LABELS.get(t, t))
-        with cc2:
+        _BOUND_OPTS = ["Perek", "Parsha", "Verse", "Petucha", "Setuma",
+                       "FirstHalf", "SecondHalf",
+                       "TiphchaPhrase", "ZakefPhrase", "Word"]
+        _BOUND_DEFAULT = ["Verse", "FirstHalf", "SecondHalf", "Word"]
+        if app_view:
+            # App view is Ksiv-only. The variant tracks agree with Ksiv across
+            # the overwhelming majority of the corpus, so the selector spends
+            # scarce phone screen space and adds noise for very little gain.
+            tracks = ["Ksiv"]
             bounds = st.multiselect(
-                "Text units",
-                ["Perek", "Parsha", "Verse", "Petucha", "Setuma",
-                 "FirstHalf", "SecondHalf",
-                 "TiphchaPhrase", "ZakefPhrase", "Word"],
-                default=["Verse", "FirstHalf", "SecondHalf", "Word"],
+                "Text units", _BOUND_OPTS, default=_BOUND_DEFAULT,
+                key="t1_bounds",
                 format_func=lambda b: BOUNDARY_LABELS.get(b, b))
+        else:
+            cc1, cc2 = st.columns(2)
+            with cc1:
+                tracks = st.multiselect(
+                    "Reading tracks",
+                    ["Ksiv", "Kri", "TextVariant"],
+                    default=["Ksiv"],
+                    key="t1_tracks",
+                    format_func=lambda t: TRACK_LABELS.get(t, t))
+            with cc2:
+                bounds = st.multiselect(
+                    "Text units", _BOUND_OPTS, default=_BOUND_DEFAULT,
+                    key="t1_bounds",
+                    format_func=lambda b: BOUNDARY_LABELS.get(b, b))
+
+        # Method picker sits here, ahead of any search, so methods can be chosen
+        # before a word is entered rather than only after results exist.
+        # Gematria-value mode searches every method by design, so it has none.
+        _t1_opts = APP_CIPHER_ORDER if app_view else CIPHER_NAMES
+        active_ciphers = [CIPHER_NAMES[0]]
+        if mode == "Hebrew text":
+            ciphers_sel = st.multiselect(
+                "Show matches for method(s)", _t1_opts, default=[_t1_opts[0]],
+                key="t1_ciphers",
+                format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
+            active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
 
         # Perek/Parsha rows are stored under the "Aggregate" track (a DB tag,
         # not a reading tradition). Auto-include it when those boundaries are selected.
@@ -3190,7 +3240,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 res_num_disp["Method"] = res_num_disp["Method"].map(
                     lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
                 event_num = st.dataframe(
-                    res_num_disp, use_container_width=True, hide_index=True,
+                    hide_uniform_track(res_num_disp),
+                    use_container_width=True, hide_index=True,
                     on_select="rerun", selection_mode="single-row", key="t1_num_sel")
                 sel_num = event_num.selection.rows
                 if sel_num:
@@ -3211,16 +3262,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
             st.markdown(f"#### Results for `{_c_cons}`")
-            # App view: all methods, classical (Talmud-attested) ones first.
-            _t1_opts = APP_CIPHER_ORDER if app_view else CIPHER_NAMES
+            # _t1_opts / active_ciphers come from the method picker above, which
+            # renders before a search is committed. App view orders all methods
+            # with the classical (Talmud-attested) ones first.
             st.markdown("**Computed values across all methods**")
             st.dataframe(pd.DataFrame([{k: vals[k] for k in _t1_opts if k in vals}]),
                          use_container_width=True, hide_index=True)
 
-            ciphers_sel = st.multiselect(
-                "Show matches for method(s)", _t1_opts, default=[_t1_opts[0]],
-                format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
-            active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
             _NIKUD_CIPHERS = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
             _has_nikud = any(ch in NIKUD_VALS for ch in _c_raw)
             if any(c in _NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
@@ -3241,7 +3289,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.info("No structural unit in the loaded corpus matches this value.")
                 else:
                     event = st.dataframe(
-                        res, use_container_width=True, hide_index=True,
+                        hide_uniform_track(res),
+                        use_container_width=True, hide_index=True,
                         on_select="rerun", selection_mode="single-row",
                         key=f"t1_sel_{cipher}")
                     sel = event.selection.rows
@@ -3354,8 +3403,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.markdown(f"**{len(span_df)} span match(es)**")
                     # Internal offset columns stay out of the table; row order is
                     # unchanged, so selection indices still address span_df.
-                    span_show = span_df[[c for c in span_df.columns
-                                         if not c.startswith("_")]]
+                    span_show = hide_uniform_track(
+                        span_df[[c for c in span_df.columns
+                                 if not c.startswith("_")]])
                     span_event = st.dataframe(
                         span_show, use_container_width=True, hide_index=True,
                         on_select="rerun", selection_mode="single-row", key="span_sel")
@@ -3392,7 +3442,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             show = df[[c for c in display_cols if c in df.columns]].rename(
                 columns={"book": "Book", "chapter": "Chapter", "verse": "Verse",
                          "parsha": "Parsha", "variant_track": "Track"})
-            show["Track"] = show["Track"].map(lambda t: TRACK_LABELS.get(t, t))
+            # Drop before labelling: the check reads raw track names, and a
+            # uniform-Ksiv listing should not advertise a variant column.
+            show = hide_uniform_track(show)
+            if "Track" in show.columns:
+                show["Track"] = show["Track"].map(lambda t: TRACK_LABELS.get(t, t))
             q = st.text_input("Filter (book / parsha contains)", "")
             if q:
                 mask = (show["Book"].str.contains(q, case=False, na=False) |
