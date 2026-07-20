@@ -14,10 +14,9 @@
 > (`RUNTIME_ERROR`, exit 139) because a sqlite connection was shared across
 > Streamlit sessions. That is easy to reintroduce.
 >
-> **Still open, none blocking:** `sub_id` is not unique (own section); the
-> variants-toggle redesign (not built); `TODO(site)` on the cleaned-consonants
-> readout; `use_container_width` sweep; and the word-span detail has never been
-> clicked through in a browser (canvas — see gotchas).
+> **Still open:** the variants-toggle redesign (not built, deferred) and
+> `TODO(site)` on the cleaned-consonants readout (deferred). `sub_id`,
+> `use_container_width` and the word-span click-through are all now resolved.
 
 ---
 
@@ -299,25 +298,24 @@ it never sees `NaN`. Reordering those lines breaks the gradient.
 
 ---
 
-## ⚠️ OPEN BUG: `sub_id` is not unique
+## `sub_id` uniqueness (FIXED, `8f7b636`)
 
-**142,635 duplicate `sub_id` values** out of 571,521 rows. `_base_id` builds the
-prefix from the first letter of each word in the book name, so every
-single-word book starting with the same letter collides: `E_5_3_Ksiv_FH` is
-shared by **Exodus, Ezekiel, Ecclesiastes, Esther and Ezra**. `J_4_9_*` rows
-collide six ways.
+`sub_id` used to collide **142,635 times** in 571,521 rows. `_base_id` took the
+first letter of each word in the book name, capped at 4 chars, collapsing the 39
+books into 18 tags — `J` covered Jeremiah, Job, Joel, Jonah, Joshua and Judges,
+so `J_4_9_Ksiv_W5` named six different rows. The displayed SubID did not identify
+a row, and anything keyed on it silently merged unrelated books; that produced a
+false regression signal during the TextVariant work.
 
-Consequences:
-- The `SubID` column shown in site results does not identify a row.
-- **Any analysis keyed on `sub_id` silently merges unrelated books.** This
-  produced a false regression signal once: a before/after snapshot keyed on
-  `sub_id` appeared to show a changed cipher value when it had simply kept a
-  different book's row on each build.
+`book_slug()` now strips non-alphanumerics from the full book name:
+`Judges_1_1_Ksiv_FH`, `IChronicles_5_3_Ksiv_FH`. Aggregate ids use the same slug
+and the leftover `PARSHA_` prefix became `SEFER_`. Verified: 571,521 distinct ids
+for 571,521 rows, zero duplicates. Cost ~3.5 MB. **Changed stored data — needs a
+DB rebuild.**
 
-Not fixed. The fix is to make `_base_id` disambiguate (full book name, or a
-book index), which changes every `sub_id` and needs a DB rebuild. Until then,
-**key on `(book, chapter, verse, boundary_type, variant_track)`**, never on
-`sub_id`.
+The rule it replaces still holds as a habit: prefer
+`(book, chapter, verse, boundary_type, variant_track)` as a key. `sub_id` is now
+safe, but the tuple is self-describing.
 
 ---
 
@@ -459,17 +457,16 @@ mode has no picker — it searches every method by design.
 | **Never share a DB connection via `@st.cache_resource`** | It is shared across every session and thread. A bare sqlite connection there took the Space down with SIGSEGV once two people searched at the same time. Use `ThreadLocalConnection`; see its section above. |
 | **Expander bodies execute while collapsed** | Streamlit runs the code inside `st.expander` even when it is shut, so anything expensive in one costs every rerun. The two heavy Tab 1 panels are opt-in behind a checkbox for this reason. Do not put an unguarded scan in an expander. |
 | **`st.cache_data` is process-wide** | A "cold" timing measured after an earlier test on the same server is really a warm one. Measure with an input the cache has not seen. |
-| **`sub_id` is not unique** | 142,635 duplicates — `_base_id` abbreviates the book to first letters, so Exodus/Ezekiel/Ecclesiastes/Esther/Ezra all share `E_5_3_*`. Shown as the SubID column, where it does not identify a row. **Never key analysis on it** — use `(book, chapter, verse, boundary_type, variant_track)`. Own section above. |
 | **Dataframes are canvas-rendered** | **DOM assertions cannot see any table contents** — cell text never reaches the accessibility tree. A Playwright check for a column's presence will pass whether the column is right or hidden always. Test table *contents* at the data layer; use the browser only for surrounding UI. This nearly produced a false pass on the Track-column work. |
 | `streamlit` pinned to `1.58.0` | Pinned deliberately (`3f1e329`): the loader icon and app-view layout target internal test ids (`stStatusWidget`, `stSidebarCollapsedControl`). Upgrade only with a live re-verify of both. |
-| Local `.venv` missing `plotly` | Tab 4 throws locally (`ModuleNotFoundError: plotly`). It IS in `requirements.txt`, so Docker is fine. `pip install plotly` to fix locally. |
-| `use_container_width` deprecation | Streamlit warns it is removed after 2025-12-31 — sweep to `width=`. The pin buys time, not immunity. |
+| Local `.venv` needs `plotly` | Installed 2026-07-19. Worth knowing why it matters: without it the Tab 4 import aborts the whole script run, so **every tab shows the traceback** and no site-view verification is possible. If a fresh venv shows errors on all tabs, check this first. |
+| ~~`use_container_width`~~ | Done (`8f7b636`): all 29 sites use `width="stretch"`. The removal date had already passed; only the 1.58.0 pin was keeping it alive, so an upgrade would have broken every table and chart at once. |
 | **First-load 500, fine on refresh** | **Reproduced 2026-07-19, and it is not app-side.** Right after a rebuild: request 1 hung 108s then returned HTTP 500 with a 3,038-byte body; request 2 returned 200 in 29ms. That body is HuggingFace's error page, not our 3,148-byte `index.html` — which is why no code of ours can intercept it. Causes: the Space is `cpu-basic` with a 48h sleep timer (cold wake ≈10s), and any rebuild restarts the container. Build is confirmed healthy: `builddb` ran 100.4s at image-build time, boot is ~10s, run logs clean. Only real mitigations are a keep-warm ping or a service worker; **Joshua declined the service worker** — it would install resident code on every visitor's device. |
 | Local `tanach.db` staleness | `tanach.db` is a **derived artifact** (gitignored, never regenerates on pull) holding boundary types, consonants, display text and all 34 cipher columns. Docker rebuilds it every build; **locally you must**. Two failure modes: a schema change crashes loudly (`no such column`), but a change to stored *values* fails **silently** — the app runs and serves stale data. After pulling anything that touches stored data: `rm tanach.db && python app.py builddb` (~100s). |
 | Transliteration search | Not built. |
 | On-screen Hebrew keyboard | Still commented out (`_KBD_KEY`). |
 | Auto-nikud for typed input | Deferred; design in Claude memory (corpus lookup first, tiny ONNX nakdan fallback). |
-| Word-span detail never UI-clicked | Verified hard at the data layer (410 rows, both tracks), but selecting a row means clicking canvas coordinates, so no browser test covers it. Worth one manual click after deploy. |
+| ~~Word-span click-through~~ | Confirmed working by the user on 2026-07-19. |
 
 ---
 
@@ -530,6 +527,8 @@ visible in production.
 *All pushed and live.* ⚠️ marks a commit that changed **stored data** and
 therefore required a `tanach.db` rebuild:
 
+- `8f7b636` ⚠️ Unique sub_id (book_slug); retire use_container_width
+- `b5b0f0c` Handoff: concurrency, performance, vowel-mark fixes
 - `0008775` Blank vowel-mark methods when the input has no nikud
 - `c389659` Vowel-mark breakdowns; fix nikud values in the detail panel
 - `fe6fb2f` Opt-in heavy scans + caching (search 18.6s -> 0.7s)
