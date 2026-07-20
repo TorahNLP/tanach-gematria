@@ -3,22 +3,17 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last pushed commit:** `e48a126` (Update handoff: PWA app view, colel exemptions, styling, gotchas)
+**Last pushed commit:** `31344dc` (Fix TextVariant fork: word-level doublet, word-boundary half splits)
 **Handoff date:** 2026-07-19
 
-> ⚠️ **Three commits are committed locally but NOT pushed** — production is still
-> running `e48a126` and does not yet contain any of the 2026-07-19 (later session)
-> work below. All of it is verified locally; none of it is verified live.
+> ✅ **Everything in this document is pushed and verified live.** Working tree
+> clean at `31344dc`; production is running it. The local `tanach.db` was rebuilt
+> from the same commit, so it is current too.
 >
-> | Commit | Contents |
-> |--------|----------|
-> | `3f1e329` | Word-span detail fix, Hebrew loader icon, streamlit pin |
-> | `8345087` | Method picker before search, Ksiv-only app view, Track shown only when it varies |
-> | `9b78ccf` | Search on type-and-click (no Enter needed) |
->
-> On push: HF rebuilds in ~2–3 min. **This is the first rebuild against a pinned
-> streamlit** — verify live before trusting it, and check the loader icon and app
-> view specifically, since both touch Streamlit-internal DOM.
+> **Open items, none blocking:** `sub_id` is not unique (own section below); the
+> variants-toggle redesign (not built); `TODO(site)` on the cleaned-consonants
+> readout; `use_container_width` sweep; and the word-span detail has never been
+> clicked through in a browser (canvas — see gotchas).
 
 ---
 
@@ -35,7 +30,7 @@ HuggingFace Spaces (`sdk: docker`); push to `main` auto-deploys (~2–3 min rebu
 Sequential/Kolel.
 
 **Boundary types:** `Word / ZakefPhrase / TiphchaPhrase / FirstHalf / SecondHalf /
-Verse / Petucha / Setuma / Perek / Parsha`
+Verse / Petucha / Setuma / Perek / Sefer`
 
 Plus one **pseudo-boundary**, `WordSpan` — not stored in the DB; see below.
 
@@ -130,7 +125,7 @@ question where none exists. **Mark a variant only where one actually exists.**
   screen actually contain a `Kri` or `TextVariant` reading. Applied to the phrase
   results, value-search results, span table, and the Tab 2 listing (applied
   *before* label mapping there, since the check reads raw track names).
-- **`Aggregate` is not a reading tradition** — it's a storage tag for Perek/Parsha
+- **`Aggregate` is not a reading tradition** — it's a storage tag for Perek/Sefer
   totals, auto-added to `effective_tracks` when those boundaries are selected. It
   never counts as a variant.
 - **App view is Ksiv-only**: `tracks = ["Ksiv"]`, no selector rendered, Track column
@@ -140,10 +135,11 @@ question where none exists. **Mark a variant only where one actually exists.**
 `doublet_to` are defined on **bare consonants** (e.g. `אחר` → `ואחר`) and usually
 have **no counterpart in the cantillated text**, so substituting into `v.text`
 silently does nothing — this is the fallback `verse_forks` already anticipates.
-The fork instead substitutes **per word** over the consonant list. `render_verse_detail`
-now mirrors that. Consequence, surfaced in the UI rather than left silent: on those
-verses the cantillated line shows the Ksiv spelling while the values follow the
-variant. Only 7 verses / 106 word units in the corpus, all reachable.
+The fork instead substitutes at **word level, once**, via `apply_doublet_to_words`;
+`render_verse_detail` calls the same helper so the two cannot drift (see the fork
+section above — they had drifted). Consequence, surfaced in the UI rather than
+left silent: on those verses the cantillated line shows the Ksiv spelling while
+the values follow the variant. Only 7 verses / 106 word units in the corpus, all reachable.
 
 ---
 
@@ -353,13 +349,13 @@ mode has no picker — it searches every method by design.
 
 | Item | Status |
 |------|--------|
-| **Unpushed work** | `3f1e329`, `8345087`, `9b78ccf` are local only. Production runs `e48a126`. |
+| **`sub_id` is not unique** | 142,635 duplicates — `_base_id` abbreviates the book to first letters, so Exodus/Ezekiel/Ecclesiastes/Esther/Ezra all share `E_5_3_*`. Shown as the SubID column, where it does not identify a row. **Never key analysis on it** — use `(book, chapter, verse, boundary_type, variant_track)`. Own section above. |
 | **Dataframes are canvas-rendered** | **DOM assertions cannot see any table contents** — cell text never reaches the accessibility tree. A Playwright check for a column's presence will pass whether the column is right or hidden always. Test table *contents* at the data layer; use the browser only for surrounding UI. This nearly produced a false pass on the Track-column work. |
 | `streamlit` pinned to `1.58.0` | Pinned deliberately (`3f1e329`): the loader icon and app-view layout target internal test ids (`stStatusWidget`, `stSidebarCollapsedControl`). Upgrade only with a live re-verify of both. |
 | Local `.venv` missing `plotly` | Tab 4 throws locally (`ModuleNotFoundError: plotly`). It IS in `requirements.txt`, so Docker is fine. `pip install plotly` to fix locally. |
 | `use_container_width` deprecation | Streamlit warns it is removed after 2025-12-31 — sweep to `width=`. The pin buys time, not immunity. |
-| HF platform 500s | 2026-07-19 saw a platform-wide HF edge outage (all popular Spaces 500ing; container logs clean). Symptoms: blank first load, "Failed to fetch dynamically imported module", works after refresh. Nothing app-side. |
-| Local `tanach.db` staleness | Schema-versioned by nothing — a stale one throws `no such column`. If local Tab 3 errors, delete `tanach.db` and run `python app.py builddb`. Docker always builds fresh. |
+| **First-load 500, fine on refresh** | **Reproduced 2026-07-19, and it is not app-side.** Right after a rebuild: request 1 hung 108s then returned HTTP 500 with a 3,038-byte body; request 2 returned 200 in 29ms. That body is HuggingFace's error page, not our 3,148-byte `index.html` — which is why no code of ours can intercept it. Causes: the Space is `cpu-basic` with a 48h sleep timer (cold wake ≈10s), and any rebuild restarts the container. Build is confirmed healthy: `builddb` ran 100.4s at image-build time, boot is ~10s, run logs clean. Only real mitigations are a keep-warm ping or a service worker; **Joshua declined the service worker** — it would install resident code on every visitor's device. |
+| Local `tanach.db` staleness | `tanach.db` is a **derived artifact** (gitignored, never regenerates on pull) holding boundary types, consonants, display text and all 34 cipher columns. Docker rebuilds it every build; **locally you must**. Two failure modes: a schema change crashes loudly (`no such column`), but a change to stored *values* fails **silently** — the app runs and serves stale data. After pulling anything that touches stored data: `rm tanach.db && python app.py builddb` (~100s). |
 | Transliteration search | Not built. |
 | On-screen Hebrew keyboard | Still commented out (`_KBD_KEY`). |
 | Auto-nikud for typed input | Deferred; design in Claude memory (corpus lookup first, tiny ONNX nakdan fallback). |
@@ -421,12 +417,20 @@ visible in production.
 
 ## Session Log (2026-07-19, newest first)
 
-*Local, unpushed:*
+*All pushed and live.* ⚠️ marks a commit that changed **stored data** and
+therefore required a `tanach.db` rebuild:
+
+- `31344dc` ⚠️ TextVariant fork: word-level doublet, word-boundary half splits
+- `66206d3` ⚠️ Word-spaced text in result tables (`text_display`)
+- `2beff39` ⚠️ Parsha boundary → Sefer; app-view guide accuracy; Verse+Word defaults
+- `1c02613` App view: reference column, drop Parsha/Value/SubID, move computed values
+- `efc113b` Loader letter aligned with status widget; head snippets replaceable
+- `474ff96` Handoff rewrite
 - `9b78ccf` Search on type-and-click (st.form), no Enter needed
 - `8345087` Method picker before search; Ksiv-only app view; Track only when it varies
 - `3f1e329` Word-span detail scores the span not the verse; Hebrew loader icon; streamlit pinned
 
-*Pushed:*
+*Earlier:*
 - `e48a126` Handoff update (PWA app view, colel exemptions, styling, gotchas)
 - `78f0da5` App title → "Tanach Gematria Search"
 - `7626242` App view: no sidebar
