@@ -2634,6 +2634,27 @@ def run_app() -> None:
         """Drop the Track column unless these rows genuinely vary (see module fn)."""
         return drop_uniform_track(df, app_view)
 
+    # The two heavy Tab 1 scans are cached so re-opening a panel, or touching any
+    # unrelated widget, does not recompute them. `_conn` is underscore-prefixed so
+    # Streamlit skips hashing the connection; `corpus_key` stands in for it, so a
+    # custom Sefaria corpus cannot collide with the bundled one. Sequence args are
+    # tuples because the key must be hashable and stable.
+    @st.cache_data(show_spinner="Scanning word spans…")
+    def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel, tracks):
+        return span_search(_conn, target, cipher, max_span=max_span, colel=colel,
+                           tracks=list(tracks) if tracks else None)
+
+    @st.cache_data(show_spinner="Building cross-method matrix…")
+    def cached_xm_matrix(_conn, corpus_key, a_vals_items, colel, tracks, boundaries):
+        return _xm_count_matrix(_conn, dict(a_vals_items), colel,
+                                list(tracks) if tracks else None,
+                                list(boundaries) if boundaries else None)
+
+    @st.cache_data(show_spinner=False)
+    def cached_boundary_population(_conn, corpus_key, tracks, boundaries):
+        return boundary_population(_conn, list(tracks) if tracks else None,
+                                   list(boundaries) if boundaries else None)
+
     @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
@@ -3545,122 +3566,140 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                          use_container_width=True, hide_index=True)
 
             with st.expander("🔀 Cross-method coincidences", expanded=False):
-                st.caption(
-                    "Rows = your word under **Method A** (value shown); columns = "
-                    "corpus **Method B** searched. Cell = match count, colored by "
-                    "coincidence rate — warmer color = rarer = more notable. "
-                    "Colel, track, and unit filters are shared with the search above."
-                )
-                a_vals = dict(vals)
-                pop = boundary_population(conn, effective_tracks or None, bounds or None) or 1
-                xm_sparse = st.toggle(
-                    "Only show notable coincidences (rate < 5%)", key="xm_sparse"
-                )
-                xm_df = _xm_count_matrix(
-                    conn, a_vals, colel, effective_tracks or None, bounds or None
-                )
-                if xm_sparse:
-                    xm_df = xm_df.where(xm_df / pop < 0.05, 0)
-                rate_mat = xm_df / pop
-                st.dataframe(
-                    xm_df.style.background_gradient(
-                        cmap="YlOrRd_r", axis=None,
-                        gmap=rate_mat.to_numpy(),
-                    ),
-                    use_container_width=True,
-                )
-                st.markdown("**Drill into a pair/s**")
-                dc1, dc2 = st.columns(2)
-                with dc1:
-                    drill_a = st.selectbox(
-                        "Method A", CIPHER_NAMES, key="xm_drill_a",
-                        format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
+                # Streamlit executes an expander body even while it is collapsed, so
+                # this block used to run on every search and every widget interaction.
+                # Opt-in keeps a plain search cheap; once run, the result is cached.
+                if not st.checkbox("Compute cross-method matrix", key="xm_run",
+                                   help="Scans the corpus under all 34 methods to build a 34x34 count matrix. Takes a few seconds, so it is off by default and a plain search does not pay for it."):
+                    st.caption("Off by default — this scan takes a few seconds. "
+                               "Tick to run it; the result is then cached.")
+                else:
+                    st.caption(
+                        "Rows = your word under **Method A** (value shown); columns = "
+                        "corpus **Method B** searched. Cell = match count, colored by "
+                        "coincidence rate — warmer color = rarer = more notable. "
+                        "Colel, track, and unit filters are shared with the search above."
                     )
-                with dc2:
-                    drill_b_list = st.multiselect(
-                        "Method B (one or more)", CIPHER_NAMES,
-                        default=[CIPHER_NAMES[0]], key="xm_drill_b",
-                        format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
+                    a_vals = dict(vals)
+                    pop = cached_boundary_population(
+                        conn, _extra_refs, tuple(effective_tracks or ()),
+                        tuple(bounds or ())) or 1
+                    xm_sparse = st.toggle(
+                        "Only show notable coincidences (rate < 5%)", key="xm_sparse"
                     )
-                drill_val = a_vals[drill_a]
-                for drill_b in (drill_b_list or [CIPHER_NAMES[0]]):
-                    st.markdown(
-                        f"**{drill_a}({_c_raw.strip()}) = {drill_val}** "
-                        f"→ corpus units with **{drill_b} = {drill_val}**"
-                        + (" ± 1" if colel else "")
+                    xm_df = cached_xm_matrix(
+                        conn, _extra_refs, tuple(sorted(a_vals.items())), colel,
+                        tuple(effective_tracks or ()), tuple(bounds or ())
                     )
-                    drill_res = search_value(
-                        conn, drill_b, drill_val, colel, effective_tracks or None, bounds or None
+                    if xm_sparse:
+                        xm_df = xm_df.where(xm_df / pop < 0.05, 0)
+                    rate_mat = xm_df / pop
+                    st.dataframe(
+                        xm_df.style.background_gradient(
+                            cmap="YlOrRd_r", axis=None,
+                            gmap=rate_mat.to_numpy(),
+                        ),
+                        use_container_width=True,
                     )
-                    if drill_res.empty:
-                        st.info(f"No corpus unit matches {drill_a}/{drill_b} at the current filters.")
-                    else:
-                        ev_drill = st.dataframe(
-                            drill_res, use_container_width=True, hide_index=True,
-                            on_select="rerun", selection_mode="single-row",
-                            key=f"xm_drill_sel_{drill_b}",
+                    st.markdown("**Drill into a pair/s**")
+                    dc1, dc2 = st.columns(2)
+                    with dc1:
+                        drill_a = st.selectbox(
+                            "Method A", CIPHER_NAMES, key="xm_drill_a",
+                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
                         )
-                        if ev_drill.selection.rows:
-                            rd = drill_res.iloc[ev_drill.selection.rows[0]]
-                            with st.expander("📜 Verse detail", expanded=True):
-                                render_verse_detail(
-                                    rd["Book"], rd["Chapter"], rd["Verse"],
-                                    rd["Boundary"], matched_text=rd.get("Text"),
-                                    active_method=drill_b,
-                                )
+                    with dc2:
+                        drill_b_list = st.multiselect(
+                            "Method B (one or more)", CIPHER_NAMES,
+                            default=[CIPHER_NAMES[0]], key="xm_drill_b",
+                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
+                        )
+                    drill_val = a_vals[drill_a]
+                    for drill_b in (drill_b_list or [CIPHER_NAMES[0]]):
+                        st.markdown(
+                            f"**{drill_a}({_c_raw.strip()}) = {drill_val}** "
+                            f"→ corpus units with **{drill_b} = {drill_val}**"
+                            + (" ± 1" if colel else "")
+                        )
+                        drill_res = search_value(
+                            conn, drill_b, drill_val, colel, effective_tracks or None, bounds or None
+                        )
+                        if drill_res.empty:
+                            st.info(f"No corpus unit matches {drill_a}/{drill_b} at the current filters.")
+                        else:
+                            ev_drill = st.dataframe(
+                                drill_res, use_container_width=True, hide_index=True,
+                                on_select="rerun", selection_mode="single-row",
+                                key=f"xm_drill_sel_{drill_b}",
+                            )
+                            if ev_drill.selection.rows:
+                                rd = drill_res.iloc[ev_drill.selection.rows[0]]
+                                with st.expander("📜 Verse detail", expanded=True):
+                                    render_verse_detail(
+                                        rd["Book"], rd["Chapter"], rd["Verse"],
+                                        rd["Boundary"], matched_text=rd.get("Text"),
+                                        active_method=drill_b,
+                                    )
 
             with st.expander("🔍 All word-span matches", expanded=False):
-                st.caption(
-                    "Scans every contiguous sequence of 2–N words in the corpus "
-                    "for matches to the same gematria value. Finds patterns that "
-                    "cross structural boundaries (e.g., last word of one phrase + "
-                    "first words of the next)."
-                )
-                sc1, sc2 = st.columns([2, 1])
-                with sc1:
-                    _span_default = active_ciphers[0] if active_ciphers else CIPHER_NAMES[0]
-                    span_cipher = st.selectbox(
-                        "Cipher",
-                        CIPHER_NAMES,
-                        index=CIPHER_NAMES.index(_span_default) if _span_default in CIPHER_NAMES else 0,
-                        format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
-                        key="span_cipher",
-                    )
-                with sc2:
-                    span_max = st.slider("Max words in span", 2, 15, 7, key="span_max")
-                span_tgt = vals[span_cipher]
-                st.markdown(
-                    f"Searching **{span_cipher} = {span_tgt}**"
-                    + (f" (colel ±1: {span_tgt-1}–{span_tgt+1})" if colel else "")
-                )
-                span_df = span_search(
-                    conn, span_tgt, span_cipher,
-                    max_span=span_max, colel=colel,
-                    tracks=effective_tracks or None,
-                )
-                if span_df.empty:
-                    st.info("No multi-word span matches this value with the current settings.")
+                # Streamlit executes an expander body even while it is collapsed, so
+                # this block used to run on every search and every widget interaction.
+                # Opt-in keeps a plain search cheap; once run, the result is cached.
+                if not st.checkbox("Run word-span scan", key="span_run",
+                                   help="Scans every contiguous 2-N word sequence in the corpus. Takes a few seconds, so it is off by default and a plain search does not pay for it."):
+                    st.caption("Off by default — this scan takes a few seconds. "
+                               "Tick to run it; the result is then cached.")
                 else:
-                    st.markdown(f"**{len(span_df)} span match(es)**")
-                    # Internal offset columns stay out of the table; row order is
-                    # unchanged, so selection indices still address span_df.
-                    span_show = shape_result_columns(
-                        hide_uniform_track(
-                            span_df[[c for c in span_df.columns
-                                     if not c.startswith("_")]]),
-                        app_view)
-                    span_event = st.dataframe(
-                        span_show, use_container_width=True, hide_index=True,
-                        on_select="rerun", selection_mode="single-row", key="span_sel")
-                    span_sel = span_event.selection.rows
-                    if span_sel:
-                        sr = span_df.iloc[span_sel[0]]
-                        with st.expander("📜 Verse detail", expanded=True):
-                            render_verse_detail(
-                                sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
-                                "WordSpan", active_method=span_cipher,
-                                span_range=(int(sr["_w0"]), int(sr["_w1"])),
-                                track=sr["Track"], colel=colel)
+                    st.caption(
+                        "Scans every contiguous sequence of 2–N words in the corpus "
+                        "for matches to the same gematria value. Finds patterns that "
+                        "cross structural boundaries (e.g., last word of one phrase + "
+                        "first words of the next)."
+                    )
+                    sc1, sc2 = st.columns([2, 1])
+                    with sc1:
+                        _span_default = active_ciphers[0] if active_ciphers else CIPHER_NAMES[0]
+                        span_cipher = st.selectbox(
+                            "Cipher",
+                            CIPHER_NAMES,
+                            index=CIPHER_NAMES.index(_span_default) if _span_default in CIPHER_NAMES else 0,
+                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
+                            key="span_cipher",
+                        )
+                    with sc2:
+                        span_max = st.slider("Max words in span", 2, 15, 7, key="span_max")
+                    span_tgt = vals[span_cipher]
+                    st.markdown(
+                        f"Searching **{span_cipher} = {span_tgt}**"
+                        + (f" (colel ±1: {span_tgt-1}–{span_tgt+1})" if colel else "")
+                    )
+                    span_df = cached_span_search(
+                        conn, _extra_refs, span_tgt, span_cipher,
+                        span_max, colel, tuple(effective_tracks or ()),
+                    )
+                    if span_df.empty:
+                        st.info("No multi-word span matches this value with the current settings.")
+                    else:
+                        st.markdown(f"**{len(span_df)} span match(es)**")
+                        # Internal offset columns stay out of the table; row order is
+                        # unchanged, so selection indices still address span_df.
+                        span_show = shape_result_columns(
+                            hide_uniform_track(
+                                span_df[[c for c in span_df.columns
+                                         if not c.startswith("_")]]),
+                            app_view)
+                        span_event = st.dataframe(
+                            span_show, use_container_width=True, hide_index=True,
+                            on_select="rerun", selection_mode="single-row", key="span_sel")
+                        span_sel = span_event.selection.rows
+                        if span_sel:
+                            sr = span_df.iloc[span_sel[0]]
+                            with st.expander("📜 Verse detail", expanded=True):
+                                render_verse_detail(
+                                    sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
+                                    "WordSpan", active_method=span_cipher,
+                                    span_range=(int(sr["_w0"]), int(sr["_w1"])),
+                                    track=sr["Track"], colel=colel)
         else:
             st.warning("Enter a Hebrew phrase to search.")
 
