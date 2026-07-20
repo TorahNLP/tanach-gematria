@@ -3642,8 +3642,20 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # Moved down from just under the results heading: it is reference
             # material, not the answer, so it sits with the cross-method block.
             st.markdown("**Computed values across all methods**")
-            st.dataframe(pd.DataFrame([{k: vals[k] for k in _t1_opts if k in vals}]),
+            # Without nikud the vowel-mark methods have nothing to count:
+            # HaNekudot/MiluiNekudot come out 0, and ImHaNekudot/ImMiluiNekudot
+            # come out exactly Standard — which reads like a real result and is
+            # the more misleading of the two. Show "—" so the box never implies
+            # a vowel-mark value was measured.
+            _vals_show = {
+                k: ("—" if (k in NIKUD_CIPHERS and not _has_nikud) else vals[k])
+                for k in _t1_opts if k in vals
+            }
+            st.dataframe(pd.DataFrame([_vals_show]),
                          use_container_width=True, hide_index=True)
+            if not _has_nikud:
+                st.caption("— = needs nikud. Add vowel points to your input to get "
+                           "the four vowel-mark methods.")
 
             with st.expander("🔀 Cross-method coincidences", expanded=False):
                 # Streamlit executes an expander body even while it is collapsed, so
@@ -3683,12 +3695,29 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     )
                     if xm_sparse:
                         xm_df = xm_df.where(xm_df / pop < 0.05, 0)
+                    # gmap is computed before any blanking so it never sees NaN.
                     rate_mat = xm_df / pop
+                    xm_show = xm_df.astype("float")
+                    # With no nikud on the input the four vowel-mark rows are
+                    # meaningless: HaNekudot/MiluiNekudot search 0, and the Im*
+                    # pair search Standard + 0, which looks like a real result
+                    # but carries no vowel information. Blank them to "—" rather
+                    # than showing counts nobody should read. Columns stay live.
+                    dead_rows = ([r for r in xm_show.index
+                                  if r.split(" (")[0] in NIKUD_CIPHERS]
+                                 if not _has_nikud else [])
+                    if dead_rows:
+                        xm_show.loc[dead_rows, :] = float("nan")
+
+                    def _grey_dead(row):
+                        return (["color:#9ca3af;background-color:#f3f4f6"] * len(row)
+                                if row.name in dead_rows else [""] * len(row))
+
                     st.dataframe(
-                        xm_df.style.background_gradient(
+                        xm_show.style.background_gradient(
                             cmap="YlOrRd_r", axis=None,
                             gmap=rate_mat.to_numpy(),
-                        ),
+                        ).apply(_grey_dead, axis=1).format(precision=0, na_rep="—"),
                         use_container_width=True,
                     )
                     st.markdown("**Drill into a pair/s**")
