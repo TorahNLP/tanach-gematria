@@ -3,7 +3,7 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `8a6520a` (Filter matrix by match count; colour by lift)
+**Last code commit:** `90b6c04` (Code review fixes: nikud accuracy warning reaches app view and print export)
 **Last DB-affecting commit:** `8f7b636` — rebuild `tanach.db` if you are older than this
 **Handoff date:** 2026-07-20
 
@@ -370,6 +370,91 @@ it never sees `NaN`. Reordering those lines breaks the gradient.
 
 ---
 
+## Print/Export: Your Word calculation + nikud accuracy warnings (`ea0b5e2`, `90b6c04`)
+
+**The print/download HTML used to show only how the *matched* corpus text
+arrives at its value, never how the user's own searched word does** — even
+though showing both is the point of a "these are equal" result.
+`build_print_html` gained `query_breakdown`/`query_val` and a new **"Calculation
+— Your Word"** section, built by the same `_breakdown_table()` helper now
+shared with the existing (renamed) **"Calculation — Matched Text"** section —
+unqualified when there's no query word (Gematria-value-mode prints have none).
+
+**Found and fixed alongside it:** Section 1's "Value" was silently sourced from
+the *matched* unit's value, not the query's own — identical for an exact match,
+but wrong under colel where they can differ by 1. Now shows `query_val`. Also:
+the Gematria-value-mode call site was passing `query_info=st.session_state.get
+("t1_committed")` — leftover state from an unrelated earlier Hebrew-text search
+(or absent) — now passes `None` rather than print a stale/wrong word.
+
+**App-view verse-detail box simplified.** Dropped from app view only (site
+unchanged, per instruction): "Matched consonants"/"Consonants", the all-methods
+values table, and the "#### Results for `{cons}`" heading. All three are still
+*computed* (the print-out needs them) — only the *display* is gated. This also
+resolved a real mislabelling for HaNekudot/MiluiNekudot: "Matched consonants"
+implied the consonants mattered when only the vowel marks did.
+
+**Download HTML deliberately kept in app view**, though removing it was
+requested — `window.print()` is blocked in the Print button's components
+iframe on iOS (see BUILD.md), so Download HTML is the *only* working export
+path there, in the view built for phones. Flagged rather than silently
+overridden.
+
+**Also fixed:** three Tab 3 echo-pattern functions (`internal_balance_matches`,
+`proximity_echo_matches`, `whole_unit_echo_matches`) were missed by the earlier
+`raw_conn()` sweep — multi-line call sites the original substring replace
+didn't match, still hitting pandas' "untested DBAPI2 object" warning on every
+call. Verified clean under `-W error::UserWarning`.
+
+### Code review found two more real bugs here (`90b6c04`)
+
+`/code-review high` (opus finders + opus verifiers, 8 angles → 7 candidates →
+1 refuted after a 12,692-comparison fuzz test) on the commit above found:
+
+1. **The "Could not locate this unit's pointed text… vowel-mark methods are
+   computed without nikud here" caption was gated behind `if not app_view:`**
+   alongside the (correctly-hidden) values table. That caption is the *only*
+   signal a displayed value is unreliable, not optional chrome — app-view
+   users could land on an unlocatable nikud-cipher match and see an unexplained
+   (often zero) value with **no warning at all**, while site users still got
+   it. **Fixed:** renders in every view now, driven by `match_nikud_unreliable`
+   (computed once, see below).
+2. **The same gap existed in the exported document, and was worse there** —
+   `build_print_html`'s `nikud_warn` only ever checked whether the *query*
+   lacked nikud, never whether the *match*'s pointed text was locatable. The
+   export could show "Your Word" and "Matched Text" totals that flatly
+   disagree (e.g. 50 vs 0) with **zero explanation anywhere in the document**
+   — even on the full site, where the screen caption did warn. **Fixed:**
+   `match_nikud_unreliable` threaded into `build_print_html`, rendered as its
+   own caveat under Matched Text.
+
+Fixing #2 exposed a **placement bug**: the query-side "input has no nikud"
+warning was rendering inside what is now the *Matched Text* section — a
+leftover from before this session added "Your Word." Moved to sit with **Search
+Query** instead (`sec1_warn`), and deliberately **not** nested inside "Your
+Word" — a query with no nikud at all has no breakdown rows, so "Your Word"
+never renders, and the warning would have gone dark for its most direct case.
+
+Minor finding also applied: `locate_vocalized(src_text, cons)` was called twice
+with identical arguments a few lines apart; cached in `_located`, reused for
+both the fallback and the caveat condition.
+
+**Two findings investigated and *not* acted on** — reported for the record:
+- `query_val` (a full 34-cipher `compute_all_ciphers` pass, kept for 1 value)
+  and `cipher_breakdown`'s own total are two independent computations for the
+  same number. A 12,692-comparison fuzz test across every breakdown-bearing
+  cipher found **zero disagreement**, and `cipher_breakdown` *is* the
+  decomposition `compute_all_ciphers` sums — they can't currently diverge.
+  Known duplication, left alone; threading the value through touches multiple
+  call sites for a non-live risk.
+- The inline `if app_view` gating pattern and the `query_info=None` point-fix
+  were both checked for structural fragility and refuted: ~20+ existing
+  `app_view` checks already establish this as house style, and all 7
+  `render_verse_detail` call sites were traced — none but the fixed one are
+  vulnerable to the stale-`query_info` bug class.
+
+---
+
 ## `sub_id` uniqueness (FIXED, `8f7b636`)
 
 `sub_id` used to collide **142,635 times** in 571,521 rows. `_base_id` took the
@@ -539,6 +624,7 @@ mode has no picker — it searches every method by design.
 | On-screen Hebrew keyboard | Still commented out (`_KBD_KEY`). |
 | Auto-nikud for typed input | Deferred; design in Claude memory (corpus lookup first, tiny ONNX nakdan fallback). |
 | ~~Word-span click-through~~ | Confirmed working by the user on 2026-07-19. |
+| **`/code-review high` catches gating bugs verification alone misses** | The print/verse-box work (`ea0b5e2`) was fully browser-verified before push — every check passed — but the review still found two real correctness bugs (both confirmed by an independent verifier, fixed in `90b6c04`). The pattern: an `if not app_view:` gate is easy to write when simplifying a *display* line, easy to miss when one of the lines it's hiding is actually a *warning*, not decoration. Worth a review pass after any display-gating change, not just a browser check. |
 
 ---
 
@@ -594,11 +680,13 @@ visible in production.
 
 ---
 
-## Session Log (2026-07-19, newest first)
+## Session Log (2026-07-20, newest first)
 
 *All pushed and live.* ⚠️ marks a commit that changed **stored data** and
 therefore required a `tanach.db` rebuild:
 
+- `90b6c04` Code review fixes: nikud accuracy warning reaches app view and print export
+- `ea0b5e2` Print shows the searched word's own calculation; simplify app-view verse box
 - `8a6520a` Matrix: filter by match count, colour by lift
 - `b291d94` Show that the 5% threshold moves with the filters
 - `88391af` Docs to `docs` branch; spinner inside panel; explain the rate
