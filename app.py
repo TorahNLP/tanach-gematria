@@ -2245,7 +2245,8 @@ def cipher_breakdown(cipher: str, consonants: str,
 # ---------------------------------------------------------------------------
 
 def build_print_html(query_info, match_info, breakdown_rows, active_method,
-                     colel, vals, query_breakdown=None, query_val=None) -> str:
+                     colel, vals, query_breakdown=None, query_val=None,
+                     match_nikud_unreliable=False) -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -2256,6 +2257,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     calculation sections are labelled "Your Word" / "Matched Text" to
     disambiguate; with only the match breakdown (e.g. Gematria-value-mode
     prints, which have no query word) the heading is unchanged.
+
+    `match_nikud_unreliable` (added later, code review): true when the matched
+    unit's pointed text couldn't be located in its verse, so a vowel-mark
+    cipher's value for it was computed without nikud. Without this, the export
+    could show a "Your Word" total contradicting an uncaveated "Matched Text"
+    total (e.g. 50 vs 0) with no explanation anywhere in the document.
     """
     import html as _h
     from datetime import date as _d
@@ -2318,15 +2325,33 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
   <div class="verse rtl">{hl_verse}</div>
 </div>"""
 
-    # ── Section 3: breakdown ─────────────────────────────────────────────────
-    nikud_warn = ""
+    # ── Query and match accuracy warnings ────────────────────────────────────
     is_nikud = active_method in _NIKUD_SET
-    no_nikud = query_info and not any("ְ" <= c <= "ׇ"
-                                      for c in query_info.get("raw", ""))
-    if is_nikud and no_nikud:
-        nikud_warn = ('<div class="warn">⚠ This cipher counts vowel marks only. '
-                      'The input has no nikud — value is 0. '
-                      'Re-enter with vowel points for a meaningful result.</div>')
+    # Query-side: the QUERY's raw input has no nikud under a vowel-mark method.
+    # This used to render inside what is now the *matched-text* section (sec3)
+    # — a placement left over from before "Your Word" (sec1b) existed, warning
+    # about the wrong half of the document. It now sits with the query, and is
+    # NOT nested inside sec1b, because a query with no nikud at all has no
+    # breakdown rows either (nikud_breakdown returns None), so sec1b would
+    # never render and the warning would never be seen.
+    no_nikud = bool(query_info) and not any("ְ" <= c <= "ׇ"
+                                            for c in query_info.get("raw", ""))
+    sec1_warn = ('<div class="warn">⚠ This cipher counts vowel marks only. '
+                'The input has no nikud — value is 0. '
+                'Re-enter with vowel points for a meaningful result.</div>'
+                if is_nikud and no_nikud else "")
+    # Match-side: the matched unit's pointed text couldn't be located in its
+    # verse, so its vowel-mark value was computed without nikud (often 0).
+    # Found in code review: this used to be an on-screen-only caption gated
+    # behind `if not app_view:` (app-view users saw an unexplained value with
+    # no warning) and never reached the printed/downloaded document at all —
+    # so even on the site, exporting hid the caveat the screen showed.
+    match_nikud_warn = ("<div class=\"warn\">⚠ This match's pointed (vocalised) "
+                        "text could not be located in its verse. Vowel-mark "
+                        "methods for the matched text are computed without "
+                        "nikud, so this total may not reflect the actual "
+                        "reading.</div>"
+                        if is_nikud and match_nikud_unreliable else "")
 
     def _breakdown_table(rows) -> str:
         """Render one method's letter/mark breakdown as an HTML table."""
@@ -2394,13 +2419,13 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         sec3 = f"""
 <div class="sec">
   <div class="sec-title">{sec3_title}</div>
-  {nikud_warn}{_breakdown_table(breakdown_rows)}{note}
+  {match_nikud_warn}{_breakdown_table(breakdown_rows)}{note}
 </div>"""
     else:
         sec3 = f"""
 <div class="sec">
   <div class="sec-title">{sec3_title}</div>
-  {nikud_warn}
+  {match_nikud_warn}
   <p>Total value: <strong>{val}</strong></p>
   <p class="fn">No per-letter breakdown for this method — its total is not a sum
   over letters (digital root, squared total, or a kolel that adds a single term).</p>
@@ -2451,7 +2476,7 @@ table.bd tfoot td{border-top:3px double #000;padding:4px 7px}
 <style>{css}</style></head>
 <body>
 <div class="ph"><span><strong>Tanach Gematria Engine</strong></span><span>{today}</span></div>
-{sec1}{sec1b}{sec2}{sec3}
+{sec1}{sec1_warn}{sec1b}{sec2}{sec3}
 <div class="pf">Generated by Tanach Gematria Search &amp; Structural Pattern Engine</div>
 <script>
 window.onload=function(){{
@@ -3028,10 +3053,16 @@ def run_app() -> None:
         # contradicted the search that produced the row (a Word match found via
         # HaNekudot=50 displayed HaNekudot=0). Recover the pointed text from the
         # parent verse; fall back to matched_text if it cannot be located.
-        if sub_unit and matched_text:
-            cantillated_src = locate_vocalized(src_text, cons) or matched_text
-        else:
-            cantillated_src = src_text
+        # Called once and cached (code review: was called twice with identical
+        # args a few lines apart) — the result also drives match_nikud_unreliable.
+        _located = locate_vocalized(src_text, cons) if sub_unit and matched_text else ""
+        cantillated_src = (_located or matched_text) if sub_unit and matched_text else src_text
+        # True when a vowel-mark cipher's value for this match was computed
+        # without nikud, because the pointed text couldn't be located. Drives
+        # the warning below AND is threaded into the print-out (see the
+        # build_print_html call), since a wrong-looking value needs the same
+        # explanation in every view and in the export, not just on the site.
+        match_nikud_unreliable = bool(sub_unit and matched_text and not _located)
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
         # App view drops the matched-consonants readout and this all-methods
         # table: the panel already opened on the one method the user searched
@@ -3044,10 +3075,14 @@ def run_app() -> None:
         # site for now.
         if not app_view:
             st.dataframe(pd.DataFrame([vals]), width="stretch", hide_index=True)
-            if sub_unit and matched_text and not locate_vocalized(src_text, cons):
-                st.caption("⚠️ Could not locate this unit's pointed text in the "
-                           "verse; vowel-mark methods are computed without "
-                           "nikud here.")
+        # Not part of the app-view simplification above: this says a value the
+        # user is looking at may be WRONG, which matters in every view — code
+        # review found it gated behind `if not app_view:`, so app-view users
+        # saw an unexplained (often zero) value with no warning at all.
+        if match_nikud_unreliable:
+            st.caption("⚠️ Could not locate this unit's pointed text in the "
+                       "verse; vowel-mark methods are computed without "
+                       "nikud here.")
         # Per-letter (or per-vowel-mark) breakdown for the active method
         breakdown_rows = None
         if active_method and active_method in CIPHERS:
@@ -3086,6 +3121,7 @@ def run_app() -> None:
              "boundary": boundary, "highlighted_html": highlighted_html},
             breakdown_rows, active_method or "Standard", colel, vals,
             query_breakdown=query_breakdown, query_val=query_val,
+            match_nikud_unreliable=match_nikud_unreliable,
         )
         _pc, _dc = st.columns(2)
         with _pc:
