@@ -39,6 +39,8 @@ import pathlib
 import re
 import sqlite3
 import sys
+import threading
+import uuid
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -1018,6 +1020,80 @@ class VerseFork:
     fh_word_count: int = 0
 
 
+class ThreadLocalConnection:
+    """Per-thread sqlite3 connections onto one shared in-memory database.
+
+    A single connection cached with `@st.cache_resource` is shared by every
+    Streamlit session *and* every script-runner thread. sqlite3 connections are
+    not safe for concurrent use: overlapping queries raise
+    `sqlite3.InterfaceError: bad parameter or other API misuse` and can take the
+    whole process down with SIGSEGV. That is exactly how the Space died —
+    `RUNTIME_ERROR`, exit code 139 — as soon as two people (or two tabs) searched
+    at the same time.
+
+    Each thread now opens its own connection. They all attach to the same
+    `cache=shared` in-memory database, so the ~370 MB corpus is still built and
+    held once, not per session. Attribute access proxies to this thread's
+    connection, which is enough for pandas' DBAPI2 path (`cursor`, `execute`,
+    `commit`, `rollback`).
+    """
+
+    def __init__(self, opener):
+        self._opener = opener
+        self._local = threading.local()
+        self._keeper = None  # holds the shared memory DB alive; see below
+
+    @property
+    def _conn(self) -> sqlite3.Connection:
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = self._opener()
+            self._local.conn = conn
+        return conn
+
+    def __getattr__(self, name):
+        # Only called for names not found normally, so _opener/_local/_keeper
+        # resolve from the instance dict without recursing.
+        return getattr(self._conn, name)
+
+    def cursor(self, *a, **kw):
+        return self._conn.cursor(*a, **kw)
+
+    def execute(self, *a, **kw):
+        return self._conn.execute(*a, **kw)
+
+
+def raw_conn(conn):
+    """Unwrap a ThreadLocalConnection to this thread's real sqlite3.Connection.
+
+    pandas dispatches on `isinstance(con, sqlite3.Connection)`; handed a proxy it
+    warns ("Other DBAPI2 objects are not tested") and takes an untested path on
+    every query. Unwrapping keeps pandas on its supported path while callers
+    still hold the thread-safe proxy.
+    """
+    return getattr(conn, "_conn", conn)
+
+
+def share_in_memory(source: sqlite3.Connection) -> ThreadLocalConnection:
+    """Copy `source` into a fresh shared-cache in-memory DB and hand back a
+    thread-local handle onto it.
+
+    The `keeper` connection must outlive the proxy: a `mode=memory` database is
+    destroyed when its last connection closes, so dropping it would empty the
+    corpus the moment a worker thread finished.
+    """
+    uri = f"file:gematria_{uuid.uuid4().hex[:12]}?mode=memory&cache=shared"
+
+    def _open() -> sqlite3.Connection:
+        return sqlite3.connect(uri, uri=True, check_same_thread=False)
+
+    keeper = _open()
+    source.backup(keeper)
+    proxy = ThreadLocalConnection(_open)
+    proxy._keeper = keeper
+    return proxy
+
+
 def apply_doublet_to_words(words: List[str], frm: str, to: str):
     """Substitute a doublet in the first word containing it.
 
@@ -1704,7 +1780,7 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
            f"FROM units WHERE " + " AND ".join(where) +
            f" ORDER BY ABS({cipher} - ?), Book, Chapter, Verse LIMIT ?")
     params += [value, limit]
-    return pd.read_sql_query(sql, conn, params=params)
+    return pd.read_sql_query(sql, raw_conn(conn), params=params)
 
 
 def count_value(conn: sqlite3.Connection, cipher: str, value: int,
@@ -1726,7 +1802,7 @@ def count_value(conn: sqlite3.Connection, cipher: str, value: int,
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
     sql = "SELECT COUNT(*) FROM units WHERE " + " AND ".join(where)
-    return int(pd.read_sql_query(sql, conn, params=params).iloc[0, 0])
+    return int(pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0, 0])
 
 
 def boundary_population(conn: sqlite3.Connection,
@@ -1741,7 +1817,7 @@ def boundary_population(conn: sqlite3.Connection,
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
     sql = "SELECT COUNT(*) FROM units" + (" WHERE " + " AND ".join(where) if where else "")
-    return int(pd.read_sql_query(sql, conn, params=params).iloc[0, 0])
+    return int(pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0, 0])
 
 
 def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
@@ -1802,7 +1878,7 @@ def search_value_all_methods(
            f") ORDER BY {method_order}, ABS(Value - ?), Book, Chapter, Verse")
     params += list(CIPHER_NAMES)
     params.append(value)
-    return pd.read_sql_query(sql, conn, params=params)
+    return pd.read_sql_query(sql, raw_conn(conn), params=params)
 
 
 def normalize_query(raw: str) -> str:
@@ -1842,7 +1918,7 @@ def span_search(
         f"FROM units WHERE boundary_type='Word' {track_cond} "
         f"ORDER BY book, chapter, verse, variant_track, rowid"
     )
-    df = pd.read_sql_query(sql, conn, params=params)
+    df = pd.read_sql_query(sql, raw_conn(conn), params=params)
     if df.empty:
         return pd.DataFrame()
 
@@ -1906,7 +1982,7 @@ def _xm_count_matrix(
                     else f"{mb} = {v}")
             cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
     sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
-    row = pd.read_sql_query(sql, conn, params=params).iloc[0]
+    row = pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0]
     n = len(CIPHER_NAMES)
     matrix_rows = {}
     for i, ma in enumerate(CIPHER_NAMES):
@@ -1925,7 +2001,7 @@ def structure_frame(conn: sqlite3.Connection, boundary: str,
     trk = "Aggregate" if boundary in ("Perek", "Sefer") else track
     return pd.read_sql_query(
         "SELECT * FROM units WHERE boundary_type=? AND variant_track=?",
-        conn, params=[boundary, trk])
+        raw_conn(conn), params=[boundary, trk])
 
 
 def extremes_table(conn: sqlite3.Connection,
@@ -2574,13 +2650,18 @@ def run_app() -> None:
         verse_index = {(v.book, v.chapter, v.verse): v for v in verses}
         # Fast path: restore pre-built DB from disk (baked into Docker image).
         # Skips the 20–30s cipher computation on cold starts.
+        # Both paths hand back a ThreadLocalConnection: this object is cached by
+        # @st.cache_resource and therefore shared across every session and
+        # script-runner thread, which a raw sqlite3 connection cannot survive.
         if not extra_refs_key and PREBUILT_DB.exists():
             disk = sqlite3.connect(str(PREBUILT_DB), check_same_thread=False)
-            conn = sqlite3.connect(":memory:", check_same_thread=False)
-            disk.backup(conn)
+            conn = share_in_memory(disk)
             disk.close()
             return conn, len(verses), True, verse_index
-        return build_database(verses), len(verses), fetched_ok, verse_index
+        built = build_database(verses)
+        conn = share_in_memory(built)
+        built.close()
+        return conn, len(verses), fetched_ok, verse_index
 
     def get_connection(extra_refs_key: str):
         nonce = st.session_state.get("sefaria_retry_nonce", 0)
@@ -3977,7 +4058,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     "AND u2.boundary_type='SecondHalf' "
                     "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv'"
                 )
-                row = pd.read_sql_query(sql, _conn).iloc[0]
+                row = pd.read_sql_query(sql, raw_conn(_conn)).iloc[0]
                 total = int(row["total_verses"]) or 1
                 data = [[int(row[f"{mx}_vs_{my}"]) / total for my in _BALANCE_COLS]
                         for mx in _BALANCE_COLS]
