@@ -2331,12 +2331,22 @@ _PWA_HEAD_SNIPPET = (
 # unaffected.
 _LOADER_HEAD_SNIPPET = (
     "<style>"
+    # The widget is display:block and Streamlit renders its own running content
+    # (the Stop control) as a separate block, so an inline letter dropped in
+    # front of it wraps onto its own line above. Force a single centred row.
+    '[data-testid="stStatusWidget"]{display:flex !important;'
+    "flex-direction:row !important;align-items:center !important;"
+    "gap:.35em;white-space:nowrap;}"
     '[data-testid="stStatusWidget"] img,'
     '[data-testid="stStatusWidget"] svg{display:none !important;}'
     ".gem-nakdan{font-family:'Noto Serif Hebrew',David,'Times New Roman',serif;"
     "font-size:1.15rem;font-weight:700;line-height:1;color:#4F46E5;"
     "display:inline-block;min-width:1.25em;text-align:center;"
-    "font-feature-settings:'liga' 0;}"
+    "flex:0 0 auto;font-feature-settings:'liga' 0;}"
+    # When Streamlit is idle the widget is empty, so the letter would be the
+    # only child and would sit in the toolbar on its own. Show it only once
+    # Streamlit has put its running content alongside it.
+    ".gem-nakdan:only-child{display:none !important;}"
     "@media (prefers-color-scheme:dark){.gem-nakdan{color:#A5B4FC;}}"
     "</style>"
     "<script>(function(){"
@@ -2372,21 +2382,35 @@ def _inject_pwa_head() -> None:
     file into the image. Static assets live in ./static (requires
     server.enableStaticServing, see .streamlit/config.toml).
 
-    Each snippet carries its own marker: a previously-patched index.html (a
-    local venv from an earlier release) must still receive newly-added
-    snippets, so one shared guard would wrongly skip them all.
+    Each snippet is wrapped in its own HTML comment delimiters and *replaced* on
+    every run rather than skipped when present. A content marker would make an
+    already-patched index.html ignore later *edits* to a snippet — it would only
+    ever pick up brand-new ones — which silently stranded the loader styling on
+    a stale version once. Docker always starts from a pristine index.html; this
+    matters for a local venv patched by an earlier release.
     """
     try:
         import streamlit as _stlib
         idx = pathlib.Path(_stlib.__file__).parent / "static" / "index.html"
-        html = idx.read_text(encoding="utf-8")
-        original = html
-        for marker, snippet in (
-            ("app/static/manifest.json", _PWA_HEAD_SNIPPET),
-            ("gem-nakdan", _LOADER_HEAD_SNIPPET),
-        ):
-            if marker not in html:
-                html = html.replace("<head>", "<head>" + snippet, 1)
+        html = original = idx.read_text(encoding="utf-8")
+        # Drop un-delimited injections written by earlier releases, so the
+        # delimited blocks below are the single source of truth.
+        html = html.replace(_PWA_HEAD_SNIPPET, "")
+        html = re.sub(r"<style>(?:(?!</style>).)*?gem-nakdan.*?</style>", "",
+                      html, flags=re.S)
+        html = re.sub(r"<script>(?:(?!</script>).)*?gem-nakdan.*?</script>", "",
+                      html, flags=re.S)
+        for name, snippet in (("gem-pwa", _PWA_HEAD_SNIPPET),
+                              ("gem-loader", _LOADER_HEAD_SNIPPET)):
+            start, end = f"<!--{name}-start-->", f"<!--{name}-end-->"
+            block = start + snippet + end
+            pat = re.compile(re.escape(start) + ".*?" + re.escape(end), re.S)
+            if pat.search(html):
+                # lambda, not a replacement string: the snippets contain
+                # backslashes and \g-like sequences that re would interpret.
+                html = pat.sub(lambda _m: block, html)
+            else:
+                html = html.replace("<head>", "<head>" + block, 1)
         if html != original:
             idx.write_text(html, encoding="utf-8")
     except Exception:
