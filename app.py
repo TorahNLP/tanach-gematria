@@ -2734,6 +2734,30 @@ def run_app() -> None:
         return boundary_population(_conn, list(tracks) if tracks else None,
                                    list(boundaries) if boundaries else None)
 
+    @st.cache_data(show_spinner=False)
+    def cached_method_spread(_conn, corpus_key, tracks, boundaries):
+        """Distinct values each method produces over the units in scope.
+
+        Methods differ enormously here — KatanMispari yields 9 distinct values
+        over this corpus, ImMiluiNekudot yields 3,467 — so the average number of
+        units sharing a value runs from ~36,000 down to ~95. Any single
+        share-of-population threshold therefore measures a method's spread far
+        more than it measures rarity. Expected-count per method is what makes
+        cells comparable across columns.
+        """
+        where, params = [], []
+        if tracks:
+            where.append("variant_track IN (%s)" % ",".join("?" * len(tracks)))
+            params += list(tracks)
+        if boundaries:
+            where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
+            params += list(boundaries)
+        clause = (" WHERE " + " AND ".join(where)) if where else ""
+        cols = ", ".join(f"COUNT(DISTINCT {c})" for c in CIPHER_NAMES)
+        row = raw_conn(_conn).execute(f"SELECT {cols} FROM units{clause}",
+                                      params).fetchone()
+        return {c: (n or 1) for c, n in zip(CIPHER_NAMES, row)}
+
     @st.cache_resource(show_spinner="Loading Tanach…")
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
@@ -3679,11 +3703,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 else:
                     st.caption(
                         "Rows = your word under **Method A** (value shown); columns = "
-                        "corpus **Method B** searched. Cell = match count, coloured by "
-                        "*rate* — the cell's matches as a share of the corpus units "
-                        "your filters currently select. Warmer colour = lower rate = "
-                        "rarer = more notable. Colel, track, and unit filters are "
-                        "shared with the search above."
+                        "corpus **Method B** searched. Cell = match count. **Colour = "
+                        "lift**: the cell's matches against what that method typically "
+                        "produces per value, so columns stay comparable even though "
+                        "methods differ hugely in spread (KatanMispari yields 9 "
+                        "distinct values here, ImMiluiNekudot 3,467). Warmer = rarer "
+                        "than typical for its own method; cool = as common or commoner. "
+                        "Colel, track, and unit filters are shared with the search above."
                     )
                     if not _has_nikud:
                         st.caption(
@@ -3702,38 +3728,45 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # "rate" is the share of the searched population a cell
                     # accounts for: matches / units currently in scope. The old
                     # label said "5%" without ever saying 5% of what.
-                    # The threshold is a share of the *current* population, not a
-                    # fixed count — it moves with the Text-units and track
-                    # filters (Verse+Word = 329,997 units; Verse alone = 23,206;
-                    # Sefer alone = 39). Naming the live figure alongside the
-                    # filters makes that dependency visible.
-                    xm_sparse = st.toggle(
-                        f"Only show notable coincidences "
-                        f"(under 5% of the units your filters select — "
-                        f"currently {pop:,}, so under {int(pop * 0.05):,} matches)",
-                        key="xm_sparse",
-                        help=_tip(
-                            "Rate = a cell's match count divided by the corpus units "
-                            "your Text-units and track filters currently select, so "
-                            "the bar moves when you change those filters. Right now "
-                            f"that population is {pop:,}, making the cutoff "
-                            f"{int(pop * 0.05):,} matches. A low rate means few units "
-                            "carry that value, so the coincidence is rarer and more "
-                            "notable. Beware very small populations — with Sefer "
-                            "alone (39 units) 5% is a single match."),
-                    )
-                    # Spinner placed here rather than on the cache decorator:
-                    # the decorator's spinner renders outside the expander and
-                    # overlaps the panel below it.
+                    # Filter by absolute match count, not by share of the
+                    # population. This panel exists to find things you can then
+                    # read: 30,000 matches is unusable however statistically
+                    # interesting it is, and 20 can be looked through. A
+                    # share-of-population rule also measured the wrong thing —
+                    # it called שלום's Milui value "notable" when that value is
+                    # 44x *more* common than typical for Milui.
+                    fc1, fc2 = st.columns([3, 2])
+                    with fc1:
+                        xm_limit = st.slider(
+                            "Hide cells with more than this many matches",
+                            5, 500, 25, step=5, key="xm_limit",
+                            help=_tip("A browsability cutoff: cells you could "
+                                      "actually sit and read. Independent of "
+                                      "corpus size and of how many distinct "
+                                      "values a method happens to produce."))
+                    with fc2:
+                        xm_nolimit = st.checkbox("No limit", key="xm_nolimit",
+                                                 help=_tip("Show every cell."))
                     with st.spinner("Building cross-method matrix…"):
                         xm_df = cached_xm_matrix(
                             conn, _extra_refs, tuple(sorted(a_vals.items())), colel,
                             tuple(effective_tracks or ()), tuple(bounds or ())
                         )
-                    if xm_sparse:
-                        xm_df = xm_df.where(xm_df / pop < 0.05, 0)
+                    # Colour by lift, not by share of population. expected =
+                    # population / distinct values for that method, so each
+                    # column is judged against its own spread; lift < 1 means
+                    # genuinely rarer than typical, lift > 1 commoner.
+                    spread = cached_method_spread(
+                        conn, _extra_refs, tuple(effective_tracks or ()),
+                        tuple(bounds or ()))
+                    expected = {m: max(pop / spread.get(m, 1), 1e-9)
+                                for m in xm_df.columns}
+                    lift_mat = xm_df.astype("float").copy()
+                    for m in lift_mat.columns:
+                        lift_mat[m] = lift_mat[m] / expected[m]
+                    if not xm_nolimit:
+                        xm_df = xm_df.where(xm_df <= xm_limit, other=0)
                     # gmap is computed before any blanking so it never sees NaN.
-                    rate_mat = xm_df / pop
                     xm_show = xm_df.astype("float")
                     # With no nikud on the input the four vowel-mark rows are
                     # meaningless: HaNekudot/MiluiNekudot search 0, and the Im*
@@ -3753,7 +3786,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.dataframe(
                         xm_show.style.background_gradient(
                             cmap="YlOrRd_r", axis=None,
-                            gmap=rate_mat.to_numpy(),
+                            gmap=lift_mat.to_numpy(),
                         ).apply(_grey_dead, axis=1).format(precision=0, na_rep="—"),
                         width="stretch",
                     )
