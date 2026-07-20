@@ -3,14 +3,18 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last pushed commit:** `31344dc` (Fix TextVariant fork: word-level doublet, word-boundary half splits)
+**Last pushed commit:** `0008775` (Blank the vowel-mark methods when the input has no nikud)
 **Handoff date:** 2026-07-19
 
 > ✅ **Everything in this document is pushed and verified live.** Working tree
-> clean at `31344dc`; production is running it. The local `tanach.db` was rebuilt
-> from the same commit, so it is current too.
+> clean at `0008775`; production is running it. The local `tanach.db` was rebuilt
+> from `31344dc`, the last commit that changed stored data, so it is current.
 >
-> **Open items, none blocking:** `sub_id` is not unique (own section below); the
+> ⚠️ **Read the concurrency section first.** The Space went down this session
+> (`RUNTIME_ERROR`, exit 139) because a sqlite connection was shared across
+> Streamlit sessions. That is easy to reintroduce.
+>
+> **Still open, none blocking:** `sub_id` is not unique (own section); the
 > variants-toggle redesign (not built); `TODO(site)` on the cleaned-consonants
 > readout; `use_container_width` sweep; and the word-span detail has never been
 > clicked through in a browser (canvas — see gotchas).
@@ -192,6 +196,109 @@ is provably unchanged — old and new half word-spacing agree on all 23,206 vers
 
 ---
 
+## ⚠️ Never share a sqlite connection across sessions (`31b3f21`)
+
+**The Space died with `RUNTIME_ERROR`, exit code 139 (SIGSEGV)**, raising
+`sqlite3.InterfaceError: bad parameter or other API misuse` from `search_value`.
+
+`_build_connection` returned a single `sqlite3` connection to an in-memory DB,
+cached with `@st.cache_resource` — so it was shared by every Streamlit session
+*and* every script-runner thread. sqlite3 connections are not safe for
+concurrent use: overlapping queries raise `InterfaceError` and can segfault the
+process. **Two people searching at once, or one person in two tabs, is enough.**
+It stayed hidden for so long only because the app rarely had concurrent users;
+parallel browser checks during verification made it reproducible.
+
+`ThreadLocalConnection` now gives each thread its own connection, all attached to
+one `cache=shared` in-memory database, so the corpus is still built and held once
+rather than per session. **The `keeper` connection must stay alive** — a
+`mode=memory` database is destroyed when its last connection closes. `raw_conn()`
+unwraps the proxy for pandas, which dispatches on
+`isinstance(con, sqlite3.Connection)` and otherwise warns and takes an untested
+path on every query.
+
+Reproduction, if you ever need it: 8 threads querying the old shared connection
+raises `DatabaseError`; the new one runs 8 threads × 12 rounds across five query
+functions with zero errors under `-W error::UserWarning`.
+
+**Rule: anything cached with `@st.cache_resource` is shared across sessions and
+threads. Do not put a bare DB connection, cursor, or other stateful client in
+it.**
+
+---
+
+## Performance: expander bodies run while collapsed (`fe6fb2f`)
+
+Searching took ~18s, and picking a nikud method up to ~63s. The cause is a
+Streamlit behaviour worth remembering: **an expander's body executes even while
+the expander is collapsed.** Every search — and every widget interaction, since
+each triggers a full rerun — ran a full-corpus word-span scan *and* a 34×34
+cross-method count matrix, both inside panels that are shut by default. Nothing
+was cached, so it all repeated on every click.
+
+Both panels are now opt-in behind a checkbox, and `span_search`,
+`_xm_count_matrix` and `boundary_population` are wrapped in `@st.cache_data`.
+The connection is passed as `_conn` so Streamlit skips hashing it, with
+`corpus_key` standing in for identity so a custom Sefaria corpus cannot reuse the
+bundled corpus's entries; sequence arguments are tuples so keys stay stable.
+
+| | Before | After |
+|---|---|---|
+| Search settles | 18.6s | **0.7s** |
+| Add HaNekudot | 18.6s | **2.3s** |
+| Add Im HaNekudot | 63.0s | **2.2s** |
+
+Cold vs warm compute is 4.4s against 0.7s. **Measure cache effects with a word
+the cache has not seen** — `st.cache_data` is process-wide, so a previous test on
+the same server will make a "cold" run look instant. That produced a wrong
+measurement once.
+
+---
+
+## Vowel-mark (nikud) methods (`c389659`, `0008775`)
+
+**Bug fixed: the detail panel contradicted the search that produced the row.**
+Result rows carry only bare consonants (`consonants` / `text_display`), and
+`matched_text` was passed straight through as the cantillated source — so every
+vowel-mark cipher scored 0 in the panel. A Word match *found via* `HaNekudot=50`
+displayed `HaNekudot=0`.
+
+`locate_vocalized()` recovers the pointed text from the parent verse by matching
+the shortest consecutive run of words whose consonants equal the matched string.
+Verified: 240 sub-unit rows across all four nikud ciphers now agree with the DB
+exactly. If a unit cannot be located the panel says so rather than silently
+scoring without nikud.
+
+**Breakdowns now exist for these methods** — per mark, not per letter.
+`nikud_breakdown()` lists each mark on ◌ with its Hebrew name and value:
+geometric (dot=10, line=6) for HaNekudot/ImHaNekudot, the gematria of the mark's
+*name* (Gikatilla) for the Milui pair, with the `Im*` variants listing letters
+first, matching how `compute_all_ciphers` builds the total:
+
+```
+MiluiNekudot for יְהוֹשֻׁעַ:  שבא(303) + חולם(84) + קובוץ(204) + פתח(488) = 1079
+```
+
+600 breakdowns checked corpus-wide; every one sums to its cipher value.
+
+**Unpointed input blanks the four methods to "—"** in both the computed-values
+box and the cross-method matrix rows. Without nikud, HaNekudot/MiluiNekudot come
+out 0 and — more misleading — `ImHaNekudot`/`ImMiluiNekudot` come out *exactly
+Standard*, since they are `Standard + 0`. That reads like a real second opinion
+and isn't one.
+
+**The vowel-mark *columns* stay live**, deliberately. They remain valid for
+unpointed input: they ask whether a corpus unit's vowel-mark total equals one of
+your word's other values, which needs no nikud on the input side. Only the rows
+are dead. Note too that **every HaNekudot total is even** (dot=10, line=6;
+verified: 0 odd values in 571,521 rows), so an odd value can never match that
+column — the same property that puts HaNekudot in `COLEL_EXEMPT`.
+
+Implementation detail: the heatmap's `gmap` is computed **before** blanking, so
+it never sees `NaN`. Reordering those lines breaks the gradient.
+
+---
+
 ## ⚠️ OPEN BUG: `sub_id` is not unique
 
 **142,635 duplicate `sub_id` values** out of 571,521 rows. `_base_id` builds the
@@ -349,6 +456,9 @@ mode has no picker — it searches every method by design.
 
 | Item | Status |
 |------|--------|
+| **Never share a DB connection via `@st.cache_resource`** | It is shared across every session and thread. A bare sqlite connection there took the Space down with SIGSEGV once two people searched at the same time. Use `ThreadLocalConnection`; see its section above. |
+| **Expander bodies execute while collapsed** | Streamlit runs the code inside `st.expander` even when it is shut, so anything expensive in one costs every rerun. The two heavy Tab 1 panels are opt-in behind a checkbox for this reason. Do not put an unguarded scan in an expander. |
+| **`st.cache_data` is process-wide** | A "cold" timing measured after an earlier test on the same server is really a warm one. Measure with an input the cache has not seen. |
 | **`sub_id` is not unique** | 142,635 duplicates — `_base_id` abbreviates the book to first letters, so Exodus/Ezekiel/Ecclesiastes/Esther/Ezra all share `E_5_3_*`. Shown as the SubID column, where it does not identify a row. **Never key analysis on it** — use `(book, chapter, verse, boundary_type, variant_track)`. Own section above. |
 | **Dataframes are canvas-rendered** | **DOM assertions cannot see any table contents** — cell text never reaches the accessibility tree. A Playwright check for a column's presence will pass whether the column is right or hidden always. Test table *contents* at the data layer; use the browser only for surrounding UI. This nearly produced a false pass on the Track-column work. |
 | `streamlit` pinned to `1.58.0` | Pinned deliberately (`3f1e329`): the loader icon and app-view layout target internal test ids (`stStatusWidget`, `stSidebarCollapsedControl`). Upgrade only with a live re-verify of both. |
@@ -420,6 +530,11 @@ visible in production.
 *All pushed and live.* ⚠️ marks a commit that changed **stored data** and
 therefore required a `tanach.db` rebuild:
 
+- `0008775` Blank vowel-mark methods when the input has no nikud
+- `c389659` Vowel-mark breakdowns; fix nikud values in the detail panel
+- `fe6fb2f` Opt-in heavy scans + caching (search 18.6s -> 0.7s)
+- `31b3f21` **Fix Space crash**: per-thread sqlite connections (exit 139)
+- `ba7000c` Handoff brought current
 - `31344dc` ⚠️ TextVariant fork: word-level doublet, word-boundary half splits
 - `66206d3` ⚠️ Word-spaced text in result tables (`text_display`)
 - `2beff39` ⚠️ Parsha boundary → Sefer; app-view guide accuracy; Verse+Word defaults
