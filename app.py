@@ -1112,9 +1112,20 @@ def apply_doublet_to_words(words: List[str], frm: str, to: str):
     return list(words), None
 
 
+def book_slug(book: str) -> str:
+    """Collision-free tag for a book name, used to build sub_id.
+
+    The previous scheme took the first letter of each word, capped at 4 chars,
+    which collapsed the 39 books into 18 tags — `J` alone covered Jeremiah, Job,
+    Joel, Jonah, Joshua and Judges, so `J_4_9_Ksiv_W5` named six different rows.
+    That produced 142,635 duplicate sub_ids, made the displayed SubID useless as
+    an identifier, and silently merged unrelated books in anything keyed on it.
+    """
+    return re.sub(r"[^A-Za-z0-9]", "", book) or "Unknown"
+
+
 def _base_id(v: VerseInput) -> str:
-    abbr = "".join(w[0] for w in v.book.split())[:4] or v.book[:4]
-    return f"{abbr}_{v.chapter}_{v.verse}"
+    return f"{book_slug(v.book)}_{v.chapter}_{v.verse}"
 
 
 def fork_verse(v: VerseInput) -> List[VerseFork]:
@@ -1572,9 +1583,9 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                    word_cons=word_cons_agg)
 
     aggregate(lambda f: (f.book, f.chapter), "Perek",
-              lambda k, s: f"PEREK_{k[0]}_{k[1]}")
+              lambda k, s: f"PEREK_{book_slug(k[0])}_{k[1]}")
     aggregate(lambda f: (f.book,), "Sefer",
-              lambda k, s: f"PARSHA_{k[0]}")
+              lambda k, s: f"SEFER_{book_slug(k[0])}")
 
     # ---- Paragraph blocks: accumulate verses until a marker closes a block ----
     block: List[VerseFork] = []
@@ -2963,7 +2974,7 @@ def run_app() -> None:
         else:
             cantillated_src = src_text
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
-        st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
+        st.dataframe(pd.DataFrame([vals]), width="stretch", hide_index=True)
         if sub_unit and matched_text and not locate_vocalized(src_text, cons):
             st.caption("⚠️ Could not locate this unit's pointed text in the verse; "
                        "vowel-mark methods are computed without nikud here.")
@@ -3304,14 +3315,14 @@ def run_app() -> None:
                  "TextVariant (with vav)": spec["to"], "Note": spec["note"]}
                 for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
                 if spec["category"] == "Ittur Sopherim"
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
             st.markdown("**Esther doublets**")
             st.dataframe(pd.DataFrame([
                 {"Reference": f"{b} {c}:{v}", "Received": spec["from"],
                  "Variant": spec["to"], "Note": spec["note"]}
                 for (b, c, v), spec in TEXTUAL_VARIANT_SPECS.items()
                 if spec["category"] == "Doublet"
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
             st.markdown("""
 **Aggregate** — Structural totals (Perek/Sefer sums from Ksiv verses). Not a text variant; a statistical macro-unit.
 
@@ -3320,13 +3331,13 @@ def run_app() -> None:
 
 These 18 places are where the Masoretic tradition records that scribes emended the text — mainly to remove anthropomorphisms or avoid theological offence. The received Masoretic text already contains the corrected reading. The "original" wording is preserved in rabbinic literature (Mekhilta, Sifre Num. §84, Yalkut Shimoni, Tanḥuma). Note: the exact list of 18 varies across sources.
 """)
-            st.dataframe(pd.DataFrame(TIQQUNE_SOPHERIM), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(TIQQUNE_SOPHERIM), width="stretch", hide_index=True)
             st.markdown("""
 **Doublet passages (documented, not engine-forked)**
 
 These are separate references that share nearly identical text — two distinct verses in two different books, not two readings of one verse. The fork engine doesn't apply here; they are best studied by comparing the two passages directly.
 """)
-            st.dataframe(pd.DataFrame(DOUBLET_PASSAGES), use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(DOUBLET_PASSAGES), width="stretch", hide_index=True)
 
         with st.expander("Boundary types"):
             st.dataframe(pd.DataFrame([
@@ -3338,7 +3349,7 @@ These are separate references that share nearly identical text — two distinct 
                 {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
                 {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
                 {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},
-            ]), use_container_width=True, hide_index=True)
+            ]), width="stretch", hide_index=True)
 
         with st.expander("The Rule of the Colel (כּוֹלֵל)"):
             st.markdown("""
@@ -3385,7 +3396,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         help=_tip("Nikud and ta'amim are ignored for most ciphers. "
                                   "For HaNekudot / ImHaNekudot / MiluiNekudot / ImMiluiNekudot, include nikud for accurate results."))
                     submitted = st.form_submit_button(
-                        "🔍 Search", type="primary", use_container_width=True)
+                        "🔍 Search", type="primary", width="stretch")
             with c2:
                 colel = st.toggle("כולל (±1)", value=False,
                                   key="t1_text_colel",
@@ -3440,7 +3451,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # with c3:
             #     st.markdown("<div style='padding-top:1.65em'>", unsafe_allow_html=True)
             #     st.button("⌨", key="t1_kbd_toggle", on_click=_kbd_toggle,
-            #               help="Toggle Hebrew on-screen keyboard", use_container_width=True)
+            #               help="Toggle Hebrew on-screen keyboard", width="stretch")
             #     st.markdown("</div>", unsafe_allow_html=True)
             # _kbd_slot = st.empty()
             # if kbd_open:
@@ -3449,7 +3460,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             #             _cols = st.columns(len(_row))
             #             for _col, _ch in zip(_cols, _row):
             #                 _col.button(_ch, key=f"hk_{_ch}", on_click=_kbd_add,
-            #                             args=(_ch,), use_container_width=True)
+            #                             args=(_ch,), width="stretch")
             #         st.caption("Nikud — click after the consonant")
             #         _NIKUD = [
             #             ("פַּתָּח","ַ"),("קָמַץ","ָ"),("צֵירֵי","ֵ"),
@@ -3460,14 +3471,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             #             _nc = st.columns(3)
             #             for _col, (_name, _mark) in zip(_nc, _NIKUD[_ni:_ni+3]):
             #                 _col.button(f"◌{_mark}\n{_name}", key=f"hk_{_mark}",
-            #                             on_click=_kbd_add, args=(_mark,), use_container_width=True)
+            #                             on_click=_kbd_add, args=(_mark,), width="stretch")
             #         _ctl1, _ctl2, _ctl3 = st.columns(3)
             #         _ctl1.button("Space", key="hk_space", on_click=_kbd_add,
-            #                      args=(" ",), use_container_width=True)
+            #                      args=(" ",), width="stretch")
             #         _ctl2.button("⌫ Delete", key="hk_bksp",
-            #                      on_click=_kbd_bksp, use_container_width=True)
+            #                      on_click=_kbd_bksp, width="stretch")
             #         _ctl3.button("✕ Clear", key="hk_clear",
-            #                      on_click=_kbd_clear, use_container_width=True)
+            #                      on_click=_kbd_clear, width="stretch")
             # ── END ON-SCREEN KEYBOARD ────────────────────────────────────────────────
 
             cons = normalize_query(raw)
@@ -3576,7 +3587,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # here either — except under colel, where it varies.
                     shape_result_columns(hide_uniform_track(res_num_disp),
                                          app_view, drop_value=not colel),
-                    use_container_width=True, hide_index=True,
+                    width="stretch", hide_index=True,
                     on_select="rerun", selection_mode="single-row", key="t1_num_sel")
                 sel_num = event_num.selection.rows
                 if sel_num:
@@ -3626,7 +3637,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         # legitimately differ across the ±1 window.
                         shape_result_columns(hide_uniform_track(res),
                                              app_view, drop_value=not colel),
-                        use_container_width=True, hide_index=True,
+                        width="stretch", hide_index=True,
                         on_select="rerun", selection_mode="single-row",
                         key=f"t1_sel_{cipher}")
                     sel = event.selection.rows
@@ -3652,7 +3663,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 for k in _t1_opts if k in vals
             }
             st.dataframe(pd.DataFrame([_vals_show]),
-                         use_container_width=True, hide_index=True)
+                         width="stretch", hide_index=True)
             if not _has_nikud:
                 st.caption("— = needs nikud. Add vowel points to your input to get "
                            "the four vowel-mark methods.")
@@ -3718,7 +3729,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             cmap="YlOrRd_r", axis=None,
                             gmap=rate_mat.to_numpy(),
                         ).apply(_grey_dead, axis=1).format(precision=0, na_rep="—"),
-                        use_container_width=True,
+                        width="stretch",
                     )
                     st.markdown("**Drill into a pair/s**")
                     dc1, dc2 = st.columns(2)
@@ -3747,7 +3758,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             st.info(f"No corpus unit matches {drill_a}/{drill_b} at the current filters.")
                         else:
                             ev_drill = st.dataframe(
-                                drill_res, use_container_width=True, hide_index=True,
+                                drill_res, width="stretch", hide_index=True,
                                 on_select="rerun", selection_mode="single-row",
                                 key=f"xm_drill_sel_{drill_b}",
                             )
@@ -3808,7 +3819,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                          if not c.startswith("_")]]),
                             app_view)
                         span_event = st.dataframe(
-                            span_show, use_container_width=True, hide_index=True,
+                            span_show, width="stretch", hide_index=True,
                             on_select="rerun", selection_mode="single-row", key="span_sel")
                         span_sel = span_event.selection.rows
                         if span_sel:
@@ -3868,7 +3879,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # Shaped at display time, not before: the filter above still
                 # reads Parsha (which holds the book name, so it filters by book).
                 shape_result_columns(show),
-                use_container_width=True, hide_index=True,
+                width="stretch", hide_index=True,
                 on_select="rerun",
                 selection_mode="single-row",
                 column_config=t2_col_config,
@@ -3895,7 +3906,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             if t2_ciphers is CIPHER_NAMES else
                             "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
-                             use_container_width=True, hide_index=True)
+                             width="stretch", hide_index=True)
 
                 cell_val = int(row2[cipher_pick])
                 st.markdown(
@@ -3912,7 +3923,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     ev_match = st.dataframe(
                         match_df[["Method", "Book", "Chapter", "Verse",
                                   "Boundary", "Text", "Value"]],
-                        use_container_width=True, hide_index=True,
+                        width="stretch", hide_index=True,
                         on_select="rerun", selection_mode="single-row",
                         key="t2_match_sel")
                     st.caption(f"{len(match_df)} match(es) across "
@@ -4058,7 +4069,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                  "Reference A", "Reference B"]
                 if c in unified.columns]
             ev3 = st.dataframe(
-                unified[display_cols], use_container_width=True, hide_index=True,
+                unified[display_cols], width="stretch", hide_index=True,
                 on_select="rerun", selection_mode="single-row", key="t3_sel")
             cap_parts = []
             if n_ib:  cap_parts.append(f"{n_ib:,} Internal Balance")
@@ -4110,7 +4121,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         ext = extremes_table(conn, ["Verse", "Perek", "Sefer",
                                     "Petucha", "Setuma", "Word"])
         if not ext.empty:
-            st.dataframe(ext, use_container_width=True, hide_index=True)
+            st.dataframe(ext, width="stretch", hide_index=True)
             st.caption("All statistics use the **Standard** (Mispar Hechrachi) gematria method.")
 
         st.markdown("#### Value distributions across verses")
@@ -4137,7 +4148,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     labels={c: "Gematria value", "count": "Verses"})
                 fig_h.update_layout(bargap=0.05, height=320,
                                     margin=dict(t=40, b=30, l=40, r=20))
-                st.plotly_chart(fig_h, use_container_width=True,
+                st.plotly_chart(fig_h, width="stretch",
                                 config={"scrollZoom": False})
             st.caption(f"{len(plot_df)} verse(s), each counted once (כְּתִיב Ksiv track). "
                        "Hover for exact counts; click legend to toggle; drag to zoom.")
@@ -4157,7 +4168,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 title="Method correlation (verse totals)")
             fig_corr.update_layout(height=480,
                                    margin=dict(t=50, b=30, l=120, r=20))
-            st.plotly_chart(fig_corr, use_container_width=True,
+            st.plotly_chart(fig_corr, width="stretch",
                             config={"scrollZoom": False})
 
             # ---- Book fingerprint (interactive) ----
@@ -4177,7 +4188,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 fig_bk.update_layout(height=max(350, len(book_means) * 18),
                                      showlegend=False, coloraxis_showscale=False,
                                      margin=dict(t=50, b=30, l=140, r=20))
-                st.plotly_chart(fig_bk, use_container_width=True,
+                st.plotly_chart(fig_bk, width="stretch",
                                 config={"scrollZoom": False})
 
             st.markdown("#### Unrepresented value ranges (Standard)")
@@ -4189,7 +4200,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 gap_df = pd.DataFrame(
                     [{"Range start": g[0], "Range end": g[1],
                       "Width": g[1] - g[0] + 1} for g in dz["gaps"][:50]])
-                st.dataframe(gap_df, use_container_width=True, hide_index=True)
+                st.dataframe(gap_df, width="stretch", hide_index=True)
                 st.caption("Integer ranges with no verse in the loaded corpus. "
                            "Values near wide gaps are statistically rarer.")
 
@@ -4231,7 +4242,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             y="First half — method", color="Rate"),
             )
             fig_xm.update_layout(height=560, margin=dict(t=50, b=30, l=120, r=20))
-            st.plotly_chart(fig_xm, use_container_width=True,
+            st.plotly_chart(fig_xm, width="stretch",
                             config={"scrollZoom": False})
             st.caption(
                 f"Based on {total_verses:,} Tanach verses (Ksiv track) that have both "
