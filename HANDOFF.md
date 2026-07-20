@@ -3,16 +3,18 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `8f7b636` (Unique sub_id; retire use_container_width)
+**Last code commit:** `8a6520a` (Filter matrix by match count; colour by lift)
 **Last DB-affecting commit:** `8f7b636` — rebuild `tanach.db` if you are older than this
-**Handoff date:** 2026-07-19
+**Handoff date:** 2026-07-20
 
-> ✅ **Everything in this document is pushed and verified live**, and the local
-> `tanach.db` was rebuilt from the commit above.
+> ✅ **Everything in this document is pushed and verified live.**
 >
-> This header names the last **code** commit, not the last commit — handoff edits
-> land after it and cannot name themselves. It went stale twice by pointing at
-> "last pushed". **The session log at the bottom is authoritative.**
+> **This file lives on the `docs` branch and is never deployed** — see "Docs are
+> off the deploy path" below. Editing it costs nothing; it used to cost a
+> production restart.
+>
+> The header names the last **code** commit. The session log at the bottom is
+> authoritative.
 >
 > ⚠️ **Read the concurrency section first.** The Space went down this session
 > (`RUNTIME_ERROR`, exit 139) because a sqlite connection was shared across
@@ -196,6 +198,72 @@ helper so display and DB cannot diverge again.
 Verified: 0 display/consonant mismatches across all 571,521 rows; TextVariant
 halves concatenate to their verse 7/7 and are all spaced; and the Ksiv derivation
 is provably unchanged — old and new half word-spacing agree on all 23,206 verses.
+
+---
+
+## Docs are off the deploy path (`88391af`)
+
+HuggingFace rebuilds and restarts the Space on **any** push to the tracked
+branch, including commits that only touch markdown. Four doc-only pushes on
+2026-07-19 each took production down for ~3 minutes for no functional reason,
+and one of those windows was reported as "the site's not loading" — it was just
+me pushing a `.md`.
+
+`HANDOFF.md`, `BUILD.md` and `CLAUDE_CODE_TASKS.md` now live on the **`docs`
+branch** of the same remote. The Space builds `main`, so pushing `docs` deploys
+nothing. **Verified before removing them from `main`:** after pushing the docs
+branch the Space stayed `RUNNING` across eight checks over two minutes and never
+entered `BUILDING`.
+
+```bash
+git worktree add ../tanakh-docs docs   # one-time, if missing
+cd ../tanakh-docs                      # edit docs here
+git add -A && git commit -m "..." && git push space docs   # no rebuild
+```
+
+`README.md` stays on `main` — it carries the Space's YAML config and is required
+there. It points at this branch.
+
+**Corollary worth remembering:** a 500 in the first minutes after *any* push to
+`main` is the restart window, not a symptom. Don't debug it; wait.
+
+---
+
+## Notability: match count, not share of population (`8a6520a`)
+
+The cross-method panel used to filter at "rate < 5%", where rate was a cell's
+matches divided by the units in scope. That measured the wrong thing.
+
+Methods differ enormously in spread over this corpus — **`KatanMispari` produces
+9 distinct values, `ImMiluiNekudot` produces 3,467** — so average units-per-value
+runs from ~36,000 down to ~95. A single share-of-population cutoff therefore
+tracked how many values a method happens to produce, far more than rarity. It
+blanked the entire `KatanMispari` column while passing essentially every
+high-spread cell. And it inverted rarity outright: it called שלום's `Milui` value
+"notable" when that value is **44× more common** than typical for Milui.
+
+Now:
+- **Filter = absolute match count** (default 25, with "No limit"). This is the
+  question the panel actually serves — a cell with 30,000 matches is unusable
+  however interesting, 20 can be read through — and it is stable whether the
+  population is 39 units or 519,350.
+- **Colour = lift**: matches ÷ expected, where `expected = population / distinct
+  values for that method` (`cached_method_spread`). Each column is judged against
+  its own spread. Warm = rarer than typical for that method, cool = as common or
+  commoner. The old colouring used the same broken share measure as the filter.
+
+Verified: `Standard` (lift 2.53) reads cool, `Milui` (0.69) and `ImMiluiNekudot`
+(0.70) warm; at limit 25, 471 of 1,156 cells survive.
+
+---
+
+## Spinner placement (`88391af`)
+
+`@st.cache_data(show_spinner="…")` renders its spinner **outside** the expander,
+where it overlapped the panel below. Both heavy scans now run inside an explicit
+`with st.spinner(...)` in the panel body, with `show_spinner=False` on the
+decorator. Verified by geometry: spinner `2086..2113` inside expander
+`1574..2130`, DOM-contained.
 
 ---
 
@@ -531,6 +599,10 @@ visible in production.
 *All pushed and live.* ⚠️ marks a commit that changed **stored data** and
 therefore required a `tanach.db` rebuild:
 
+- `8a6520a` Matrix: filter by match count, colour by lift
+- `b291d94` Show that the 5% threshold moves with the filters
+- `88391af` Docs to `docs` branch; spinner inside panel; explain the rate
+- `e39dcd0` Handoff: stop the header pointer going stale
 - `1af30f4` Handoff: sub_id fixed, use_container_width retired
 - `8f7b636` ⚠️ Unique sub_id (book_slug); retire use_container_width
 - `b5b0f0c` Handoff: concurrency, performance, vowel-mark fixes
