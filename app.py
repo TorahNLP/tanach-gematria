@@ -2718,12 +2718,12 @@ def run_app() -> None:
     # Streamlit skips hashing the connection; `corpus_key` stands in for it, so a
     # custom Sefaria corpus cannot collide with the bundled one. Sequence args are
     # tuples because the key must be hashable and stable.
-    @st.cache_data(show_spinner="Scanning word spans…")
+    @st.cache_data(show_spinner=False)
     def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel, tracks):
         return span_search(_conn, target, cipher, max_span=max_span, colel=colel,
                            tracks=list(tracks) if tracks else None)
 
-    @st.cache_data(show_spinner="Building cross-method matrix…")
+    @st.cache_data(show_spinner=False)
     def cached_xm_matrix(_conn, corpus_key, a_vals_items, colel, tracks, boundaries):
         return _xm_count_matrix(_conn, dict(a_vals_items), colel,
                                 list(tracks) if tracks else None,
@@ -3679,9 +3679,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 else:
                     st.caption(
                         "Rows = your word under **Method A** (value shown); columns = "
-                        "corpus **Method B** searched. Cell = match count, colored by "
-                        "coincidence rate — warmer color = rarer = more notable. "
-                        "Colel, track, and unit filters are shared with the search above."
+                        "corpus **Method B** searched. Cell = match count, coloured by "
+                        "*rate* — the cell's matches as a share of the corpus units "
+                        "your filters currently select. Warmer colour = lower rate = "
+                        "rarer = more notable. Colel, track, and unit filters are "
+                        "shared with the search above."
                     )
                     if not _has_nikud:
                         st.caption(
@@ -3697,13 +3699,28 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     pop = cached_boundary_population(
                         conn, _extra_refs, tuple(effective_tracks or ()),
                         tuple(bounds or ())) or 1
+                    # "rate" is the share of the searched population a cell
+                    # accounts for: matches / units currently in scope. The old
+                    # label said "5%" without ever saying 5% of what.
                     xm_sparse = st.toggle(
-                        "Only show notable coincidences (rate < 5%)", key="xm_sparse"
+                        f"Only show notable coincidences "
+                        f"(matched by under 5% of the {pop:,} units searched)",
+                        key="xm_sparse",
+                        help=_tip(
+                            "Rate = a cell's match count divided by the number of "
+                            "corpus units your Text-units and track filters "
+                            f"currently select ({pop:,}). A low rate means few "
+                            "units carry that value, so the coincidence is rarer "
+                            "and more notable."),
                     )
-                    xm_df = cached_xm_matrix(
-                        conn, _extra_refs, tuple(sorted(a_vals.items())), colel,
-                        tuple(effective_tracks or ()), tuple(bounds or ())
-                    )
+                    # Spinner placed here rather than on the cache decorator:
+                    # the decorator's spinner renders outside the expander and
+                    # overlaps the panel below it.
+                    with st.spinner("Building cross-method matrix…"):
+                        xm_df = cached_xm_matrix(
+                            conn, _extra_refs, tuple(sorted(a_vals.items())), colel,
+                            tuple(effective_tracks or ()), tuple(bounds or ())
+                        )
                     if xm_sparse:
                         xm_df = xm_df.where(xm_df / pop < 0.05, 0)
                     # gmap is computed before any blanking so it never sees NaN.
@@ -3803,10 +3820,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         f"Searching **{span_cipher} = {span_tgt}**"
                         + (f" (colel ±1: {span_tgt-1}–{span_tgt+1})" if colel else "")
                     )
-                    span_df = cached_span_search(
-                        conn, _extra_refs, span_tgt, span_cipher,
-                        span_max, colel, tuple(effective_tracks or ()),
-                    )
+                    # Inline spinner, same reason as the matrix above.
+                    with st.spinner("Scanning word spans…"):
+                        span_df = cached_span_search(
+                            conn, _extra_refs, span_tgt, span_cipher,
+                            span_max, colel, tuple(effective_tracks or ()),
+                        )
                     if span_df.empty:
                         st.info("No multi-word span matches this value with the current settings.")
                     else:

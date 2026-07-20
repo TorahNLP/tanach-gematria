@@ -24,3 +24,14 @@ Guide & Sources tab with method sources and variant docs.
 See `BUILD.md` for architecture and build reference.
 
 Licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+
+## Developer documentation
+
+Docs live on the **`docs` branch**, not here — HuggingFace rebuilds and restarts
+the Space on any push to `main`, so doc-only edits used to cost a few minutes of
+downtime. `HANDOFF.md` (read first), `BUILD.md` and `CLAUDE_CODE_TASKS.md` are
+there. Check them out beside the code with:
+
+```bash
+git worktree add ../tanakh-docs docs
+```
