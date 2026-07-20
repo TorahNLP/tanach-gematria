@@ -877,6 +877,44 @@ def drop_uniform_track(df, app_view: bool = False):
     return df
 
 
+# Result frames name the chapter/verse pair differently (span_search uses the
+# short form), so reference-collapsing accepts either spelling.
+_REF_COL_SETS = (("Book", "Chapter", "Verse"), ("Book", "Ch", "Vs"))
+
+
+def shape_result_columns(df, app_view: bool = False, drop_value: bool = False):
+    """Trim a result frame for display. Row order and count are never touched,
+    so dataframe selection indices still address the source frame.
+
+    - **Parsha is always dropped.** It holds the book name on every row of the
+      corpus (571,521/571,521), so it carries no information. NOTE: the same gap
+      means the `Parsha` *boundary type* is really book-level aggregation — a
+      data issue in the corpus builder, not something this function can fix.
+    - **Value** is dropped for a single-method table, where the heading already
+      states it and every row matches — but only when colel is off, since ±1
+      makes the per-row value meaningful again.
+    - **App view** collapses Book/Chapter/Verse into one "Amos 3:5" reference
+      and drops SubID, both to save phone width.
+    """
+    if not hasattr(df, "columns"):
+        return df
+    out, drop = df, ["Parsha"]
+    if drop_value:
+        drop.append("Value")
+    if app_view:
+        drop.append("SubID")
+        for book, ch, vs in _REF_COL_SETS:
+            if {book, ch, vs} <= set(out.columns):
+                out = out.copy()
+                out.insert(0, "Reference",
+                           out[book].astype(str) + " " + out[ch].astype(str)
+                           + ":" + out[vs].astype(str))
+                drop += [book, ch, vs]
+                break
+    drop = [c for c in drop if c in out.columns]
+    return out.drop(columns=drop) if drop else out
+
+
 def word_span_token_count(cantillated: str) -> int:
     """Number of words mark_word_span() counts — must equal len(tokenize_words())."""
     marker_spans = [m.span() for m in _MARKER_STRIP_RE.finditer(cantillated)]
@@ -3184,7 +3222,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 
             cons = normalize_query(raw)
             word_cons = " ".join(tokenize_words(raw))
-            st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
+            # TODO(site): revisit whether the full site still needs this readout.
+            # Dropped from app view as clutter — the search echoes the query back
+            # in its results heading anyway.
+            if not app_view:
+                st.markdown(f"**Cleaned consonants:** `{cons or '—'}`")
             if submitted:
                 if cons:
                     st.session_state["t1_committed"] = {
@@ -3277,7 +3319,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 res_num_disp["Method"] = res_num_disp["Method"].map(
                     lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
                 event_num = st.dataframe(
-                    hide_uniform_track(res_num_disp),
+                    # Every row equals the searched value, so Value adds nothing
+                    # here either — except under colel, where it varies.
+                    shape_result_columns(hide_uniform_track(res_num_disp),
+                                         app_view, drop_value=not colel),
                     use_container_width=True, hide_index=True,
                     on_select="rerun", selection_mode="single-row", key="t1_num_sel")
                 sel_num = event_num.selection.rows
@@ -3301,11 +3346,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             st.markdown(f"#### Results for `{_c_cons}`")
             # _t1_opts / active_ciphers come from the method picker above, which
             # renders before a search is committed. App view orders all methods
-            # with the classical (Talmud-attested) ones first.
-            st.markdown("**Computed values across all methods**")
-            st.dataframe(pd.DataFrame([{k: vals[k] for k in _t1_opts if k in vals}]),
-                         use_container_width=True, hide_index=True)
-
+            # with the classical (Talmud-attested) ones first. The computed-values
+            # table itself now renders lower down, just above cross-method.
             _NIKUD_CIPHERS = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
             _has_nikud = any(ch in NIKUD_VALS for ch in _c_raw)
             if any(c in _NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
@@ -3326,7 +3368,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.info("No structural unit in the loaded corpus matches this value.")
                 else:
                     event = st.dataframe(
-                        hide_uniform_track(res),
+                        # drop_value: this table is one method whose value is in
+                        # the heading above — unless colel is on, where rows
+                        # legitimately differ across the ±1 window.
+                        shape_result_columns(hide_uniform_track(res),
+                                             app_view, drop_value=not colel),
                         use_container_width=True, hide_index=True,
                         on_select="rerun", selection_mode="single-row",
                         key=f"t1_sel_{cipher}")
@@ -3339,6 +3385,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 matched_text=row.get("Text"), active_method=cipher,
                                 query_info=st.session_state.get("t1_committed"),
                                 colel=colel)
+
+            # Moved down from just under the results heading: it is reference
+            # material, not the answer, so it sits with the cross-method block.
+            st.markdown("**Computed values across all methods**")
+            st.dataframe(pd.DataFrame([{k: vals[k] for k in _t1_opts if k in vals}]),
+                         use_container_width=True, hide_index=True)
 
             with st.expander("🔀 Cross-method coincidences", expanded=False):
                 st.caption(
@@ -3440,9 +3492,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.markdown(f"**{len(span_df)} span match(es)**")
                     # Internal offset columns stay out of the table; row order is
                     # unchanged, so selection indices still address span_df.
-                    span_show = hide_uniform_track(
-                        span_df[[c for c in span_df.columns
-                                 if not c.startswith("_")]])
+                    span_show = shape_result_columns(
+                        hide_uniform_track(
+                            span_df[[c for c in span_df.columns
+                                     if not c.startswith("_")]]),
+                        app_view)
                     span_event = st.dataframe(
                         span_show, use_container_width=True, hide_index=True,
                         on_select="rerun", selection_mode="single-row", key="span_sel")
@@ -3484,7 +3538,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             show = hide_uniform_track(show)
             if "Track" in show.columns:
                 show["Track"] = show["Track"].map(lambda t: TRACK_LABELS.get(t, t))
-            q = st.text_input("Filter (book / parsha contains)", "")
+            # Parsha holds the book name for every row, so this filters by book
+            # either way — labelled honestly rather than implying parsha search.
+            q = st.text_input("Filter (book contains)", "")
             if q:
                 mask = (show["Book"].str.contains(q, case=False, na=False) |
                         show["Parsha"].str.contains(q, case=False, na=False))
@@ -3501,7 +3557,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             for _c in t2_ciphers:
                 t2_col_config[_c] = st.column_config.NumberColumn(_c, width="small")
             event2 = st.dataframe(
-                show, use_container_width=True, hide_index=True,
+                # Shaped at display time, not before: the filter above still
+                # reads Parsha (which holds the book name, so it filters by book).
+                shape_result_columns(show),
+                use_container_width=True, hide_index=True,
                 on_select="rerun",
                 selection_mode="single-row",
                 column_config=t2_col_config,

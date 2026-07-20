@@ -77,9 +77,11 @@ Deliberately minimal, phone-first:
   `[theme]`/`[theme.dark]` (indigo primaryColor; needs streamlit ≥ 1.46).
 - `_inject_pwa_head()` patches Streamlit's packaged `static/index.html` at import
   time. The Docker build step `RUN python app.py builddb` bakes the patch in.
-  **Each snippet now carries its own marker** (`app/static/manifest.json` for the
-  PWA tags, `gem-nakdan` for the loader) — one shared guard would make an
-  already-patched local venv skip every newly added snippet.
+  **Each snippet is wrapped in `<!--gem-*-start/end-->` delimiters and replaced on
+  every run.** An earlier version keyed on a content marker and therefore only
+  ever picked up *brand-new* snippets, never edits to an existing one — an
+  already-patched venv kept serving stale loader CSS. Un-delimited blocks from
+  older releases are stripped first, so there is exactly one of each.
 - **Install must happen from the direct `.hf.space` URL** — the huggingface.co
   Spaces page iframes the app, so the manifest never reaches the top-level page
   and `?view=app` added there does NOT propagate into the iframe. This caused a
@@ -142,6 +144,44 @@ The fork instead substitutes **per word** over the consonant list. `render_verse
 now mirrors that. Consequence, surfaced in the UI rather than left silent: on those
 verses the cantillated line shows the Ksiv spelling while the values follow the
 variant. Only 7 verses / 106 word units in the corpus, all reachable.
+
+---
+
+## ⚠️ Parsha Is Not Populated (found 2026-07-19)
+
+`parsha` holds the **book name on every row of the corpus** — 571,521/571,521,
+39 distinct parsha values for 39 books. The corpus builder never assigned real
+parshiyot.
+
+Consequences:
+- The `Parsha` column is pure duplication and is now dropped from every result
+  table by `shape_result_columns`.
+- **More seriously: the `Parsha` *boundary type* is really book-level
+  aggregation**, and Tab 2's "Browse by Parsha" browses by book. Any gematria
+  total labelled "Parsha" is a whole-book total. This is a data gap in
+  `fetch_corpus.py`, not a display bug — fixing it means assigning parsha ranges
+  to verses at corpus build time. **Not yet fixed.**
+
+---
+
+## Result Table Shaping (`shape_result_columns`)
+
+Row order and count are never touched, so dataframe selection indices still
+address the source frame — every caller relies on that.
+
+- **Parsha** — always dropped (see above).
+- **Value** — dropped for a single-method table, where the heading states it and
+  every row matches. **Kept when colel is on**, since ±1 makes each row's value
+  meaningful again.
+- **App view only** — Book/Chapter/Verse collapse to one `Amos 3:5` reference
+  column, and SubID is dropped, to save phone width. Handles both column
+  spellings (`Chapter`/`Verse` and span_search's `Ch`/`Vs`).
+
+Also app-view only: **no "Cleaned consonants" readout**, and the computed-values
+table sits at the bottom, just above cross-method coincidences, rather than
+directly under the results heading.
+`TODO(site)`: decide whether the full site still wants the cleaned-consonants
+readout — currently kept there, dropped only in app view.
 
 ---
 
