@@ -3,12 +3,16 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last pushed commit:** `0008775` (Blank the vowel-mark methods when the input has no nikud)
+**Last code commit:** `8f7b636` (Unique sub_id; retire use_container_width)
+**Last DB-affecting commit:** `8f7b636` — rebuild `tanach.db` if you are older than this
 **Handoff date:** 2026-07-19
 
-> ✅ **Everything in this document is pushed and verified live.** Working tree
-> clean at `0008775`; production is running it. The local `tanach.db` was rebuilt
-> from `31344dc`, the last commit that changed stored data, so it is current.
+> ✅ **Everything in this document is pushed and verified live**, and the local
+> `tanach.db` was rebuilt from the commit above.
+>
+> This header names the last **code** commit, not the last commit — handoff edits
+> land after it and cannot name themselves. It went stale twice by pointing at
+> "last pushed". **The session log at the bottom is authoritative.**
 >
 > ⚠️ **Read the concurrency section first.** The Space went down this session
 > (`RUNTIME_ERROR`, exit 139) because a sqlite connection was shared across
@@ -527,6 +531,7 @@ visible in production.
 *All pushed and live.* ⚠️ marks a commit that changed **stored data** and
 therefore required a `tanach.db` rebuild:
 
+- `1af30f4` Handoff: sub_id fixed, use_container_width retired
 - `8f7b636` ⚠️ Unique sub_id (book_slug); retire use_container_width
 - `b5b0f0c` Handoff: concurrency, performance, vowel-mark fixes
 - `0008775` Blank vowel-mark methods when the input has no nikud
