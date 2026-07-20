@@ -1,26 +1,29 @@
----
-title: Tanach Gematria Engine
-emoji: 📜
-colorFrom: indigo
-colorTo: gray
-sdk: docker
-pinned: false
----
+# Tanach Gematria — developer docs
 
-Multi-method Hebrew gematria search engine, structural pattern database, and
-statistical dashboard over the Tanach.
+Documentation branch for [TorahNLP/tanach-gematria](https://huggingface.co/spaces/TorahNLP/tanach-gematria).
 
-**12 gematria methods:** Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad, Siduri,
-Ribua, Kidmi, Achbi, HaNikud (vowel-point dot count).
+**This branch is never deployed.** The Space builds `main`; pushing here does not
+rebuild or restart the running app. That is the whole point of the split — doc
+edits used to cost a production outage, because HuggingFace rebuilds on any push
+to the tracked branch regardless of what changed.
 
-**Full corpus:** 23,206 cantillated Masoretic verses, bundled (sourced from Sefaria).
+| File | What it is |
+|------|------------|
+| `HANDOFF.md` | Session handoff — read this first |
+| `BUILD.md` | Build and deploy notes |
+| `CLAUDE_CODE_TASKS.md` | Task scratchpad |
 
-**Features:** Atnach-based half-verse splitting · Ksiv/Kri + Masoretic textual
-variant forking (Itture Sopherim, Esther doublets) · Colel (±1) search ·
-pattern detection (internal balance, proximity echoes, macro-micro resonances) ·
-correlation & fingerprint heatmaps · letter-by-letter breakdown visualization ·
-Guide & Sources tab with method sources and variant docs.
+## Working on the docs
 
-See `BUILD.md` for architecture and build reference.
+This branch is checked out as a git worktree beside the code:
 
-Licensed under [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/).
+```bash
+# one-time, if the worktree is missing:
+git worktree add ../tanakh-docs docs
+
+cd ../tanakh-docs      # edit HANDOFF.md etc. here
+git add -A && git commit -m "..."
+git push space docs    # no rebuild, no downtime
+```
+
+Code changes still go through `main` in the main checkout, and those *do* deploy.
