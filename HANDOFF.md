@@ -173,6 +173,44 @@ real Parsha boundary would be Torah-only and largely redundant with what exists.
 
 ---
 
+## ⚠️ OPEN BUG: TextVariant half-verse splits break mid-word
+
+`fork_verse` builds the doublet fork's halves from `doub_text`, and when the
+substitution exists only in the bare consonants it falls back to splitting
+`doub_cons` **at the Ksiv first-half character length**. The substitution changes
+the string length, so that offset is wrong and the split lands mid-word.
+
+Genesis 18:5 TextVariant: FirstHalf ends `...עלעבדכ` and SecondHalf opens with a
+stray `ם`. **11 rows affected**, all TextVariant, in FirstHalf/SecondHalf/Verse.
+Their half-verse cipher values are therefore computed on mis-split text.
+
+Surfaced (not caused) by the spaced-display work, which asserts
+`display.replace(" ", "") == consonants` and found these disagreeing. Those rows
+now fall back to unspaced display so the table never shows text that isn't what
+matched — but **the underlying split is still wrong and unfixed.** A real fix
+means splitting the variant text on a word boundary rather than a character
+offset, in `fork_verse`.
+
+---
+
+## Spaced Result Text (`_display_form`)
+
+`text_display` holds the **word-spaced** form so a match is legible in the result
+table without opening the verse panel; `consonants` remains the unspaced string
+every cipher and lookup runs on. Result queries select `text_display AS Text`.
+
+`_display_form` enforces `display.replace(" ", "") == consonants` at insert time
+rather than trusting it — that assertion is what caught the fork bug above.
+Word units pass no `word_cons` (a single word needs no spacing) and fall back
+harmlessly. 216,139 of 571,521 rows carry spacing; the rest are single words.
+
+Note: `matched_text` passed to `render_verse_detail` is now spaced, which is safe
+because every consumer runs it through `strip_to_consonants` first.
+
+**Changing this requires a DB rebuild** — `rm tanach.db && python app.py builddb`.
+
+---
+
 ## Result Table Shaping (`shape_result_columns`)
 
 Row order and count are never touched, so dataframe selection indices still

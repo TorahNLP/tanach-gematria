@@ -882,6 +882,25 @@ def drop_uniform_track(df, app_view: bool = False):
 _REF_COL_SETS = (("Book", "Chapter", "Verse"), ("Book", "Ch", "Vs"))
 
 
+def _display_form(cons: str, disp: str = None, word_cons: str = "") -> str:
+    """Word-spaced text for result tables, guaranteed to describe `cons`.
+
+    Spacing makes a match legible in the table without opening the verse panel.
+    `consonants` remains the unspaced form every cipher and lookup runs on, so
+    the display is only ever a rendering of it — never a different reading.
+
+    The invariant `display.replace(" ", "") == cons` is enforced here rather than
+    assumed. It fails on 11 TextVariant rows whose word list and consonant string
+    disagree, because the doublet fork splits half-verses at a *character* offset
+    borrowed from the Ksiv text (see fork_verse) and the substitution shifts that
+    offset, breaking mid-word. Those rows fall back to the unspaced form so the
+    table can never show text that isn't what matched. The fork bug itself is
+    still open — see HANDOFF.
+    """
+    candidate = disp or word_cons or cons
+    return candidate if candidate.replace(" ", "") == cons else cons
+
+
 def shape_result_columns(df, app_view: bool = False, drop_value: bool = False):
     """Trim a result frame for display. Row order and count are never touched,
     so dataframe selection indices still address the source frame.
@@ -1377,7 +1396,8 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                  variant_track, consonants, text_display, {CIPHER_INSERT_COLS})
                 VALUES (?,?,?,?,?,?,?,?,?,{CIPHER_PLACEHOLDERS})""",
             (sub_id, book, chapter, verse, parsha, boundary, track, cons,
-             disp or cons, *_cipher_tuple(cons, cantillated, word_cons)),
+             _display_form(cons, disp, word_cons),
+             *_cipher_tuple(cons, cantillated, word_cons)),
         )
 
     # ---- Micro structures: words, half-verses, full verses (per fork) ----
@@ -1651,7 +1671,7 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
         params += boundaries
     sql = (f"SELECT book AS Book, chapter AS Chapter, verse AS Verse, "
            f"boundary_type AS Boundary, variant_track AS Track, "
-           f"consonants AS Text, {cipher} AS Value, sub_id AS SubID "
+           f"text_display AS Text, {cipher} AS Value, sub_id AS SubID "
            f"FROM units WHERE " + " AND ".join(where) +
            f" ORDER BY ABS({cipher} - ?), Book, Chapter, Verse LIMIT ?")
     params += [value, limit]
@@ -1739,7 +1759,7 @@ def search_value_all_methods(
             f"SELECT * FROM ("
             f"SELECT '{c}' AS Method, book AS Book, chapter AS Chapter, "
             f"verse AS Verse, boundary_type AS Boundary, variant_track AS Track, "
-            f"consonants AS Text, {c} AS Value, sub_id AS SubID "
+            f"text_display AS Text, {c} AS Value, sub_id AS SubID "
             f"FROM units WHERE " + " AND ".join(where) +
             f" LIMIT {int(limit_per_method)})"
         )
