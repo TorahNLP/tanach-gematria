@@ -3702,16 +3702,25 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # "rate" is the share of the searched population a cell
                     # accounts for: matches / units currently in scope. The old
                     # label said "5%" without ever saying 5% of what.
+                    # The threshold is a share of the *current* population, not a
+                    # fixed count — it moves with the Text-units and track
+                    # filters (Verse+Word = 329,997 units; Verse alone = 23,206;
+                    # Sefer alone = 39). Naming the live figure alongside the
+                    # filters makes that dependency visible.
                     xm_sparse = st.toggle(
                         f"Only show notable coincidences "
-                        f"(matched by under 5% of the {pop:,} units searched)",
+                        f"(under 5% of the units your filters select — "
+                        f"currently {pop:,}, so under {int(pop * 0.05):,} matches)",
                         key="xm_sparse",
                         help=_tip(
-                            "Rate = a cell's match count divided by the number of "
-                            "corpus units your Text-units and track filters "
-                            f"currently select ({pop:,}). A low rate means few "
-                            "units carry that value, so the coincidence is rarer "
-                            "and more notable."),
+                            "Rate = a cell's match count divided by the corpus units "
+                            "your Text-units and track filters currently select, so "
+                            "the bar moves when you change those filters. Right now "
+                            f"that population is {pop:,}, making the cutoff "
+                            f"{int(pop * 0.05):,} matches. A low rate means few units "
+                            "carry that value, so the coincidence is rarer and more "
+                            "notable. Beware very small populations — with Sefer "
+                            "alone (39 units) 5% is a single match."),
                     )
                     # Spinner placed here rather than on the cache decorator:
                     # the decorator's spinner renders outside the expander and
