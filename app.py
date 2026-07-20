@@ -2044,16 +2044,83 @@ def density_gaps(conn: sqlite3.Connection, cipher: str = "Standard",
 # SECTION 8b.  CIPHER BREAKDOWN HELPER (for in-UI letter-by-letter display)
 # ---------------------------------------------------------------------------
 
+# Display names for the vowel marks, so a nikud breakdown can say which mark it
+# counted rather than printing a bare combining character.
+NEKUDA_NAMES: Dict[str, str] = {
+    "ְ": "שבא", "ֱ": "חטף סגול", "ֲ": "חטף פתח", "ֳ": "חטף קמץ",
+    "ִ": "חיריק", "ֵ": "צרי", "ֶ": "סגול", "ַ": "פתח", "ָ": "קמץ",
+    "ֹ": "חולם", "ֺ": "חולם חסר", "ֻ": "קובוץ", "ּ": "דגש",
+}
+
+NIKUD_CIPHERS = ("HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot")
+
+
+def locate_vocalized(cantillated: str, matched_cons: str) -> str:
+    """Find the vocalised text of a sub-unit, given only its bare consonants.
+
+    Result rows store `consonants` / `text_display` with no nikud, so feeding
+    `matched_text` to the vowel-mark ciphers scored them as 0 — the detail panel
+    contradicted the very search that produced the row. Recovering the pointed
+    text from the parent verse fixes the values and lets the breakdown name each
+    mark. Matches the shortest consecutive run of words whose consonants equal
+    `matched_cons`; returns "" when nothing lines up, so callers can fall back.
+    """
+    if not cantillated or not matched_cons:
+        return ""
+    raw = _tokenize_raw_words(cantillated)
+    cons = [strip_to_consonants(w) for w in raw]
+    for i in range(len(raw)):
+        acc = ""
+        for j in range(i, len(raw)):
+            acc += cons[j]
+            if acc == matched_cons:
+                return " ".join(raw[i:j + 1])
+            if len(acc) >= len(matched_cons):
+                break
+    return ""
+
+
+def nikud_breakdown(cipher: str, cantillated: str,
+                    consonants: str = "") -> Optional[List[Tuple[str, int]]]:
+    """Per-mark breakdown for the vowel-mark ciphers.
+
+    HaNekudot / ImHaNekudot count each mark's geometry (dot=10, line=6);
+    MiluiNekudot / ImMiluiNekudot count the gematria of the mark's Hebrew *name*
+    (Gikatilla, Ginnat Egoz). The Im* pair also sum Standard over the letters, so
+    those letters are listed first — matching how `compute_all_ciphers` builds
+    the total. Marks are shown on ◌ (U+25CC) so a combining character is legible.
+    """
+    if cipher not in NIKUD_CIPHERS or not cantillated:
+        return None
+    table = (NEKUDA_NAME_VALS
+             if cipher in ("MiluiNekudot", "ImMiluiNekudot") else NIKUD_VALS)
+    rows: List[Tuple[str, int]] = []
+    if cipher.startswith("Im"):
+        for ch in consonants:
+            val = STANDARD.get(_normalize_final(ch), 0)
+            if val:
+                rows.append((ch, val))
+    for ch in cantillated:
+        val = table.get(ch)
+        if val:
+            name = NEKUDA_NAMES.get(ch, "")
+            rows.append((f"◌{ch} {name}".strip(), val))
+    return rows or None
+
+
 def cipher_breakdown(cipher: str, consonants: str,
-                     word_consonants: str = "") -> Optional[List[Tuple[str, int]]]:
+                     word_consonants: str = "",
+                     cantillated: str = "") -> Optional[List[Tuple[str, int]]]:
     """Return [(display_label, letter_value)] for equation display in the UI.
 
     Returns None for ciphers with no letter-level breakdown (nikud ciphers,
     KatanMispari, HaMerubahKlali, KololEhad, KololOtiyot) or empty input.
     word_consonants (space-separated) drives word-boundary-aware ciphers.
     """
-    _NO_BREAKDOWN = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot",
-                     "KatanMispari", "HaMerubahKlali", "KololEhad", "KololOtiyot"}
+    # Vowel-mark ciphers do have a breakdown — per mark, not per letter.
+    if cipher in NIKUD_CIPHERS:
+        return nikud_breakdown(cipher, cantillated, consonants)
+    _NO_BREAKDOWN = {"KatanMispari", "HaMerubahKlali", "KololEhad", "KololOtiyot"}
     if cipher in _NO_BREAKDOWN or not consonants:
         return None
     result: List[Tuple[str, int]] = []
@@ -2294,7 +2361,8 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
   <div class="sec-title">Calculation — {method}</div>
   {nikud_warn}
   <p>Total value: <strong>{val}</strong></p>
-  <p class="fn">Letter-by-letter breakdown is not available for vowel-mark ciphers.</p>
+  <p class="fn">No per-letter breakdown for this method — its total is not a sum
+  over letters (digital root, squared total, or a kolel that adds a single term).</p>
 </div>"""
 
     css = """
@@ -2885,13 +2953,25 @@ def run_app() -> None:
             w_cons = span_w_cons or cons
         else:
             w_cons = " ".join(tokenize_words(src_text))
-        cantillated_src = matched_text if (sub_unit and matched_text) else src_text
+        # Result rows carry only bare consonants, so passing matched_text
+        # straight through scored every vowel-mark cipher as 0 — the panel
+        # contradicted the search that produced the row (a Word match found via
+        # HaNekudot=50 displayed HaNekudot=0). Recover the pointed text from the
+        # parent verse; fall back to matched_text if it cannot be located.
+        if sub_unit and matched_text:
+            cantillated_src = locate_vocalized(src_text, cons) or matched_text
+        else:
+            cantillated_src = src_text
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
         st.dataframe(pd.DataFrame([vals]), use_container_width=True, hide_index=True)
-        # Letter-by-letter breakdown for the active method
+        if sub_unit and matched_text and not locate_vocalized(src_text, cons):
+            st.caption("⚠️ Could not locate this unit's pointed text in the verse; "
+                       "vowel-mark methods are computed without nikud here.")
+        # Per-letter (or per-vowel-mark) breakdown for the active method
         breakdown_rows = None
         if active_method and active_method in CIPHERS:
-            breakdown_rows = cipher_breakdown(active_method, cons, w_cons)
+            breakdown_rows = cipher_breakdown(active_method, cons, w_cons,
+                                              cantillated=cantillated_src)
             if breakdown_rows:
                 parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown_rows)
                 total = sum(val for _, val in breakdown_rows)
@@ -3580,6 +3660,16 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         "coincidence rate — warmer color = rarer = more notable. "
                         "Colel, track, and unit filters are shared with the search above."
                     )
+                    if not _has_nikud:
+                        st.caption(
+                            "Your input has no nikud, so the four vowel-mark **rows** "
+                            "search a value of 0 and mean nothing. The vowel-mark "
+                            "**columns** are still valid — they ask whether any corpus "
+                            "unit's vowel-mark total equals one of your word's other "
+                            "values, which does not require nikud on your input. Note "
+                            "that every HaNekudot total is even (dot=10, line=6), so an "
+                            "odd value can never match that column."
+                        )
                     a_vals = dict(vals)
                     pop = cached_boundary_population(
                         conn, _extra_refs, tuple(effective_tracks or ()),
