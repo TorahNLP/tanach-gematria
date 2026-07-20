@@ -1011,6 +1011,29 @@ class VerseFork:
     paragraph_marker: Optional[str]
     words: List[str] = field(default_factory=list)
     cantillated_text: str = ""  # full cantillated verse (for nikud ciphers)
+    # Number of `words` belonging to the first half. Carried on the fork so the
+    # half-verse word spacing is derived from this fork's own word list rather
+    # than re-tokenising cantillated_text -- which for a TextVariant fork is the
+    # unsubstituted text and therefore disagrees with its consonants.
+    fh_word_count: int = 0
+
+
+def apply_doublet_to_words(words: List[str], frm: str, to: str):
+    """Substitute a doublet in the first word containing it.
+
+    Returns `(new_words, index)`, or `(words, None)` when it does not apply.
+
+    Word-level and single-occurrence on purpose. Substituting on the
+    *concatenated* consonant string can match across a word boundary or land
+    inside the wrong word, while replacing in *every* matching word disagrees
+    with that in turn — the two used to be done separately and drift apart.
+    Deriving the fork's consonants, halves and word list from this one result
+    keeps them consistent by construction.
+    """
+    for i, w in enumerate(words):
+        if frm in w:
+            return words[:i] + [w.replace(frm, to, 1)] + words[i + 1:], i
+    return list(words), None
 
 
 def _base_id(v: VerseInput) -> str:
@@ -1031,6 +1054,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
 
     # --- Track A: Ksiv (ground-truth written consonants) ---
     fh, sh = split_halves_by_atnach(v.text)
+    fh_wc_ksiv, _ = split_halves_word_cons(v.text)
     forks.append(VerseFork(
         sub_id=f"{bid}_Ksiv", book=v.book, chapter=v.chapter, verse=v.verse,
         parsha=v.parsha, variant_track="Ksiv",
@@ -1038,6 +1062,7 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
         first_half=fh, second_half=sh, paragraph_marker=marker,
         words=tokenize_words(v.text),
         cantillated_text=v.text,
+        fh_word_count=len(fh_wc_ksiv.split()),
     ))
 
     # --- Track B: Kri (vocalised / read tradition) ---
@@ -1051,32 +1076,35 @@ def fork_verse(v: VerseInput) -> List[VerseFork]:
                 full_consonants=kri_full, first_half=kfh, second_half=ksh,
                 paragraph_marker=marker, words=tokenize_words(v.kri_text),
                 cantillated_text=v.kri_text,
+                fh_word_count=len(split_halves_word_cons(v.kri_text)[0].split()),
             ))
 
     # --- Doublet: textual-variant alternative reading ---
     if v.doublet_from and v.doublet_to:
-        base_cons = forks[0].full_consonants
-        if v.doublet_from in base_cons:
-            doub_cons = base_cons.replace(v.doublet_from, v.doublet_to, 1)
-            # Re-derive halves from the substituted source text so that
-            # first_half + second_half == doub_cons even when the substitution
-            # word straddles the Asnachta boundary.
+        doub_words, hit = apply_doublet_to_words(
+            forks[0].words, v.doublet_from, v.doublet_to)
+        if hit is not None:
+            doub_cons = "".join(doub_words)
+            # Split at the same *word index* as the Ksiv half-verse split. The
+            # previous code split the substituted consonant string at the Ksiv
+            # first-half **character** length; the substitution changes the
+            # string's length, so that offset landed mid-word (Genesis 18:5
+            # FirstHalf ended mid-word, its SecondHalf opened on the orphaned
+            # final letter). A word index cannot drift, and the two halves
+            # concatenate back to doub_cons by construction.
+            fh_wc, _ = split_halves_word_cons(v.text)
+            k = len(fh_wc.split())
+            dfh = "".join(doub_words[:k])
+            dsh = "".join(doub_words[k:])
             doub_text = v.text.replace(v.doublet_from, v.doublet_to, 1)
-            dfh, dsh = split_halves_by_atnach(doub_text)
-            if dfh + dsh != doub_cons:
-                # Fallback: substitution only exists in bare consonants, not in
-                # the cantillated text; split doub_cons at the Ksiv first-half length.
-                fh_len = len(forks[0].first_half)
-                dfh = doub_cons[:fh_len]
-                dsh = doub_cons[fh_len:]
             forks.append(VerseFork(
                 sub_id=f"{bid}_Variant", book=v.book, chapter=v.chapter,
                 verse=v.verse, parsha=v.parsha, variant_track="TextVariant",
                 full_consonants=doub_cons, first_half=dfh, second_half=dsh,
                 paragraph_marker=marker,
-                words=[w.replace(v.doublet_from, v.doublet_to, 1)
-                       if v.doublet_from in w else w for w in forks[0].words],
+                words=doub_words,
                 cantillated_text=doub_text,
+                fh_word_count=k,
             ))
     return forks
 
@@ -1416,7 +1444,8 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
 
     for f in all_forks:
         verse_wc = " ".join(f.words)
-        fh_wc, sh_wc = split_halves_word_cons(f.cantillated_text)
+        fh_wc = " ".join(f.words[:f.fh_word_count])
+        sh_wc = " ".join(f.words[f.fh_word_count:])
         fh_cant, sh_cant = split_halves_cantillated(f.cantillated_text)
         raw_cant_words = _tokenize_raw_words(f.cantillated_text)
         insert(f.sub_id, f.book, f.chapter, f.verse, f.parsha,
@@ -2706,8 +2735,8 @@ def run_app() -> None:
                 # list.  Consequence: the cantillated line shows the Ksiv
                 # spelling while the values follow the variant reading — flagged
                 # to the reader below rather than silently diverging.
-                _sub = [w.replace(v.doublet_from, v.doublet_to, 1)
-                        if v.doublet_from in w else w for w in _tok]
+                _sub, _ = apply_doublet_to_words(
+                    _tok, v.doublet_from, v.doublet_to)
                 variant_consonantal_only = _sub[_i0:_i1] != _tok[_i0:_i1]
                 _tok = _sub
             span_w_cons = " ".join(_tok[_i0:_i1])

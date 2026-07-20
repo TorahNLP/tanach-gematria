@@ -173,23 +173,48 @@ real Parsha boundary would be Torah-only and largely redundant with what exists.
 
 ---
 
-## ⚠️ OPEN BUG: TextVariant half-verse splits break mid-word
+## TextVariant fork: half-verse splits (FIXED)
 
-`fork_verse` builds the doublet fork's halves from `doub_text`, and when the
-substitution exists only in the bare consonants it falls back to splitting
-`doub_cons` **at the Ksiv first-half character length**. The substitution changes
-the string length, so that offset is wrong and the split lands mid-word.
+The doublet fork used to do three inconsistent things: substitute on the
+**concatenated consonant string** (which can match across a word boundary or
+inside the wrong word), replace in **every** matching word when building its word
+list, and split halves at the Ksiv first-half **character** offset. The
+substitution changes the string's length, so the split landed mid-word —
+Genesis 18:5 FirstHalf ended `...עלעבדכ` and its SecondHalf opened on the
+orphaned `ם`. 11 rows were affected; their half-verse cipher values were computed
+on mis-split text.
 
-Genesis 18:5 TextVariant: FirstHalf ends `...עלעבדכ` and SecondHalf opens with a
-stray `ם`. **11 rows affected**, all TextVariant, in FirstHalf/SecondHalf/Verse.
-Their half-verse cipher values are therefore computed on mis-split text.
+Now `apply_doublet_to_words` substitutes **once, at word level**, and the fork's
+consonants, halves and word list are all derived from that single result, so they
+are consistent by construction. Halves split at a **word index** carried on the
+fork (`fh_word_count`), which cannot drift. `render_verse_detail` calls the same
+helper so display and DB cannot diverge again.
 
-Surfaced (not caused) by the spaced-display work, which asserts
-`display.replace(" ", "") == consonants` and found these disagreeing. Those rows
-now fall back to unspaced display so the table never shows text that isn't what
-matched — but **the underlying split is still wrong and unfixed.** A real fix
-means splitting the variant text on a word boundary rather than a character
-offset, in `fork_verse`.
+Verified: 0 display/consonant mismatches across all 571,521 rows; TextVariant
+halves concatenate to their verse 7/7 and are all spaced; and the Ksiv derivation
+is provably unchanged — old and new half word-spacing agree on all 23,206 verses.
+
+---
+
+## ⚠️ OPEN BUG: `sub_id` is not unique
+
+**142,635 duplicate `sub_id` values** out of 571,521 rows. `_base_id` builds the
+prefix from the first letter of each word in the book name, so every
+single-word book starting with the same letter collides: `E_5_3_Ksiv_FH` is
+shared by **Exodus, Ezekiel, Ecclesiastes, Esther and Ezra**. `J_4_9_*` rows
+collide six ways.
+
+Consequences:
+- The `SubID` column shown in site results does not identify a row.
+- **Any analysis keyed on `sub_id` silently merges unrelated books.** This
+  produced a false regression signal once: a before/after snapshot keyed on
+  `sub_id` appeared to show a changed cipher value when it had simply kept a
+  different book's row on each build.
+
+Not fixed. The fix is to make `_base_id` disambiguate (full book name, or a
+book index), which changes every `sub_id` and needs a DB rebuild. Until then,
+**key on `(book, chapter, verse, boundary_type, variant_track)`**, never on
+`sub_id`.
 
 ---
 
