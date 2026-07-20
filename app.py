@@ -40,6 +40,7 @@ import re
 import sqlite3
 import sys
 import threading
+import weakref
 import uuid
 from dataclasses import dataclass, field
 from typing import Callable, Dict, List, Optional, Tuple
@@ -1036,7 +1037,40 @@ class ThreadLocalConnection:
     held once, not per session. Attribute access proxies to this thread's
     connection, which is enough for pandas' DBAPI2 path (`cursor`, `execute`,
     `commit`, `rollback`).
+
+    Found in a later review: per-thread connections were never explicitly
+    closed. Streamlit gives each session exactly one long-lived thread (not one
+    per rerun — confirmed by reading `ScriptRunner.start()`, which asserts it
+    runs once), so this was never runaway growth within a session. But across
+    many sessions in one process lifetime, each accumulated connection holds
+    real per-connection state (statement cache, page-cache metadata) beyond the
+    shared data pages, and relying on implicit reference-count GC to close it
+    when a thread ends is a timing assumption, not a guarantee. `weakref.finalize`
+    below makes the close deterministic and explicit instead — tied to the
+    connection object's own lifetime, so it fires exactly once regardless of
+    how or when the owning thread goes away, and it's safe to call `close()`
+    off the opening thread because every connection here is opened with
+    `check_same_thread=False`. `weakref.finalize` needs no bookkeeping on our
+    side to keep it alive — confirmed directly (a finalizer fires even when its
+    return value is never stored) rather than assumed, since this class has
+    already caused one production incident and didn't need a second source of
+    doubt.
+
+    One real trap along the way, also caught by testing rather than assumed
+    away: `sqlite3.Connection` cannot be weakly referenced directly in this
+    build (`TypeError: cannot create weak reference to 'sqlite3.Connection'
+    object`) — `weakref.finalize(conn, conn.close)` would have raised on every
+    single new-thread connection open, a harder failure than the leak it was
+    meant to fix. The finalizer is registered on a plain `_ConnHolder` wrapper
+    instead, which *can* be weakly referenced; `threading.local` stores the
+    holder, so when the thread ends and its slot is dropped, the holder (not
+    the connection directly) becomes unreachable and triggers the close.
     """
+
+    class _ConnHolder:
+        """Weak-referenceable wrapper — see the class docstring above."""
+        def __init__(self, conn: sqlite3.Connection):
+            self.conn = conn
 
     def __init__(self, opener):
         self._opener = opener
@@ -1045,11 +1079,13 @@ class ThreadLocalConnection:
 
     @property
     def _conn(self) -> sqlite3.Connection:
-        conn = getattr(self._local, "conn", None)
-        if conn is None:
+        holder = getattr(self._local, "holder", None)
+        if holder is None:
             conn = self._opener()
-            self._local.conn = conn
-        return conn
+            holder = self._ConnHolder(conn)
+            weakref.finalize(holder, conn.close)
+            self._local.holder = holder
+        return holder.conn
 
     def __getattr__(self, name):
         # Only called for names not found normally, so _opener/_local/_keeper
@@ -2773,12 +2809,21 @@ def run_app() -> None:
     # Streamlit skips hashing the connection; `corpus_key` stands in for it, so a
     # custom Sefaria corpus cannot collide with the bundled one. Sequence args are
     # tuples because the key must be hashable and stable.
-    @st.cache_data(show_spinner=False)
+    # max_entries: these two are keyed on the searched value / word (target,
+    # a_vals_items), which is effectively unbounded cardinality — every
+    # distinct search that opens the panel adds a new cached DataFrame that
+    # never gets evicted otherwise. On a long-lived process this grows without
+    # limit; found in review after adding a keep-warm ping (elsewhere) that
+    # specifically keeps the process alive far longer than before, which makes
+    # unbounded in-memory growth here a real risk it wasn't as much previously.
+    # boundary_population / method_spread below are keyed only on small,
+    # naturally-bounded track/boundary tuples and don't need a cap.
+    @st.cache_data(show_spinner=False, max_entries=200)
     def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel, tracks):
         return span_search(_conn, target, cipher, max_span=max_span, colel=colel,
                            tracks=list(tracks) if tracks else None)
 
-    @st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False, max_entries=200)
     def cached_xm_matrix(_conn, corpus_key, a_vals_items, colel, tracks, boundaries):
         return _xm_count_matrix(_conn, dict(a_vals_items), colel,
                                 list(tracks) if tracks else None,
