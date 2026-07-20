@@ -663,7 +663,7 @@ TRACK_LABELS: Dict[str, str] = {
     "Ksiv":        "Written (כְּתִיב)",
     "Kri":         "Read (קְרֵי)",
     "TextVariant": "Textual variant",
-    "Aggregate":   "Chapter / Parsha total",
+    "Aggregate":   "Chapter / Sefer total",
 }
 BOUNDARY_LABELS: Dict[str, str] = {
     "Word":          "Word (תיבה)",
@@ -673,7 +673,7 @@ BOUNDARY_LABELS: Dict[str, str] = {
     "SecondHalf":    "Second half-verse (after Asnachta)",
     "Verse":         "Verse (פסוק)",
     "Perek":         "Chapter (פרק)",
-    "Parsha":     "Torah portion (פרשה)",
+    "Sefer":      "Book (ספר)",
     "Petucha":    "Open paragraph (Pesucha פ)",
     "Setuma":     "Closed paragraph (Setuma ס)",
     # Not a stored boundary_type — a contiguous run of words found by
@@ -857,7 +857,7 @@ def mark_word_span(cantillated: str, i0: int, i1: int) -> str:
 
 
 # Tracks that represent an actual alternative reading.  "Aggregate" is a storage
-# tag for Perek/Parsha rows, not a reading tradition, so it never counts as one.
+# tag for Perek/Sefer rows, not a reading tradition, so it never counts as one.
 VARIANT_TRACKS = frozenset({"Kri", "TextVariant"})
 
 
@@ -886,10 +886,11 @@ def shape_result_columns(df, app_view: bool = False, drop_value: bool = False):
     """Trim a result frame for display. Row order and count are never touched,
     so dataframe selection indices still address the source frame.
 
-    - **Parsha is always dropped.** It holds the book name on every row of the
-      corpus (571,521/571,521), so it carries no information. NOTE: the same gap
-      means the `Parsha` *boundary type* is really book-level aggregation — a
-      data issue in the corpus builder, not something this function can fix.
+    - **Parsha is always dropped**, defensively. The corpus never assigned
+      parshiyot — the field held the book name on every row (571,521/571,521) —
+      so the column was removed from the queries and the boundary it fed was
+      renamed `Sefer` (a book total, which is what it always computed). This
+      drop only catches frames built elsewhere.
     - **Value** is dropped for a single-method table, where the heading already
       states it and every row matches — but only when colel is off, since ±1
       makes the per-row value meaningful again.
@@ -1428,7 +1429,7 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                    f.verse, f.parsha, f.paragraph_marker, f.variant_track,
                    f.full_consonants, cantillated=f.cantillated_text, word_cons=verse_wc)
 
-    # ---- Macro structures: Perek, Parsha (Ksiv track aggregation) ----
+    # ---- Macro structures: Perek, Sefer (Ksiv track aggregation) ----
     ksiv = [f for f in all_forks if f.variant_track == "Ksiv"]
 
     def aggregate(group_key_fn, boundary_name, id_fn):
@@ -1447,7 +1448,7 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
 
     aggregate(lambda f: (f.book, f.chapter), "Perek",
               lambda k, s: f"PEREK_{k[0]}_{k[1]}")
-    aggregate(lambda f: (f.parsha,), "Parsha",
+    aggregate(lambda f: (f.book,), "Sefer",
               lambda k, s: f"PARSHA_{k[0]}")
 
     # ---- Paragraph blocks: accumulate verses until a marker closes a block ----
@@ -1649,7 +1650,7 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
     sql = (f"SELECT book AS Book, chapter AS Chapter, verse AS Verse, "
-           f"boundary_type AS Boundary, variant_track AS Track, parsha AS Parsha, "
+           f"boundary_type AS Boundary, variant_track AS Track, "
            f"consonants AS Text, {cipher} AS Value, sub_id AS SubID "
            f"FROM units WHERE " + " AND ".join(where) +
            f" ORDER BY ABS({cipher} - ?), Book, Chapter, Verse LIMIT ?")
@@ -1872,7 +1873,7 @@ def _xm_count_matrix(
 
 def structure_frame(conn: sqlite3.Connection, boundary: str,
                     track: str = "Ksiv") -> pd.DataFrame:
-    trk = "Aggregate" if boundary in ("Perek", "Parsha") else track
+    trk = "Aggregate" if boundary in ("Perek", "Sefer") else track
     return pd.read_sql_query(
         "SELECT * FROM units WHERE boundary_type=? AND variant_track=?",
         conn, params=[boundary, trk])
@@ -2058,7 +2059,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         "Petucha": "open paragraph (פ Petucha)",
         "Setuma": "closed paragraph (ס Setuma)",
         "Perek": "chapter (פרק Perek)",
-        "Parsha": "Torah portion (פרשה Parsha)",
+        "Sefer": "Book (ספר Sefer)",
     }
 
     today   = _d.today().strftime("%Y-%m-%d")
@@ -2336,7 +2337,7 @@ def run_selftest() -> None:
     assert (res_c["Value"] == 2701).any()
     print(f"  Colel search 2700±1 -> {len(res_c)} hit(s) (incl. 2701)  OK")
 
-    ext = extremes_table(conn, ["Verse", "Perek", "Parsha", "Petucha", "Setuma"])
+    ext = extremes_table(conn, ["Verse", "Perek", "Sefer", "Petucha", "Setuma"])
     print("  Extremes table:")
     print(ext.to_string(index=False))
     print("\n=== ALL SELF-TESTS PASSED ===")
@@ -2570,7 +2571,7 @@ def run_app() -> None:
                    "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
                    "Word-structure: HaAchor, Mityashev, Boneeh. "
                    "Kolel: KololEhad, KololOtiyot. "
-                   "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, SecondHalf, Verse, Perek, Parsha.")
+                   "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, SecondHalf, Verse, Perek, Sefer.")
 
     DETAIL_BOUNDARIES = {"Word", "ZakefPhrase", "TiphchaPhrase",
                          "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma",
@@ -2812,7 +2813,7 @@ def run_app() -> None:
         st.markdown(
             "A multi-method Hebrew gematria engine over the complete Masoretic text — "
             "23,206 cantillated verses sourced from Sefaria. "
-            + ("Search for names, words, and phrases across all 34 gematria "
+            + ("Search for names, words, and phrases across 34 gematria "
                "methods — the classical (Talmud-attested) methods are listed "
                "first. Structural browsing, pattern scanning, and the "
                "statistical dashboard live on the full site."
@@ -2825,12 +2826,12 @@ def run_app() -> None:
         with st.expander("How to use this app", expanded=True):
             st.caption(
                 "📖 **Guide & Sources** (this page) — Start here. "
-                "Explains all 34 gematria methods with earliest Talmudic or medieval sources,"
+                "Explains the 34 gematria methods with earliest Talmudic or medieval sources,"
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
                 if app_view else
                 "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains all 34 gematria methods with earliest Talmudic or medieval sources,"
+                "Explains the 34 gematria methods with earliest Talmudic or medieval sources,"
                 "reading tracks, boundary types, and the Rule of the Colel. "
                 "Also contains the full Masoretic variant registry."
             )
@@ -2840,10 +2841,10 @@ def run_app() -> None:
             st.markdown(
                 "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
                 "cantillation down to the 22 consonants and computes values "
-                + ("across all 34 methods simultaneously — classical "
+                + ("across 34 methods simultaneously — classical "
                    "(Talmud-attested) methods appear first in the method list. "
                    if app_view else
-                   "across all 34 methods simultaneously. ")
+                   "across 34 methods simultaneously. ")
                 + "Select a method to see every matching structural unit in the "
                 "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
                 "to open the full cantillated verse with the matched portion highlighted and a "
@@ -2859,9 +2860,9 @@ def run_app() -> None:
                 st.markdown("**2 · Scriptural Structural Explorer**")
                 st.markdown(
                     "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
-                    "Torah portion (פרשה Parsha), open paragraph (Pesucha פ), "
+                    "book (ספר Sefer), open paragraph (Pesucha פ), "
                     "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                    "Every row shows gematria totals under all 34 methods for that block."
+                    "Every row shows gematria totals under the 34 methods for that block."
                     "Click a row to open the verse detail panel."
                 )
 
@@ -2899,6 +2900,11 @@ def run_app() -> None:
         )
 
         with st.expander("The 34 gematria methods", expanded=True):
+            st.caption(
+                "These 34 are the methods implemented here, not a complete "
+                "catalogue — the tradition contains many more, and further "
+                "variants can be formed by combining them. Each is listed with "
+                "the earliest source known for it.")
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -3038,7 +3044,20 @@ def run_app() -> None:
                  "Earliest Source": "Kabbalistic practice; parallel to the general Kolel tradition. Also called Mispar Musafi in later sources."}
             ]))
 
-        with st.expander("Variant tracks"):
+        # App view searches the Ksiv track only, so the reading-track material
+        # would describe controls and results the app never shows. State the
+        # scope instead. (Planned: replace tracks with a variants toggle that
+        # flags the few verses that actually differ — see HANDOFF.)
+        if app_view:
+            st.info(
+                "**Reading text:** this app searches the **Ksiv (כְּתִיב)** — the "
+                "consonantal text as written — only. Kri (קְרֵי) readings and "
+                "Masoretic textual variants are not included in app results. "
+                "The full site covers them.")
+        # Guarded with a two-space-indented `with` so the ~40-line body keeps its
+        # original indentation — same trick the tab guards use.
+        if not app_view:
+          with st.expander("Variant tracks"):
             st.markdown("""
 **Ksiv (כְּתִיב — "Written")** — The consonantal text exactly as written in the Torah scroll. The default track; every verse is recorded here. The Masoretes went to extraordinary lengths to preserve this text letter-perfect.
 
@@ -3063,7 +3082,7 @@ def run_app() -> None:
                 if spec["category"] == "Doublet"
             ]), use_container_width=True, hide_index=True)
             st.markdown("""
-**Aggregate** — Structural totals (Perek/Parsha sums from Ksiv verses). Not a text variant; a statistical macro-unit.
+**Aggregate** — Structural totals (Perek/Sefer sums from Ksiv verses). Not a text variant; a statistical macro-unit.
 
 ---
 **Tiqqune Sopherim (תיקוני סופרים) — 18 scribal corrections (documented, not engine-forked)**
@@ -3255,10 +3274,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             cons = ""
             word_cons = ""
 
-        _BOUND_OPTS = ["Perek", "Parsha", "Verse", "Petucha", "Setuma",
+        _BOUND_OPTS = ["Perek", "Sefer", "Verse", "Petucha", "Setuma",
                        "FirstHalf", "SecondHalf",
                        "TiphchaPhrase", "ZakefPhrase", "Word"]
-        _BOUND_DEFAULT = ["Verse", "FirstHalf", "SecondHalf", "Word"]
+        # App view defaults to the two units people actually search on a phone;
+        # the half-verse units stay available but off by default.
+        _BOUND_DEFAULT = (["Verse", "Word"] if app_view
+                          else ["Verse", "FirstHalf", "SecondHalf", "Word"])
         if app_view:
             # App view is Ksiv-only. The variant tracks agree with Ksiv across
             # the overwhelming majority of the corpus, so the selector spends
@@ -3295,10 +3317,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
             active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
 
-        # Perek/Parsha rows are stored under the "Aggregate" track (a DB tag,
+        # Perek/Sefer rows are stored under the "Aggregate" track (a DB tag,
         # not a reading tradition). Auto-include it when those boundaries are selected.
         effective_tracks = list(tracks)
-        if any(b in (bounds or []) for b in ("Perek", "Parsha")) and "Aggregate" not in effective_tracks:
+        if any(b in (bounds or []) for b in ("Perek", "Sefer")) and "Aggregate" not in effective_tracks:
             effective_tracks.append("Aggregate")
 
         if mode == "Gematria value":
@@ -3520,7 +3542,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         t2_ciphers = CIPHER_NAMES
         kind = st.radio(
             "Browse by",
-            ["Perek", "Parsha", "Petucha", "Setuma", "Verse",
+            ["Perek", "Sefer", "Petucha", "Setuma", "Verse",
              "FirstHalf", "SecondHalf", "TiphchaPhrase", "ZakefPhrase"],
             horizontal=True,
             format_func=lambda b: BOUNDARY_LABELS.get(b, b))
@@ -3528,11 +3550,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         if df.empty:
             st.info(f"No {BOUNDARY_LABELS.get(kind, kind)} units in the loaded corpus yet.")
         else:
-            display_cols = (["book", "chapter", "verse", "parsha",
+            display_cols = (["book", "chapter", "verse",
                              "variant_track"] + t2_ciphers)
             show = df[[c for c in display_cols if c in df.columns]].rename(
                 columns={"book": "Book", "chapter": "Chapter", "verse": "Verse",
-                         "parsha": "Parsha", "variant_track": "Track"})
+                         "variant_track": "Track"})
             # Drop before labelling: the check reads raw track names, and a
             # uniform-Ksiv listing should not advertise a variant column.
             show = hide_uniform_track(show)
@@ -3542,16 +3564,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # either way — labelled honestly rather than implying parsha search.
             q = st.text_input("Filter (book contains)", "")
             if q:
-                mask = (show["Book"].str.contains(q, case=False, na=False) |
-                        show["Parsha"].str.contains(q, case=False, na=False))
+                mask = show["Book"].str.contains(q, case=False, na=False)
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
-                       "that shares that number, across all 34 methods.")
+                       "that shares that number, across the 34 methods.")
             t2_col_config = {
                 "Book":    st.column_config.TextColumn("Book", width="medium"),
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
                 "Verse":   st.column_config.NumberColumn("Verse", width="small"),
-                "Parsha":  st.column_config.TextColumn("Parsha", width="medium"),
                 "Track":   st.column_config.TextColumn("Track", width="small"),
             }
             for _c in t2_ciphers:
@@ -3581,9 +3601,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
 
-                # Show this row's values across all 34 methods.
+                # Show this row's values across the 34 methods.
                 summary = {c: int(row2[c]) for c in t2_ciphers if c in row2.index}
-                st.markdown("**Selected unit — values across all 34 methods:**"
+                st.markdown("**Selected unit — values across the 34 methods:**"
                             if t2_ciphers is CIPHER_NAMES else
                             "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
@@ -3799,7 +3819,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         st.subheader("Macro Statistical Dashboard")
 
         st.markdown("#### Highs & lows by structure — Standard method")
-        ext = extremes_table(conn, ["Verse", "Perek", "Parsha",
+        ext = extremes_table(conn, ["Verse", "Perek", "Sefer",
                                     "Petucha", "Setuma", "Word"])
         if not ext.empty:
             st.dataframe(ext, use_container_width=True, hide_index=True)

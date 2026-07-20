@@ -147,20 +147,29 @@ variant. Only 7 verses / 106 word units in the corpus, all reachable.
 
 ---
 
-## ⚠️ Parsha Is Not Populated (found 2026-07-19)
+## Parsha → Sefer (resolved 2026-07-19)
 
-`parsha` holds the **book name on every row of the corpus** — 571,521/571,521,
-39 distinct parsha values for 39 books. The corpus builder never assigned real
-parshiyot.
+`parsha` was never populated: it held the **book name on every row** —
+571,521/571,521, 39 values for 39 books (`app.py` assigned `parsha=row["book"]`
+at load). So the `Parsha` boundary had always been computing **whole-book
+totals** while labelled "Torah portion".
 
-Consequences:
-- The `Parsha` column is pure duplication and is now dropped from every result
-  table by `shape_result_columns`.
-- **More seriously: the `Parsha` *boundary type* is really book-level
-  aggregation**, and Tab 2's "Browse by Parsha" browses by book. Any gematria
-  total labelled "Parsha" is a whole-book total. This is a data gap in
-  `fetch_corpus.py`, not a display bug — fixing it means assigning parsha ranges
-  to verses at corpus build time. **Not yet fixed.**
+Resolved by renaming rather than removing, since a book total is a legitimate
+unit: **boundary `Parsha` → `Sefer`, labelled "Book (ספר)"**, aggregating on
+`f.book` directly. The vestigial `parsha` column is no longer selected by any
+query, and Tab 2 no longer lists or filters on it. `shape_result_columns` still
+drops a `Parsha` column defensively for frames built elsewhere.
+
+**This changed stored `boundary_type` values, so the DB must be rebuilt** —
+Docker does it every build; locally `rm tanach.db && python app.py builddb`.
+Verified after rebuild: 39 `Sefer` rows, 0 `Parsha` rows.
+
+**Real parshiyot were never added, and probably shouldn't be as a boundary:**
+weekly sedrot exist only for the Torah (54 portions over 5 books) with no
+equivalent partition anywhere in Nevi'im or Ketuvim — haftarot are selections,
+not a partition. In *Masoretic* usage "parashah" means an open/closed section,
+which the corpus already exposes as the `Petucha` and `Setuma` boundaries. So a
+real Parsha boundary would be Torah-only and largely redundant with what exists.
 
 ---
 
@@ -182,6 +191,22 @@ table sits at the bottom, just above cross-method coincidences, rather than
 directly under the results heading.
 `TODO(site)`: decide whether the full site still wants the cleaned-consonants
 readout — currently kept there, dropped only in app view.
+
+**App view is Ksiv-only, and the guide now says so.** The "Variant tracks"
+section is not rendered in app view (guarded with a two-space-indented `with`,
+the same trick the tab guards use, so its ~40-line body keeps its indentation);
+an info box states the scope instead. Default text units in app view are
+**Verse + Word** only.
+
+**Planned (not built): replace reading tracks with a variants toggle.** Instead
+of a track multiselect, search the relatively few places that actually have a
+Kri or textual variant and flag them in an extra column when applicable — the
+way colel is surfaced. This would let the app stop being Ksiv-only without the
+current noise.
+
+**Guide wording:** the phrase "all 34 methods" was removed throughout — the 34
+are the methods implemented here, not a complete catalogue of the tradition, and
+the methods expander now says so.
 
 ---
 
