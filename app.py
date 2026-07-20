@@ -1678,7 +1678,7 @@ def internal_balance_matches(
                 f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 f"AND ABS(u1.{ma} - u2.{mb}) <= ? "
                 f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
-                conn, params=[min_value, min_value, tol, limit],
+                raw_conn(conn), params=[min_value, min_value, tol, limit],
             )
             if not df.empty:
                 df.insert(1, "Method B", mb)
@@ -1709,7 +1709,7 @@ def proximity_echo_matches(
             "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
             f"AND u1.{m} >= ? AND ABS(u1.{m} - u2.{m}) <= ? "
             f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
-            conn, params=[min_value, tol, limit],
+            raw_conn(conn), params=[min_value, tol, limit],
         )
         if not df.empty:
             df.insert(1, "Method B", m)
@@ -1748,7 +1748,7 @@ def whole_unit_echo_matches(
                 "AND u1.rowid != u2.rowid "
                 "ORDER BY u1.book, u1.chapter, u1.verse, u2.rowid "
                 "LIMIT ?",
-                conn, params=[boundary, boundary, min_value, min_value, limit],
+                raw_conn(conn), params=[boundary, boundary, min_value, min_value, limit],
             )
             if not df.empty:
                 df.insert(1, "Method B", mb)
@@ -2245,8 +2245,18 @@ def cipher_breakdown(cipher: str, consonants: str,
 # ---------------------------------------------------------------------------
 
 def build_print_html(query_info, match_info, breakdown_rows, active_method,
-                     colel, vals) -> str:
-    """Return a self-contained HTML document suitable for window.print()."""
+                     colel, vals, query_breakdown=None, query_val=None) -> str:
+    """Return a self-contained HTML document suitable for window.print().
+
+    `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
+    `query_val` (added later) describe the user's own searched word under the
+    same method — previously the print-out only showed how the match arrived at
+    its value, never how the user's own input did, even though that is the
+    other half of "these two are equal." When both are present the two
+    calculation sections are labelled "Your Word" / "Matched Text" to
+    disambiguate; with only the match breakdown (e.g. Gematria-value-mode
+    prints, which have no query word) the heading is unchanged.
+    """
     import html as _h
     from datetime import date as _d
     e = _h.escape
@@ -2282,6 +2292,10 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         raw  = e(query_info.get("raw", ""))
         cons = e(query_info.get("cons", ""))
         colel_txt = "Applied (±1)" if colel else "Not applied"
+        # The query's own value, not the matched unit's — under colel they can
+        # differ by 1, and labelling the match's value as "Value" under
+        # "Search Query" conflated the two.
+        _val_shown = query_val if query_val is not None else val
         sec1 = f"""
 <div class="sec">
   <div class="sec-title">Search Query</div>
@@ -2289,7 +2303,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     <tr><td class="kl">Input</td><td class="kv-val rtl">{raw}</td></tr>
     <tr><td class="kl">Consonants searched</td><td class="kv-val rtl">{cons}</td></tr>
     <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
-    <tr><td class="kl">Value</td><td class="kv-val big">{val}</td></tr>
+    <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
     <tr><td class="kl">Colel (±1)</td><td class="kv-val">{colel_txt}</td></tr>
   </table>
 </div>"""
@@ -2314,9 +2328,9 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                       'The input has no nikud — value is 0. '
                       'Re-enter with vowel points for a meaningful result.</div>')
 
-    if breakdown_rows:
-        has_sep = any("→" in lbl or "=" in lbl or "↔" in lbl
-                      for lbl, _ in breakdown_rows)
+    def _breakdown_table(rows) -> str:
+        """Render one method's letter/mark breakdown as an HTML table."""
+        has_sep = any("→" in lbl or "=" in lbl or "↔" in lbl for lbl, _ in rows)
         if has_sep:
             # Detect column header labels by cipher
             if active_method in ("Milui", "MiluiMaleh"):
@@ -2330,7 +2344,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
             else:
                 h1, h2 = "אות", "מוחלף"
             body = ""
-            for lbl, v in breakdown_rows:
+            for lbl, v in rows:
                 for sep in ("=", "→", "↔"):
                     if sep in lbl:
                         p = lbl.split(sep, 1)
@@ -2341,35 +2355,51 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                 else:
                     body += (f"<tr><td class='rtl' colspan='2'>{e(lbl)}</td>"
                              f"<td class='num'>{v}</td></tr>")
-            total = sum(v for _, v in breakdown_rows)
+            total = sum(v for _, v in rows)
             foot = (f"<tfoot><tr><td colspan='2' class='rtl'><strong>סה״כ</strong></td>"
                     f"<td class='num'><strong>{total}</strong></td></tr></tfoot>")
-            tbl = (f"<table class='bd'><thead><tr>"
+            return (f"<table class='bd'><thead><tr>"
                    f"<th class='rtl'>{h1}</th><th class='rtl'>{h2}</th><th>ערך</th>"
                    f"</tr></thead><tbody>{body}</tbody>{foot}</table>")
-        else:
-            body = "".join(f"<tr><td class='rtl'>{e(lbl)}</td>"
-                           f"<td class='num'>{v}</td></tr>"
-                           for lbl, v in breakdown_rows)
-            total = sum(v for _, v in breakdown_rows)
-            foot = (f"<tfoot><tr><td class='rtl'><strong>סה״כ</strong></td>"
-                    f"<td class='num'><strong>{total}</strong></td></tr></tfoot>")
-            tbl = (f"<table class='bd'><thead><tr>"
-                   f"<th class='rtl'>אות</th><th>ערך</th>"
-                   f"</tr></thead><tbody>{body}</tbody>{foot}</table>")
+        body = "".join(f"<tr><td class='rtl'>{e(lbl)}</td>"
+                       f"<td class='num'>{v}</td></tr>" for lbl, v in rows)
+        total = sum(v for _, v in rows)
+        foot = (f"<tfoot><tr><td class='rtl'><strong>סה״כ</strong></td>"
+                f"<td class='num'><strong>{total}</strong></td></tr></tfoot>")
+        return (f"<table class='bd'><thead><tr>"
+               f"<th class='rtl'>אות</th><th>ערך</th>"
+               f"</tr></thead><tbody>{body}</tbody>{foot}</table>")
 
+    # Section 1b, ahead of the source match: how the *user's own word* arrives
+    # at its value. Only rendered when there is a real query word (not
+    # Gematria-value-mode prints, which pass query_breakdown=None) and the
+    # method has a letter/mark breakdown at all.
+    if query_breakdown:
+        sec1b = f"""
+<div class="sec">
+  <div class="sec-title">Calculation — Your Word ({method})</div>
+  {_breakdown_table(query_breakdown)}
+</div>"""
+    else:
+        sec1b = ""
+
+    # Disambiguate from Section 1b when both are present; otherwise this is the
+    # only calculation section and keeps its original, unqualified heading.
+    sec3_title = f"Calculation — Matched Text ({method})" if sec1b else f"Calculation — {method}"
+
+    if breakdown_rows:
         note = ('<p class="fn">* AyakBachar maps to the hundreds tier — '
                 'final forms (ך ם ן ף ץ) carry 500–900.</p>'
                 if active_method == "AyakBachar" else "")
         sec3 = f"""
 <div class="sec">
-  <div class="sec-title">Calculation — {method}</div>
-  {nikud_warn}{tbl}{note}
+  <div class="sec-title">{sec3_title}</div>
+  {nikud_warn}{_breakdown_table(breakdown_rows)}{note}
 </div>"""
     else:
         sec3 = f"""
 <div class="sec">
-  <div class="sec-title">Calculation — {method}</div>
+  <div class="sec-title">{sec3_title}</div>
   {nikud_warn}
   <p>Total value: <strong>{val}</strong></p>
   <p class="fn">No per-letter breakdown for this method — its total is not a sum
@@ -2421,7 +2451,7 @@ table.bd tfoot td{border-top:3px double #000;padding:4px 7px}
 <style>{css}</style></head>
 <body>
 <div class="ph"><span><strong>Tanach Gematria Engine</strong></span><span>{today}</span></div>
-{sec1}{sec2}{sec3}
+{sec1}{sec1b}{sec2}{sec3}
 <div class="pf">Generated by Tanach Gematria Search &amp; Structural Pattern Engine</div>
 <script>
 window.onload=function(){{
@@ -2960,21 +2990,26 @@ def run_app() -> None:
         else:
             highlighted_html = src_text or ""
             st.markdown(f"**Cantillated:** {src_text}")
-        # Values: matched sub-unit when available, full verse otherwise
+        # Values: matched sub-unit when available, full verse otherwise.
+        # In app view this readout is suppressed entirely — see below, near
+        # where `vals` is displayed, for why and for the site-only caveat.
         if span_cons is not None:
             cons = span_cons
-            st.markdown(f"**Matched consonants:** `{cons}`")
-            if variant_consonantal_only:
-                st.caption("Textual-variant track: the variant reading exists in "
-                           "the consonantal text only, so the cantillated line "
-                           "above shows the Ksiv spelling while the values below "
-                           "follow the variant.")
+            if not app_view:
+                st.markdown(f"**Matched consonants:** `{cons}`")
+                if variant_consonantal_only:
+                    st.caption("Textual-variant track: the variant reading exists "
+                               "in the consonantal text only, so the cantillated "
+                               "line above shows the Ksiv spelling while the "
+                               "values below follow the variant.")
         elif sub_unit and matched_text:
             cons = strip_to_consonants(matched_text)
-            st.markdown(f"**Matched consonants:** `{cons}`")
+            if not app_view:
+                st.markdown(f"**Matched consonants:** `{cons}`")
         else:
             cons = strip_to_consonants(src_text)
-            st.markdown(f"**Consonants:** `{cons}`")
+            if not app_view:
+                st.markdown(f"**Consonants:** `{cons}`")
         # Derive word-boundary-aware consonants for Kaful/Mityashev/Meshulash
         if boundary == "FirstHalf":
             w_cons, _ = split_halves_word_cons(src_text)
@@ -2998,10 +3033,21 @@ def run_app() -> None:
         else:
             cantillated_src = src_text
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
-        st.dataframe(pd.DataFrame([vals]), width="stretch", hide_index=True)
-        if sub_unit and matched_text and not locate_vocalized(src_text, cons):
-            st.caption("⚠️ Could not locate this unit's pointed text in the verse; "
-                       "vowel-mark methods are computed without nikud here.")
+        # App view drops the matched-consonants readout and this all-methods
+        # table: the panel already opened on the one method the user searched
+        # under (the caption/breakdown right below), and this table restates
+        # the other 33 without being asked. Still computed either way — `vals`
+        # feeds the print-out below regardless of whether it is shown here.
+        # This also resolves a real mislabelling for pure-vowel ciphers
+        # (HaNekudot/MiluiNekudot): "Matched consonants" implied the consonants
+        # were what matched, when only the vowel marks were. Left as-is on the
+        # site for now.
+        if not app_view:
+            st.dataframe(pd.DataFrame([vals]), width="stretch", hide_index=True)
+            if sub_unit and matched_text and not locate_vocalized(src_text, cons):
+                st.caption("⚠️ Could not locate this unit's pointed text in the "
+                           "verse; vowel-mark methods are computed without "
+                           "nikud here.")
         # Per-letter (or per-vowel-mark) breakdown for the active method
         breakdown_rows = None
         if active_method and active_method in CIPHERS:
@@ -3018,6 +3064,20 @@ def run_app() -> None:
                 for rv in run:
                     st.markdown(f"- {rv.book} {rv.chapter}:{rv.verse} — {rv.text}")
         # ── Print / Export ───────────────────────────────────────────────────
+        # The print-out used to show only how the *matched* text arrives at its
+        # value, never how the searched word itself does — even though showing
+        # both is the point of a "these are equal" result. query_info carries
+        # only cons/raw/wcons (no vals), so the query's own breakdown and value
+        # are computed here, the same way the matched unit's already are above.
+        query_breakdown = None
+        query_val = None
+        if query_info and query_info.get("cons") and active_method in CIPHERS:
+            _q_cons, _q_raw, _q_wcons = (query_info["cons"], query_info.get("raw", ""),
+                                         query_info.get("wcons", ""))
+            query_val = compute_all_ciphers(
+                _q_cons, _q_raw, word_consonants=_q_wcons).get(active_method)
+            query_breakdown = cipher_breakdown(active_method, _q_cons, _q_wcons,
+                                               cantillated=_q_raw)
         _uid = f"{book}_{chapter}_{verse}_{boundary}_{active_method}"
         _print_key   = f"do_print_{_uid}"
         _html_doc = build_print_html(
@@ -3025,6 +3085,7 @@ def run_app() -> None:
             {"book": book, "chapter": chapter, "verse": verse,
              "boundary": boundary, "highlighted_html": highlighted_html},
             breakdown_rows, active_method or "Standard", colel, vals,
+            query_breakdown=query_breakdown, query_val=query_val,
         )
         _pc, _dc = st.columns(2)
         with _pc:
@@ -3621,7 +3682,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             row_num["Book"], row_num["Chapter"], row_num["Verse"],
                             row_num["Boundary"], matched_text=row_num.get("Text"),
                             active_method=row_num["Method"],
-                            query_info=st.session_state.get("t1_committed"),
+                            # Gematria-value mode searches a typed number, not a
+                            # word — t1_committed here would be leftover state
+                            # from an unrelated earlier text search (or absent),
+                            # and the print-out would show it as if it were the
+                            # word behind *this* search.
+                            query_info=None,
                             colel=colel)
         elif _committed := st.session_state.get("t1_committed"):
             _c_cons  = _committed["cons"]
@@ -3631,7 +3697,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     word_consonants=_c_wcons, colel=colel,
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
-            st.markdown(f"#### Results for `{_c_cons}`")
+            # App view drops this: the searched word is still visible in the
+            # input box above, and each method's own subheading below already
+            # restates "{Method} = {value}", so this mostly duplicated both.
+            if not app_view:
+                st.markdown(f"#### Results for `{_c_cons}`")
             # _t1_opts / active_ciphers come from the method picker above, which
             # renders before a search is committed. App view orders all methods
             # with the classical (Talmud-attested) ones first. The computed-values
