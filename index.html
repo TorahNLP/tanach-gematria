@@ -66,14 +66,19 @@
   }
   #retry-btn:active { background: rgba(79,70,229,0.2); }
   #reload-corner {
+    /* Top-left, not top-right: Streamlit's own app renders its own settings
+       ("...") menu in the top-right corner, which this would otherwise sit
+       on top of or under once the iframe is revealed. */
     position: fixed;
-    top: 0.5rem;
-    right: 0.6rem;
+    top: max(0.5rem, env(safe-area-inset-top));
+    left: max(0.6rem, env(safe-area-inset-left));
     font-size: 0.75rem;
     color: #6b7280;
     text-decoration: none;
     z-index: 2;
     padding: 0.3rem 0.5rem;
+    background: rgba(14,17,23,0.55);
+    border-radius: 6px;
   }
 </style>
 </head>
