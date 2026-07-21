@@ -684,9 +684,18 @@ def _book_rank_sql(column: str = "Book") -> str:
     SELECT-list alias (`Book`) — SQLite's ORDER BY may reference aliases from
     the same query. Book names are hardcoded literals defined here, not user
     input, so inlining them into the CASE expression carries no injection risk.
-    Falls back to 999 for anything not in BOOK_ORDER (never hit against this
-    corpus; defensive only, so an unrecognized book sorts last instead of
-    erroring).
+
+    Falls back to 999 for anything not in BOOK_ORDER — reachable in practice,
+    not just defensive: the sidebar's "Extra Sefaria refs" can pull in a book
+    outside the 39 canonical ones, and SAMPLE_CORPUS (the offline fallback used
+    when tanach_corpus.jsonl is absent) uses transliterated names that don't
+    match BOOK_ORDER's English ones at all. Every call site therefore adds the
+    raw `column` a second time right after this expression as a tiebreaker
+    (`ORDER BY {_book_rank_sql(col)}, {col}, ...`) — known books never reach
+    it, since each has a unique rank, but unrecognized ones fall back to
+    alphabetical *among themselves* instead of an undifferentiated tie at 999
+    that would otherwise interleave them by chapter/verse alone. Follow the
+    same pairing at any new call site.
     """
     cases = " ".join(f"WHEN '{b}' THEN {i}" for i, b in enumerate(BOOK_ORDER))
     return f"CASE {column} {cases} ELSE 999 END"
@@ -1730,7 +1739,7 @@ def internal_balance_matches(
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
                 f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 f"AND ABS(u1.{ma} - u2.{mb}) <= ? "
-                f"ORDER BY {_book_rank_sql('u1.book')}, u1.chapter, u1.verse LIMIT ?",
+                f"ORDER BY {_book_rank_sql('u1.book')}, u1.book, u1.chapter, u1.verse LIMIT ?",
                 raw_conn(conn), params=[min_value, min_value, tol, limit],
             )
             if not df.empty:
@@ -1761,7 +1770,7 @@ def proximity_echo_matches(
             "WHERE u1.boundary_type='Verse' AND u2.boundary_type='Verse' "
             "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
             f"AND u1.{m} >= ? AND ABS(u1.{m} - u2.{m}) <= ? "
-            f"ORDER BY {_book_rank_sql('u1.book')}, u1.chapter, u1.verse LIMIT ?",
+            f"ORDER BY {_book_rank_sql('u1.book')}, u1.book, u1.chapter, u1.verse LIMIT ?",
             raw_conn(conn), params=[min_value, tol, limit],
         )
         if not df.empty:
@@ -1799,7 +1808,7 @@ def whole_unit_echo_matches(
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
                 f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 "AND u1.rowid != u2.rowid "
-                "ORDER BY " + _book_rank_sql("u1.book") + ", u1.chapter, u1.verse, u2.rowid "
+                "ORDER BY " + _book_rank_sql("u1.book") + ", u1.book, u1.chapter, u1.verse, u2.rowid "
                 "LIMIT ?",
                 raw_conn(conn), params=[boundary, boundary, min_value, min_value, limit],
             )
@@ -1842,7 +1851,7 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
            f"boundary_type AS Boundary, variant_track AS Track, "
            f"text_display AS Text, {cipher} AS Value, sub_id AS SubID "
            f"FROM units WHERE " + " AND ".join(where) +
-           f" ORDER BY ABS({cipher} - ?), {_book_rank_sql('Book')}, Chapter, Verse LIMIT ?")
+           f" ORDER BY ABS({cipher} - ?), {_book_rank_sql('Book')}, Book, Chapter, Verse LIMIT ?")
     params += [value, limit]
     return pd.read_sql_query(sql, raw_conn(conn), params=params)
 
@@ -1939,7 +1948,7 @@ def search_value_all_methods(
         " ELSE 9999 END"
     )
     sql = ("SELECT * FROM (" + " UNION ALL ".join(unions) +
-           f") ORDER BY {method_order}, ABS(Value - ?), {_book_rank_sql('Book')}, Chapter, Verse")
+           f") ORDER BY {method_order}, ABS(Value - ?), {_book_rank_sql('Book')}, Book, Chapter, Verse")
     params += list(CIPHER_NAMES)
     params.append(value)
     return pd.read_sql_query(sql, raw_conn(conn), params=params)
@@ -1980,7 +1989,7 @@ def span_search(
     sql = (
         f"SELECT book, chapter, verse, variant_track, {cipher} "
         f"FROM units WHERE boundary_type='Word' {track_cond} "
-        f"ORDER BY {_book_rank_sql('book')}, chapter, verse, variant_track, rowid"
+        f"ORDER BY {_book_rank_sql('book')}, book, chapter, verse, variant_track, rowid"
     )
     df = pd.read_sql_query(sql, raw_conn(conn), params=params)
     if df.empty:
@@ -3793,7 +3802,17 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # so there's nothing to warn about). Previously app view dropped this
             # line entirely on the theory that the input box above already shows
             # it, but the input box doesn't scroll into view with the results.
-            st.markdown(f"#### Results for `{strip_taamim(_c_raw)}`")
+            #
+            # The old bare-consonants version (_c_cons) was structurally immune
+            # to markdown injection — HE_CONSONANTS can't contain a backtick.
+            # This near-verbatim version isn't: a literal backtick in the typed
+            # input closes the code span early and lets the remainder render as
+            # loose markdown (reproduced: "שלום `bold*text" broke the heading).
+            # Backticks aren't Hebrew orthography, so swapping them for a
+            # lookalike doesn't compromise "shows what was searched" for the
+            # nikud/spacing this line exists for.
+            _display_query = strip_taamim(_c_raw).replace("`", "ˋ")
+            st.markdown(f"#### Results for `{_display_query}`")
             # _t1_opts / active_ciphers come from the method picker above, which
             # renders before a search is committed. App view orders all methods
             # with the classical (Talmud-attested) ones first. The computed-values
@@ -3825,7 +3844,17 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                              app_view, drop_value=not colel),
                         width="stretch", hide_index=True,
                         on_select="rerun", selection_mode="single-row",
-                        key=f"t1_sel_{cipher}")
+                        # _c_cons suffix: same class of bug as the xm_run/span_run
+                        # checkboxes above, worse in effect. Without it, selecting a
+                        # row then running a NEW search leaves the OLD row index
+                        # selected under this key; Streamlit reapplies that index to
+                        # the NEW results DataFrame and Verse Detail silently shows
+                        # whatever verse now sits at that position — not a stale
+                        # warning, a wrong answer that looks like a real result.
+                        # Reproduced: selecting row 5 for "שלום" (Genesis 10:21),
+                        # then searching "אמת" with no further click, left Verse
+                        # Detail open showing Genesis 5:2.
+                        key=f"t1_sel_{cipher}_{_c_cons}")
                     sel = event.selection.rows
                     if sel:
                         row = res.iloc[sel[0]]
@@ -3987,7 +4016,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             ev_drill = st.dataframe(
                                 drill_res, width="stretch", hide_index=True,
                                 on_select="rerun", selection_mode="single-row",
-                                key=f"xm_drill_sel_{drill_b}",
+                                # _c_cons suffix: same reason as t1_sel_* above —
+                                # a stale row index would otherwise apply to a
+                                # different search's drill-down results.
+                                key=f"xm_drill_sel_{drill_b}_{_c_cons}",
                             )
                             if ev_drill.selection.rows:
                                 rd = drill_res.iloc[ev_drill.selection.rows[0]]
@@ -4052,7 +4084,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             app_view)
                         span_event = st.dataframe(
                             span_show, width="stretch", hide_index=True,
-                            on_select="rerun", selection_mode="single-row", key="span_sel")
+                            # _c_cons suffix: same reason as t1_sel_* above.
+                            on_select="rerun", selection_mode="single-row",
+                            key=f"span_sel_{_c_cons}")
                         span_sel = span_event.selection.rows
                         if span_sel:
                             sr = span_df.iloc[span_sel[0]]
