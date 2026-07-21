@@ -8,8 +8,9 @@
 <link rel="icon" href="./icon-192.png"/>
 <meta name="theme-color" content="#312e81"/>
 <link rel="apple-touch-icon" href="./icon-180.png"/>
+<meta name="mobile-web-app-capable" content="yes"/>
 <meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="default"/>
 <meta name="apple-mobile-web-app-title" content="Gematria"/>
 <style>
   html, body { height: 100%; margin: 0; }
@@ -81,8 +82,8 @@
 <a id="reload-corner" href="./" title="Reload">&#8635; Reload</a>
 
 <div id="loader">
-  <div class="gem-letter" id="gem-letter">א</div>
-  <div id="status">Warming up the search engine&hellip;</div>
+  <div class="gem-letter" id="gem-letter" aria-hidden="true">א</div>
+  <div id="status" role="status" aria-live="polite">Warming up the search engine&hellip;</div>
   <div style="font-size:0.8rem;color:#6b7280;">
     Free hosting sometimes takes a minute to wake up &mdash; this page keeps
     checking automatically.
@@ -90,7 +91,7 @@
   <button id="retry-btn">Open anyway</button>
 </div>
 
-<iframe id="app-frame" title="Tanach Gematria" allow="clipboard-write"></iframe>
+<iframe id="app-frame" title="Tanach Gematria" allow="clipboard-write; fullscreen"></iframe>
 
 <script>
 (function () {
@@ -161,7 +162,7 @@
     if (opened) return;
     attempt++;
     var ctrl = new AbortController();
-    var t = setTimeout(function () { ctrl.abort(); }, 8000);
+    var t = setTimeout(function () { ctrl.abort(); }, 5000);
     fetch(HEALTH_URL, { signal: ctrl.signal, cache: "no-store", mode: "no-cors" })
       .then(function () {
         clearTimeout(t);
