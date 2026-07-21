@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>Tanach Gematria</title>
+<link rel="manifest" href="./manifest.json"/>
+<link rel="icon" href="./icon-192.png"/>
+<meta name="theme-color" content="#312e81"/>
+<link rel="apple-touch-icon" href="./icon-180.png"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Gematria"/>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: #0e1117;
+    color: #e5e7eb;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+  }
+  #app-frame {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: none;
+  }
+  #loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.1rem;
+    padding: 2rem;
+    text-align: center;
+    max-width: 380px;
+  }
+  .gem-letter {
+    font-family: 'Noto Serif Hebrew', David, 'Times New Roman', serif;
+    font-size: 2.6rem;
+    font-weight: 700;
+    color: #A5B4FC;
+    line-height: 1;
+    min-height: 1.2em;
+  }
+  #status {
+    font-size: 0.95rem;
+    color: #cbd5e1;
+    min-height: 1.4em;
+  }
+  #retry-btn {
+    margin-top: 0.4rem;
+    padding: 0.55rem 1.2rem;
+    border-radius: 8px;
+    border: 1px solid #4F46E5;
+    background: transparent;
+    color: #A5B4FC;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: none;
+  }
+  #retry-btn:active { background: rgba(79,70,229,0.2); }
+  #reload-corner {
+    position: fixed;
+    top: 0.5rem;
+    right: 0.6rem;
+    font-size: 0.75rem;
+    color: #6b7280;
+    text-decoration: none;
+    z-index: 2;
+    padding: 0.3rem 0.5rem;
+  }
+</style>
+</head>
+<body>
+
+<a id="reload-corner" href="./" title="Reload">&#8635; Reload</a>
+
+<div id="loader">
+  <div class="gem-letter" id="gem-letter">א</div>
+  <div id="status">Warming up the search engine&hellip;</div>
+  <div style="font-size:0.8rem;color:#6b7280;">
+    Free hosting sometimes takes a minute to wake up &mdash; this page keeps
+    checking automatically.
+  </div>
+  <button id="retry-btn">Open anyway</button>
+</div>
+
+<iframe id="app-frame" title="Tanach Gematria" allow="clipboard-write"></iframe>
+
+<script>
+(function () {
+  // The "/~/+/" prefix is Streamlit Community Cloud's own internal path to the
+  // app's actual content, bypassing its outer wrapper page (which carries a
+  // "Fork"/GitHub toolbar we don't want inside the loader). Change only if the
+  // app moves to a different host.
+  var APP_URL = "https://tanach-gematria.streamlit.app/~/+/?view=app";
+
+  var letterEl = document.getElementById("gem-letter");
+  var statusEl = document.getElementById("status");
+  var retryBtn = document.getElementById("retry-btn");
+  var frame = document.getElementById("app-frame");
+  var loader = document.getElementById("loader");
+
+  // Cosmetic only, mirrors the app's own status-widget animation so the
+  // hand-off from loader to iframe feels like one continuous app.
+  var LETTERS = "אבגדהוזחטיכךלמםנןסעפףצץקרשת".split("");
+  var recent = [];
+  function pickLetter() {
+    for (var t = 0; t < 40; t++) {
+      var c = LETTERS[Math.floor(Math.random() * LETTERS.length)];
+      if (recent.indexOf(c) === -1) {
+        recent.push(c);
+        if (recent.length > 4) recent.shift();
+        return c;
+      }
+    }
+    return LETTERS[0];
+  }
+  var letterTimer = setInterval(function () {
+    letterEl.textContent = pickLetter();
+  }, 220);
+
+  var opened = false;
+  function revealApp() {
+    if (opened) return;
+    opened = true;
+    clearInterval(letterTimer);
+    frame.src = APP_URL;
+    frame.style.display = "block";
+    loader.style.display = "none";
+  }
+
+  // Community Cloud's host is a different origin than this loader and sends
+  // no CORS headers, so a normal fetch() cannot read a status code cross-
+  // origin (every such request throws, success or failure alike — verified
+  // directly against this app). A cross-origin iframe's own "load" event is
+  // no help either: it was tested against a totally unreachable host and
+  // fires immediately regardless, since it reports "navigation finished"
+  // (even with the browser's own error page), not "content succeeded" — so
+  // it cannot be used as a success signal at all.
+  //
+  // A `fetch(..., {mode:"no-cors"})` splits the difference usefully: the
+  // response body/status stays unreadable (opaque), but the promise itself
+  // still rejects for a real network-level failure (DNS, connection refused,
+  // timeout) and only resolves once something answers at all. Verified: a
+  // non-resolving host rejects; this app's own health endpoint resolves
+  // (opaque, status 0). That's enough to catch a genuine outage — it still
+  // can't distinguish a real 200 from an HTTP 500 or Community Cloud's own
+  // "asleep" page, but that gap matters less here since Community Cloud's
+  // worst case is a friendly wake screen, not a raw error.
+  var HEALTH_URL = "https://tanach-gematria.streamlit.app/~/+/_stcore/health";
+  var MAX_ATTEMPTS = 6;
+  var attempt = 0;
+
+  function checkReachable() {
+    if (opened) return;
+    attempt++;
+    var ctrl = new AbortController();
+    var t = setTimeout(function () { ctrl.abort(); }, 8000);
+    fetch(HEALTH_URL, { signal: ctrl.signal, cache: "no-store", mode: "no-cors" })
+      .then(function () {
+        clearTimeout(t);
+        revealApp();
+      })
+      .catch(function () {
+        clearTimeout(t);
+        scheduleRetry();
+      });
+  }
+
+  function scheduleRetry() {
+    if (opened) return;
+    if (attempt >= MAX_ATTEMPTS) {
+      statusEl.textContent = "Still slow to respond — you can wait longer, or open it anyway.";
+      retryBtn.style.display = "inline-block";
+      return;
+    }
+    statusEl.textContent = "Still warming up… (try " + attempt + " of " + MAX_ATTEMPTS + ")";
+    setTimeout(checkReachable, Math.min(2000 * Math.pow(1.6, attempt - 1), 15000));
+  }
+
+  retryBtn.addEventListener("click", revealApp);
+
+  checkReachable();
+})();
+</script>
+</body>
+</html>
