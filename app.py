@@ -660,6 +660,38 @@ CIPHER_BLURB: Dict[str, str] = {
     "KololOtiyot":     "Standard total + number of letters in the unit (one per letter). Also called Mispar Musafi.",
 }
 
+# Canonical Tanach order — Torah, Nevi'im, Ketuvim (Masoretic/Sefaria ordering)
+# — not alphabetical. Plain SQL ORDER BY book sorts strings, putting Amos before
+# Genesis; verified this matches the corpus's own natural insertion order
+# (SELECT DISTINCT book ... ORDER BY rowid), so it is the intended sequence, not
+# just a stylistic preference.
+BOOK_ORDER: List[str] = [
+    "Genesis", "Exodus", "Leviticus", "Numbers", "Deuteronomy",
+    "Joshua", "Judges", "I Samuel", "II Samuel", "I Kings", "II Kings",
+    "Isaiah", "Jeremiah", "Ezekiel",
+    "Hosea", "Joel", "Amos", "Obadiah", "Jonah", "Micah", "Nahum",
+    "Habakkuk", "Zephaniah", "Haggai", "Zechariah", "Malachi",
+    "Psalms", "Proverbs", "Job", "Song of Songs", "Ruth", "Lamentations",
+    "Ecclesiastes", "Esther", "Daniel", "Ezra", "Nehemiah",
+    "I Chronicles", "II Chronicles",
+]
+
+
+def _book_rank_sql(column: str = "Book") -> str:
+    """SQL CASE expression ranking `column` by canonical Tanach order.
+
+    `column` may be a bare column name, a table-qualified one (`u1.book`), or a
+    SELECT-list alias (`Book`) — SQLite's ORDER BY may reference aliases from
+    the same query. Book names are hardcoded literals defined here, not user
+    input, so inlining them into the CASE expression carries no injection risk.
+    Falls back to 999 for anything not in BOOK_ORDER (never hit against this
+    corpus; defensive only, so an unrecognized book sorts last instead of
+    erroring).
+    """
+    cases = " ".join(f"WHEN '{b}' THEN {i}" for i, b in enumerate(BOOK_ORDER))
+    return f"CASE {column} {cases} ELSE 999 END"
+
+
 # Friendly display labels for variant tracks and boundary types in the UI.
 TRACK_LABELS: Dict[str, str] = {
     "Ksiv":        "Written (כְּתִיב)",
@@ -741,6 +773,27 @@ def strip_to_consonants(text: str) -> str:
     """
     text = _MARKER_STRIP_RE.sub(" ", text)
     return "".join(ch for ch in text if ch in HE_CONSONANTS)
+
+
+# Hebrew cantillation marks (ta'amim), U+0591-U+05AF — verified this range is
+# disjoint from HE_CONSONANTS, NIKUD_VALS, MAQAF (U+05BE) and SOF_PASUQ
+# (U+05C3), so stripping it can't accidentally eat a consonant, a vowel point,
+# or a word-joiner. No cipher counts ta'amim, so dropping them from a display
+# echo of the query needs no note or warning — unlike nikud, which several
+# ciphers genuinely score and which this function deliberately leaves alone.
+_TAAMIM = frozenset(chr(cp) for cp in range(0x0591, 0x05AF + 1))
+
+
+def strip_taamim(text: str) -> str:
+    """Drop cantillation marks only — nikud, spaces and consonants are kept.
+
+    For echoing a search query back to the user close to verbatim: with search
+    behavior that can be hard to eyeball ("did it actually search what I
+    typed?"), showing the literal input including nikud and spacing is the
+    useful signal; ta'amim are visual noise no cipher reads, so they're the one
+    thing silently removed.
+    """
+    return "".join(ch for ch in text if ch not in _TAAMIM)
 
 
 def detect_paragraph_marker(text: str) -> Optional[str]:
@@ -1677,7 +1730,7 @@ def internal_balance_matches(
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
                 f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 f"AND ABS(u1.{ma} - u2.{mb}) <= ? "
-                f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
+                f"ORDER BY {_book_rank_sql('u1.book')}, u1.chapter, u1.verse LIMIT ?",
                 raw_conn(conn), params=[min_value, min_value, tol, limit],
             )
             if not df.empty:
@@ -1708,7 +1761,7 @@ def proximity_echo_matches(
             "WHERE u1.boundary_type='Verse' AND u2.boundary_type='Verse' "
             "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
             f"AND u1.{m} >= ? AND ABS(u1.{m} - u2.{m}) <= ? "
-            f"ORDER BY u1.book, u1.chapter, u1.verse LIMIT ?",
+            f"ORDER BY {_book_rank_sql('u1.book')}, u1.chapter, u1.verse LIMIT ?",
             raw_conn(conn), params=[min_value, tol, limit],
         )
         if not df.empty:
@@ -1746,7 +1799,7 @@ def whole_unit_echo_matches(
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
                 f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 "AND u1.rowid != u2.rowid "
-                "ORDER BY u1.book, u1.chapter, u1.verse, u2.rowid "
+                "ORDER BY " + _book_rank_sql("u1.book") + ", u1.chapter, u1.verse, u2.rowid "
                 "LIMIT ?",
                 raw_conn(conn), params=[boundary, boundary, min_value, min_value, limit],
             )
@@ -1789,7 +1842,7 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
            f"boundary_type AS Boundary, variant_track AS Track, "
            f"text_display AS Text, {cipher} AS Value, sub_id AS SubID "
            f"FROM units WHERE " + " AND ".join(where) +
-           f" ORDER BY ABS({cipher} - ?), Book, Chapter, Verse LIMIT ?")
+           f" ORDER BY ABS({cipher} - ?), {_book_rank_sql('Book')}, Chapter, Verse LIMIT ?")
     params += [value, limit]
     return pd.read_sql_query(sql, raw_conn(conn), params=params)
 
@@ -1886,7 +1939,7 @@ def search_value_all_methods(
         " ELSE 9999 END"
     )
     sql = ("SELECT * FROM (" + " UNION ALL ".join(unions) +
-           f") ORDER BY {method_order}, ABS(Value - ?), Book, Chapter, Verse")
+           f") ORDER BY {method_order}, ABS(Value - ?), {_book_rank_sql('Book')}, Chapter, Verse")
     params += list(CIPHER_NAMES)
     params.append(value)
     return pd.read_sql_query(sql, raw_conn(conn), params=params)
@@ -1927,7 +1980,7 @@ def span_search(
     sql = (
         f"SELECT book, chapter, verse, variant_track, {cipher} "
         f"FROM units WHERE boundary_type='Word' {track_cond} "
-        f"ORDER BY book, chapter, verse, variant_track, rowid"
+        f"ORDER BY {_book_rank_sql('book')}, chapter, verse, variant_track, rowid"
     )
     df = pd.read_sql_query(sql, raw_conn(conn), params=params)
     if df.empty:
@@ -3733,11 +3786,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     word_consonants=_c_wcons, colel=colel,
                                     tracks=effective_tracks or None, boundaries=bounds or None)
             vals = payload["values"]
-            # App view drops this: the searched word is still visible in the
-            # input box above, and each method's own subheading below already
-            # restates "{Method} = {value}", so this mostly duplicated both.
-            if not app_view:
-                st.markdown(f"#### Results for `{_c_cons}`")
+            # Shown in both views now, and no longer the bare consonants: search
+            # behavior can be hard to eyeball ("did it search what I actually
+            # typed?"), so this echoes the query close to verbatim — nikud and
+            # spacing kept, only ta'amim silently dropped (no cipher reads them,
+            # so there's nothing to warn about). Previously app view dropped this
+            # line entirely on the theory that the input box above already shows
+            # it, but the input box doesn't scroll into view with the results.
+            st.markdown(f"#### Results for `{strip_taamim(_c_raw)}`")
             # _t1_opts / active_ciphers come from the method picker above, which
             # renders before a search is committed. App view orders all methods
             # with the classical (Talmud-attested) ones first. The computed-values
@@ -3802,7 +3858,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # Streamlit executes an expander body even while it is collapsed, so
                 # this block used to run on every search and every widget interaction.
                 # Opt-in keeps a plain search cheap; once run, the result is cached.
-                if not st.checkbox("Compute cross-method matrix", key="xm_run",
+                # Key includes the searched word: a bare "xm_run" key persists its
+                # checked state across an unrelated NEW search too (Streamlit keeps
+                # widget state by key, not by what's on screen), silently re-running
+                # this scan against a different word than the one it was turned on
+                # for. Keying on _c_cons gives each distinct search its own toggle,
+                # defaulting to off, the way a fresh search should.
+                if not st.checkbox("Compute cross-method matrix", key=f"xm_run_{_c_cons}",
                                    help="Scans the corpus under all 34 methods to build a 34x34 count matrix. Takes a few seconds, so it is off by default and a plain search does not pay for it."):
                     st.caption("Off by default — this scan takes a few seconds. "
                                "Tick to run it; the result is then cached.")
@@ -3940,7 +4002,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # Streamlit executes an expander body even while it is collapsed, so
                 # this block used to run on every search and every widget interaction.
                 # Opt-in keeps a plain search cheap; once run, the result is cached.
-                if not st.checkbox("Run word-span scan", key="span_run",
+                # Keyed on the searched word for the same reason as the
+                # cross-method checkbox above: a bare key would carry a checked
+                # state over onto an unrelated new search and silently scan it too.
+                if not st.checkbox("Run word-span scan", key=f"span_run_{_c_cons}",
                                    help="Scans every contiguous 2-N word sequence in the corpus. Takes a few seconds, so it is off by default and a plain search does not pay for it."):
                     st.caption("Off by default — this scan takes a few seconds. "
                                "Tick to run it; the result is then cached.")
