@@ -2710,6 +2710,13 @@ _LOADER_HEAD_SNIPPET = (
     "@media (prefers-color-scheme:dark){.gem-nakdan{color:#A5B4FC;}}"
     "</style>"
     "<script>(function(){"
+    # Guards against _inject_loader_icon_fallback() (below) also running and
+    # starting a second, redundant interval -- both mechanisms exist because
+    # this one (patching Streamlit's installed index.html) silently fails on
+    # some hosts (confirmed: Streamlit Community Cloud), so the fallback
+    # always fires too; only one may actually be needed on a given host, but
+    # which one can't be known in advance.
+    "if(window.__gemNakdanActive){return;}window.__gemNakdanActive=true;"
     # 22 base letters + 5 finals, per the chosen letter set.
     'var L="אבגדהוזחטיכךלמםנןסעפףצץקרשת".split("");'
     # Reject anything shown in the last 4 ticks: pure random draws the same
@@ -2731,6 +2738,85 @@ _LOADER_HEAD_SNIPPET = (
     "el.textContent=pick();},140);"
     "})();</script>"
 )
+
+
+def _inject_loader_icon_fallback() -> None:
+    """Runtime fallback for the loader-icon replacement, for hosts where
+    patching Streamlit's installed index.html (_inject_pwa_head, below)
+    silently has no effect -- confirmed on Streamlit Community Cloud, whose
+    managed environment doesn't allow (or doesn't persist) that write.
+
+    st.components.v1.html() can't substitute: it renders in a sandboxed
+    iframe with no access to the parent DOM (the same restriction noted for
+    window.print() in BUILD.md), so it can't reach the real status widget
+    elsewhere on the page.
+
+    Two things that look like they should work here don't:
+    - A bare <script> tag inside st.markdown(unsafe_allow_html=True) is
+      inserted via innerHTML-equivalent, and scripts inserted that way never
+      execute -- a long-standing, deliberate browser restriction.
+    - An onerror-triggered <img> (a classic workaround for exactly that
+      restriction) was tried and tested directly against this app: it threw
+      "Minified React error #231" and never ran. Streamlit's markdown
+      renderer converts raw HTML into React elements rather than doing a
+      plain innerHTML assignment, and React treats any `on*` attribute as a
+      synthetic event *prop* expecting a function -- a plain HTML string
+      value for `onerror` fails that expectation outright.
+
+    An <iframe srcdoc="..."> sidesteps both: `srcdoc` isn't an event-prop
+    name, so React passes it through untouched, and a <script> tag inside
+    that srcdoc document runs as a normal same-document parse (not an
+    innerHTML insertion), so it executes normally. A srcdoc iframe with no
+    `sandbox` attribute is same-origin per spec, so it can reach back out via
+    window.parent to the real page. Verified working end-to-end.
+
+    Guarded by `window.__gemNakdanActive` on the *parent* window (set by
+    _LOADER_HEAD_SNIPPET's own script too) so this is a safe no-op wherever
+    the file patch already succeeded -- call unconditionally on every host,
+    every run.
+    """
+    import html as _html_escape
+    import json as _json
+    import streamlit as st
+
+    css = (
+        '[data-testid="stStatusWidget"]{display:flex !important;'
+        "flex-direction:row !important;align-items:center !important;"
+        "gap:.35em;white-space:nowrap;}"
+        '[data-testid="stStatusWidget"] img,'
+        '[data-testid="stStatusWidget"] svg{display:none !important;}'
+        ".gem-nakdan{font-family:'Noto Serif Hebrew',David,'Times New Roman',serif;"
+        "font-size:1.15rem;font-weight:700;line-height:1;color:#4F46E5;"
+        "display:inline-block;min-width:1.25em;text-align:center;"
+        "flex:0 0 auto;font-feature-settings:'liga' 0;}"
+        ".gem-nakdan:only-child{display:none !important;}"
+        "@media (prefers-color-scheme:dark){.gem-nakdan{color:#A5B4FC;}}"
+    )
+    js = (
+        "var P=window.parent;"
+        "if(P.__gemNakdanActive){return;}P.__gemNakdanActive=true;"
+        "var D=P.document;"
+        "var s=D.createElement('style');s.textContent=" + _json.dumps(css) + ";"
+        "D.head.appendChild(s);"
+        "var L=" + _json.dumps("אבגדהוזחטיכךלמםנןסעפףצץקרשת") + ".split('');"
+        "var recent=[];"
+        "function pick(){for(var t=0;t<40;t++){"
+        "var c=L[Math.floor(Math.random()*L.length)];"
+        "if(recent.indexOf(c)===-1){recent.push(c);"
+        "if(recent.length>4){recent.shift();}return c;}}"
+        "return L[Math.floor(Math.random()*L.length)];}"
+        "P.setInterval(function(){"
+        "var w=D.querySelector('[data-testid=\"stStatusWidget\"]');"
+        "if(!w){return;}"
+        "var el=w.querySelector('.gem-nakdan');"
+        "if(!el){el=D.createElement('span');"
+        "el.className='gem-nakdan';w.insertBefore(el,w.firstChild);}"
+        "el.textContent=pick();},140);"
+    )
+    srcdoc = _html_escape.escape(
+        "<script>(function(){" + js + "})();</script>", quote=True)
+    st.markdown(f'<iframe srcdoc="{srcdoc}" style="display:none" title="">'
+                f'</iframe>', unsafe_allow_html=True)
 
 
 def _inject_pwa_head() -> None:
@@ -2812,6 +2898,8 @@ def run_app() -> None:
         "font-size:1.05rem;}"
         "</style>",
         unsafe_allow_html=True)
+
+    _inject_loader_icon_fallback()
 
     # App view (?view=app): the PWA opens here. Guide + Tabs 1-2 only,
     # classical cipher set by default. The regular site is unaffected.
