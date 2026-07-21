@@ -2835,23 +2835,28 @@ def run_app() -> None:
     # Streamlit skips hashing the connection; `corpus_key` stands in for it, so a
     # custom Sefaria corpus cannot collide with the bundled one. Sequence args are
     # tuples because the key must be hashable and stable.
-    @st.cache_data(show_spinner=False)
+    # Bounded so distinct search values/filters don't grow these caches without
+    # limit over a long-running container. `max_entries` alone is enough for
+    # safety here (eviction just drops Streamlit's dict entry -- see cache_data
+    # docs; no connection or resource teardown is involved), `ttl` is a second,
+    # independent safety net.
+    @st.cache_data(show_spinner=False, max_entries=100, ttl=3600)
     def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel, tracks):
         return span_search(_conn, target, cipher, max_span=max_span, colel=colel,
                            tracks=list(tracks) if tracks else None)
 
-    @st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False, max_entries=100, ttl=3600)
     def cached_xm_matrix(_conn, corpus_key, a_vals_items, colel, tracks, boundaries):
         return _xm_count_matrix(_conn, dict(a_vals_items), colel,
                                 list(tracks) if tracks else None,
                                 list(boundaries) if boundaries else None)
 
-    @st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False, max_entries=50, ttl=3600)
     def cached_boundary_population(_conn, corpus_key, tracks, boundaries):
         return boundary_population(_conn, list(tracks) if tracks else None,
                                    list(boundaries) if boundaries else None)
 
-    @st.cache_data(show_spinner=False)
+    @st.cache_data(show_spinner=False, max_entries=50, ttl=3600)
     def cached_method_spread(_conn, corpus_key, tracks, boundaries):
         """Distinct values each method produces over the units in scope.
 
@@ -2875,7 +2880,12 @@ def run_app() -> None:
                                       params).fetchone()
         return {c: (n or 1) for c, n in zip(CIPHER_NAMES, row)}
 
-    @st.cache_resource(show_spinner="Loading Tanach…")
+    # max_entries=3 comfortably holds the base corpus + one custom-refs corpus
+    # + one in-flight rebuild, so repeated "Retry Sefaria fetch" clicks (each
+    # bumping _nonce, and therefore the cache key) can't pin unbounded ~370MB
+    # corpora alive forever. No ttl: the hot base-corpus entry restores from
+    # disk in seconds, so there's nothing worth periodically evicting it for.
+    @st.cache_resource(show_spinner="Loading Tanach…", max_entries=3)
     def _build_connection(extra_refs_key: str, _nonce: int):
         bundled = load_from_jsonl()
         verses = bundled if bundled else list(SAMPLE_CORPUS)
@@ -2907,13 +2917,18 @@ def run_app() -> None:
     def get_connection(extra_refs_key: str):
         nonce = st.session_state.get("sefaria_retry_nonce", 0)
         conn, n, ok, verse_index = _build_connection(extra_refs_key, nonce)
+        # Identifies the actual corpus content, not just what refs were
+        # requested: folds in the retry nonce and fetch outcome so a search
+        # cached against a failed-fetch fallback corpus doesn't stay stuck as
+        # a stale cache hit once a retry succeeds and the real corpus is built.
+        corpus_key = f"{extra_refs_key}|{nonce}|{ok}"
         if not ok:
             st.warning("Couldn't fetch the requested Sefaria refs "
                        "(offline or rate-limited). Showing the base corpus without them.")
             if st.button("Retry Sefaria fetch"):
                 st.session_state["sefaria_retry_nonce"] = nonce + 1
                 st.rerun()
-        return conn, n, verse_index
+        return conn, n, verse_index, corpus_key
 
     if app_view:
         _extra_refs = ""
@@ -2925,7 +2940,7 @@ def run_app() -> None:
                 help=_tip("e.g. Genesis 1; Psalms 23 — appended to the bundled corpus. "
                           "Adding refs triggers a full rebuild (~20–30 s)."))
 
-    conn, n_loaded, verse_index = get_connection(_extra_refs)
+    conn, n_loaded, verse_index, corpus_key = get_connection(_extra_refs)
 
     if not app_view:
       with st.sidebar:
@@ -3920,7 +3935,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         )
                     a_vals = dict(vals)
                     pop = cached_boundary_population(
-                        conn, _extra_refs, tuple(effective_tracks or ()),
+                        conn, corpus_key, tuple(effective_tracks or ()),
                         tuple(bounds or ())) or 1
                     # "rate" is the share of the searched population a cell
                     # accounts for: matches / units currently in scope. The old
@@ -3946,7 +3961,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                                  help=_tip("Show every cell."))
                     with st.spinner("Building cross-method matrix…"):
                         xm_df = cached_xm_matrix(
-                            conn, _extra_refs, tuple(sorted(a_vals.items())), colel,
+                            conn, corpus_key, tuple(sorted(a_vals.items())), colel,
                             tuple(effective_tracks or ()), tuple(bounds or ())
                         )
                     # Colour by lift, not by share of population. expected =
@@ -3954,7 +3969,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # column is judged against its own spread; lift < 1 means
                     # genuinely rarer than typical, lift > 1 commoner.
                     spread = cached_method_spread(
-                        conn, _extra_refs, tuple(effective_tracks or ()),
+                        conn, corpus_key, tuple(effective_tracks or ()),
                         tuple(bounds or ()))
                     expected = {m: max(pop / spread.get(m, 1), 1e-9)
                                 for m in xm_df.columns}
@@ -4068,7 +4083,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # Inline spinner, same reason as the matrix above.
                     with st.spinner("Scanning word spans…"):
                         span_df = cached_span_search(
-                            conn, _extra_refs, span_tgt, span_cipher,
+                            conn, corpus_key, span_tgt, span_cipher,
                             span_max, colel, tuple(effective_tracks or ()),
                         )
                     if span_df.empty:
@@ -4478,7 +4493,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             _BALANCE_COLS = [c for c in CIPHER_NAMES if c not in _HEATMAP_EXCLUDE]
 
             @st.cache_data(show_spinner="Computing cross-method balance matrix…")
-            def _xm_balance_matrix(_conn):
+            def _xm_balance_matrix(_conn, corpus_key):
                 cols = ", ".join(
                     f'SUM(CASE WHEN ABS(u1.{mx} - u2.{my}) <= 1 THEN 1 ELSE 0 END) '
                     f'AS "{mx}_vs_{my}"'
@@ -4499,7 +4514,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         for mx in _BALANCE_COLS]
                 return pd.DataFrame(data, index=_BALANCE_COLS, columns=_BALANCE_COLS), total
 
-            rate_df, total_verses = _xm_balance_matrix(conn)
+            rate_df, total_verses = _xm_balance_matrix(conn, corpus_key)
             fig_xm = _px_xm.imshow(
                 rate_df, text_auto=".1%",
                 color_continuous_scale="YlOrRd", aspect="auto",
