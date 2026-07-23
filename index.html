@@ -18,28 +18,35 @@
     background: #0e1117;
     color: #e5e7eb;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     overflow: hidden;
   }
+  /* The app iframe fills the screen and starts loading immediately, but sits
+     UNDER the opaque overlay until the app itself says it's ready. */
   #app-frame {
     position: fixed;
     inset: 0;
     width: 100%;
     height: 100%;
     border: 0;
-    display: none;
+    z-index: 1;
   }
+  /* Full-screen opaque overlay — hides the app's cold-start loading behind a
+     friendly screen until the app posts 'gem-app-ready'. */
   #loader {
+    position: fixed;
+    inset: 0;
+    z-index: 10;
+    background: #0e1117;
     display: flex;
     flex-direction: column;
     align-items: center;
+    justify-content: center;
     gap: 1.1rem;
     padding: 2rem;
     text-align: center;
-    max-width: 380px;
   }
+  #loader .inner { max-width: 380px; display: flex; flex-direction: column;
+    align-items: center; gap: 1.1rem; }
   .gem-letter {
     font-family: 'Noto Serif Hebrew', David, 'Times New Roman', serif;
     font-size: 2.6rem;
@@ -66,16 +73,15 @@
   }
   #retry-btn:active { background: rgba(79,70,229,0.2); }
   #reload-corner {
-    /* Top-left, not top-right: Streamlit's own app renders its own settings
-       ("...") menu in the top-right corner, which this would otherwise sit
-       on top of or under once the iframe is revealed. */
+    /* Top-left, not top-right: Streamlit renders its own "…" menu top-right,
+       which this would otherwise overlap once the app is revealed. */
     position: fixed;
     top: max(0.5rem, env(safe-area-inset-top));
     left: max(0.6rem, env(safe-area-inset-left));
     font-size: 0.75rem;
     color: #6b7280;
     text-decoration: none;
-    z-index: 2;
+    z-index: 20;
     padding: 0.3rem 0.5rem;
     background: rgba(14,17,23,0.55);
     border-radius: 6px;
@@ -86,24 +92,26 @@
 
 <a id="reload-corner" href="./" title="Reload">&#8635; Reload</a>
 
-<div id="loader">
-  <div class="gem-letter" id="gem-letter" aria-hidden="true">א</div>
-  <div id="status" role="status" aria-live="polite">Warming up the search engine&hellip;</div>
-  <div style="font-size:0.8rem;color:#6b7280;">
-    Free hosting sometimes takes a minute to wake up &mdash; this page keeps
-    checking automatically.
-  </div>
-  <button id="retry-btn">Open anyway</button>
-</div>
-
+<!-- The app loads immediately and warms up behind the overlay. -->
 <iframe id="app-frame" title="Tanach Gematria" allow="clipboard-write; fullscreen"></iframe>
+
+<div id="loader">
+  <div class="inner">
+    <div class="gem-letter" id="gem-letter" aria-hidden="true">א</div>
+    <div id="status" role="status" aria-live="polite">Warming up the search engine&hellip;</div>
+    <div style="font-size:0.8rem;color:#6b7280;">
+      Free hosting can take up to a minute to wake up &mdash; this screen lifts
+      automatically the moment the app is ready.
+    </div>
+    <button id="retry-btn">Open now</button>
+  </div>
+</div>
 
 <script>
 (function () {
   // The "/~/+/" prefix is Streamlit Community Cloud's own internal path to the
-  // app's actual content, bypassing its outer wrapper page (which carries a
-  // "Fork"/GitHub toolbar we don't want inside the loader). Change only if the
-  // app moves to a different host.
+  // app's real content, bypassing its outer "Fork"/GitHub toolbar. Change only
+  // if the app moves to a different host.
   var APP_URL = "https://tanach-gematria.streamlit.app/~/+/?view=app";
 
   var letterEl = document.getElementById("gem-letter");
@@ -112,8 +120,8 @@
   var frame = document.getElementById("app-frame");
   var loader = document.getElementById("loader");
 
-  // Cosmetic only, mirrors the app's own status-widget animation so the
-  // hand-off from loader to iframe feels like one continuous app.
+  // Cosmetic — mirrors the app's own status-widget letters so the hand-off
+  // from overlay to app feels like one continuous screen.
   var LETTERS = "אבגדהוזחטיכךלמםנןסעפףצץקרשת".split("");
   var recent = [];
   function pickLetter() {
@@ -136,63 +144,34 @@
     if (opened) return;
     opened = true;
     clearInterval(letterTimer);
-    frame.src = APP_URL;
-    frame.style.display = "block";
-    loader.style.display = "none";
+    loader.style.display = "none";   // the iframe underneath is already loaded
   }
 
-  // Community Cloud's host is a different origin than this loader and sends
-  // no CORS headers, so a normal fetch() cannot read a status code cross-
-  // origin (every such request throws, success or failure alike — verified
-  // directly against this app). A cross-origin iframe's own "load" event is
-  // no help either: it was tested against a totally unreachable host and
-  // fires immediately regardless, since it reports "navigation finished"
-  // (even with the browser's own error page), not "content succeeded" — so
-  // it cannot be used as a success signal at all.
-  //
-  // A `fetch(..., {mode:"no-cors"})` splits the difference usefully: the
-  // response body/status stays unreadable (opaque), but the promise itself
-  // still rejects for a real network-level failure (DNS, connection refused,
-  // timeout) and only resolves once something answers at all. Verified: a
-  // non-resolving host rejects; this app's own health endpoint resolves
-  // (opaque, status 0). That's enough to catch a genuine outage — it still
-  // can't distinguish a real 200 from an HTTP 500 or Community Cloud's own
-  // "asleep" page, but that gap matters less here since Community Cloud's
-  // worst case is a friendly wake screen, not a raw error.
-  var HEALTH_URL = "https://tanach-gematria.streamlit.app/~/+/_stcore/health";
-  var MAX_ATTEMPTS = 6;
-  var attempt = 0;
+  // The real readiness signal: the app posts 'gem-app-ready' from inside itself
+  // the moment its search UI actually renders (corpus loaded, interactive). We
+  // cannot detect that from out here — the app is a cross-origin iframe, its
+  // server answers _stcore/health within a second (long before the app is
+  // usable), and the iframe 'load' event fires on the bare shell just as early.
+  // So we wait for the app's own word. See _signal_app_ready() in app.py.
+  window.addEventListener("message", function (e) {
+    if (e && e.data === "gem-app-ready") revealApp();
+  });
 
-  function checkReachable() {
-    if (opened) return;
-    attempt++;
-    var ctrl = new AbortController();
-    var t = setTimeout(function () { ctrl.abort(); }, 5000);
-    fetch(HEALTH_URL, { signal: ctrl.signal, cache: "no-store", mode: "no-cors" })
-      .then(function () {
-        clearTimeout(t);
-        revealApp();
-      })
-      .catch(function () {
-        clearTimeout(t);
-        scheduleRetry();
-      });
-  }
+  // Start the app loading right away, underneath the overlay.
+  frame.src = APP_URL;
 
-  function scheduleRetry() {
-    if (opened) return;
-    if (attempt >= MAX_ATTEMPTS) {
-      statusEl.textContent = "Still slow to respond — you can wait longer, or open it anyway.";
+  // Escape hatches so the overlay can never trap anyone: a manual button after
+  // a short wait (also lets a Community-Cloud "wake this app?" screen through),
+  // and a hard fallback that lifts the overlay regardless.
+  setTimeout(function () {
+    if (!opened) {
+      statusEl.textContent = "Taking longer than usual — you can open it now, or keep waiting.";
       retryBtn.style.display = "inline-block";
-      return;
     }
-    statusEl.textContent = "Still warming up… (try " + attempt + " of " + MAX_ATTEMPTS + ")";
-    setTimeout(checkReachable, Math.min(2000 * Math.pow(1.6, attempt - 1), 15000));
-  }
+  }, 12000);
+  setTimeout(revealApp, 50000);
 
   retryBtn.addEventListener("click", revealApp);
-
-  checkReachable();
 })();
 </script>
 </body>
