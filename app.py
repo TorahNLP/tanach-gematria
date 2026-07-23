@@ -2819,6 +2819,43 @@ def _inject_loader_icon_fallback() -> None:
                 f'</iframe>', unsafe_allow_html=True)
 
 
+def _signal_app_ready() -> None:
+    """Tell an embedding page (the GitHub-Pages loader) the app is actually usable.
+
+    The loader wraps this app in a cross-origin iframe. It cannot see inside to
+    know when the app has finished its cold-start corpus build — Streamlit's
+    server answers `_stcore/health` within a second, long before the search UI
+    exists, so a health-based reveal flashes the loader away while the app is
+    still loading. Instead we post a message *from inside the app* the moment
+    the search input actually renders (i.e. the corpus is loaded and the page
+    is interactive); the loader keeps its overlay up until it receives it.
+
+    Same srcdoc-iframe trick as the loader-icon fallback (a bare <script> in
+    st.markdown never executes, and React rejects on* attributes). From the
+    srcdoc, `window.parent` is the app page and `window.parent.parent` is the
+    loader (or the app itself when opened directly, where the message is a
+    harmless no-op). Independent of the loader-icon guard so it fires whichever
+    icon mechanism won.
+    """
+    import html as _html_escape
+    import streamlit as st
+    js = (
+        "var P=window.parent;"                       # the app page
+        "if(P.__gemReadyPosted){return;}"
+        "var D=P.document;"
+        "var t=P.setInterval(function(){"
+        "if(P.__gemReadyPosted){clearInterval(t);return;}"
+        "if(D.querySelector('input[aria-label=\"Hebrew phrase or name\"]')){"
+        "P.__gemReadyPosted=true;clearInterval(t);"
+        "try{P.parent.postMessage('gem-app-ready','*');}catch(e){}"
+        "}},250);"
+    )
+    srcdoc = _html_escape.escape(
+        "<script>(function(){" + js + "})();</script>", quote=True)
+    st.markdown(f'<iframe srcdoc="{srcdoc}" style="display:none" title="">'
+                f'</iframe>', unsafe_allow_html=True)
+
+
 def _inject_pwa_head() -> None:
     """Patch Streamlit's served index.html with PWA + loader-icon tags.
 
@@ -2900,6 +2937,7 @@ def run_app() -> None:
         unsafe_allow_html=True)
 
     _inject_loader_icon_fallback()
+    _signal_app_ready()
 
     # App view (?view=app): the PWA opens here. Guide + Tabs 1-2 only,
     # classical cipher set by default. The regular site is unaffected.
