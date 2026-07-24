@@ -630,7 +630,8 @@ CIPHER_BLURB: Dict[str, str] = {
     "Siduri":          "Ordinal position: א=1, ב=2 … ת=22. Sequence, not Standard value.",
     "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22. Chassidei Ashkenaz / Sefer Raziel.",
     "Ribua":           "Sum of squared values per letter: Σ v².",
-    "HaMerubahKlali":  "The total Standard sum squared as one block: (Σv)². Pardes Rimonim Sha'ar 30.",
+    "HaMerubahKlali":  "The total Standard sum squared as one block: (Σv)². Pardes Rimonim Sha'ar 30. "
+                       "Note: always matches Standard here — see cross-method below.",
     "Kidmi":           "Cumulative sum of Standard values: each letter = Σ Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
     "Milui":           "Spell each letter's full name (Lurianic: א=אלף=111 …); sum all spelling letters.",
@@ -3502,7 +3503,10 @@ def run_app() -> None:
                  "Earliest Source": "Mainstreamed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.) in his Torah commentary. Also documented in Pardes Rimonim (Gate 30)."},
                 {"Method": "HaMerubahKlali",
                  "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
-                 "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua which squares per letter.",
+                 "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua which squares per letter. "
+                         "Note: squaring is order-preserving, so two texts share a HaMerubah HaKlali value if and only if "
+                         "they share a Standard value — searching it alone returns exactly the Standard results. Its value "
+                         "is in cross-method comparison (e.g. one text's total squared against another's Standard).",
                  "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30)."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
