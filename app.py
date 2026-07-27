@@ -2139,16 +2139,30 @@ def _cross_verse_spans(df, cipher: str, max_span: int, target_set):
     # a span may never mix words from Ksiv and TextVariant.
     for track, tgrp in df.groupby("variant_track", sort=False):
         verses = list(tgrp.groupby(["book", "chapter", "verse"], sort=False))
-        run: list = []           # consecutive verses accumulated so far
 
-        def flush(run):
+        # Split the track into maximal runs of genuinely consecutive verses,
+        # then scan each run once, end to end. An earlier version walked
+        # bounded windows with an overlapping tail and double-emitted every
+        # span that fell inside the overlap; the whole-run scan has no overlap
+        # to get wrong, so each window is visited exactly once by construction.
+        # Cost is bounded by max_span, not by run length: the inner loop is
+        # O(run_words x max_span) either way, and prefix sums make each window
+        # O(1). A whole book is ~30K words, so this stays well inside a second.
+        runs: List[list] = []
+        for key, grp in verses:
+            if runs and _verses_are_consecutive(runs[-1][-1][0], key):
+                runs[-1].append((key, grp))
+            else:
+                runs.append([(key, grp)])
+
+        for run in runs:
             if len(run) < 2:
-                return
+                continue            # nothing to cross into
             vals = _np.concatenate([g[cipher].to_numpy(dtype=_np.int64)
                                     for _, g in run])
-            # Word index -> which verse in the run it belongs to, so a hit can
-            # be reported against the verse it starts in with an offset local
-            # to that verse (what the detail renderer expects).
+            # Word index -> which verse of the run it belongs to, so a hit is
+            # reported against the verse it starts in, with an offset local to
+            # that verse (what the detail renderer expects).
             starts, acc = [], 0
             for _, g in run:
                 starts.append(acc)
@@ -2186,28 +2200,6 @@ def _cross_verse_spans(df, cipher: str, max_span: int, target_set):
                         "_end_ch": int(c1),
                         "_end_vs": int(s1),
                     })
-
-        for key, grp in verses:
-            if run and not _verses_are_consecutive(run[-1][0], key):
-                flush(run)
-                run = []
-            run.append((key, grp))
-            # Bound the window: a run only needs to be long enough to hold the
-            # longest span that starts in its first verse. Without this the run
-            # grows to a whole book and the prefix-sum walk redoes the same
-            # interior windows for every verse appended.
-            if sum(len(g) for _, g in run) > 2 * max_span:
-                flush(run)
-                # Keep a tail long enough that a span starting near the end of
-                # the flushed run can still reach into the next verses.
-                tail, total = [], 0
-                for item in reversed(run):
-                    tail.insert(0, item)
-                    total += len(item[1])
-                    if total >= max_span:
-                        break
-                run = tail
-        flush(run)
     return out
 
 
