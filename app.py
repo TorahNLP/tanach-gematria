@@ -725,6 +725,19 @@ BOUNDARY_LABELS: Dict[str, str] = {
     "WordSpan":   "Word span (contiguous words)",
 }
 
+# Tab 2 lists first and second half-verses together instead of offering them as
+# two separate choices, so it needs its own label for that combined view. The
+# split point is named explicitly (Asnachta / etnachta ֑) because "half-verse"
+# alone doesn't say where the halves divide.
+T2_BOUNDARY_LABELS: Dict[str, str] = {
+    "BothHalves": "Half-verses (split at the Asnachta ֑)",
+}
+# Short per-row labels for the Half column in that combined listing.
+HALF_LABELS: Dict[str, str] = {
+    "FirstHalf":  "1st (before ֑)",
+    "SecondHalf": "2nd (after ֑)",
+}
+
 
 def compute_all_ciphers(consonants: str, cantillated: str = "",
                         word_consonants: str = "") -> Dict[str, int]:
@@ -1513,6 +1526,47 @@ def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
     return verses
 
 
+ENGLISH_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
+
+# Attribution for the bundled translation. The 1985 JPS is licensed CC-BY-NC,
+# and attribution is a *condition* of that licence, not a courtesy — so this
+# string is rendered wherever the English appears (detail panel, print-out,
+# Guide), including in exported documents that leave the site.
+ENGLISH_VERSION_LABEL = "JPS 1985"
+ENGLISH_ATTRIBUTION = ("English: “Tanakh: The Holy Scriptures” © 1985 "
+                       "The Jewish Publication Society, via Sefaria. "
+                       "Licensed CC BY-NC 4.0.")
+
+
+def load_english(path: pathlib.Path = ENGLISH_FILE) -> Dict[Tuple[str, int, int], str]:
+    """Load the bundled English translation as {(book, chapter, verse): text}.
+
+    Deliberately a plain dict rather than a table in tanach.db: the translation
+    plays no part in any gematria computation, so it has no business in the
+    unit index. Keeping it beside the DB means a translation refresh never
+    forces a rebuild of the 23,206-verse cipher table.
+
+    Returns {} when the file is absent, which is a supported state — every
+    caller degrades to "translation unavailable" rather than failing.
+    """
+    if not path.exists():
+        return {}
+    out: Dict[Tuple[str, int, int], str] = {}
+    try:
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                row = json.loads(line)
+                out[(row["book"], int(row["chapter"]), int(row["verse"]))] = row["en"]
+    except (OSError, ValueError, KeyError):
+        # A truncated or malformed sidecar must not take the app down; the
+        # feature is additive, so partial data is better than a hard failure.
+        return out
+    return out
+
+
 def build_sefaria_url(ref: str) -> str:
     """Return the exact (well-formed, percent-encoded) URL the loader requests.
 
@@ -1967,6 +2021,7 @@ def span_search(
     max_span: int = 10,
     colel: bool = False,
     tracks: Optional[List[str]] = None,
+    cross_verse: bool = False,
 ) -> pd.DataFrame:
     """Find every contiguous multi-word span (2..max_span words) whose `cipher`
     value equals `target` (or target±1 if colel).  Works for all 34 ciphers
@@ -1978,6 +2033,24 @@ def span_search(
     source text — Word units are built from it (see verse_forks) — so they stay
     aligned with the DB row order this scan walks.  Underscore-prefixed columns
     are internal and dropped before display.
+
+    `cross_verse=False` (the default) confines every span to one verse, which is
+    what the sof-pasuq means: the verse is a real boundary in the text, not an
+    artefact of how it is stored.  `cross_verse=True` additionally returns spans
+    that straddle a verse boundary, marked `_cross=True` and carrying `_end_ch`/
+    `_end_vs` for the verse they end in.  Those rows are a superset — the
+    within-verse spans are still present and still marked `_cross=False` — so
+    the caller can label rather than re-run.
+
+    Two things the cross-verse walk must not do, both load-bearing:
+      * It may only bridge verses that are genuinely consecutive in the corpus.
+        The TextVariant track holds ~7 scattered verses (Genesis 18:5, Genesis
+        24:55, Numbers 31:2 …); streaming it naively would invent adjacencies
+        between verses that are nowhere near each other.  Bridges are therefore
+        allowed only between verses adjacent in the same chapter, or across a
+        chapter seam within one book.
+      * It never bridges books.  The end of Deuteronomy is not adjacent to the
+        start of Joshua in any sense a reader would accept.
     """
     import numpy as _np
 
@@ -2022,9 +2095,112 @@ def span_search(
                     cipher:  int(span_vals[i]),
                     "_w0":   int(i),
                     "_w1":   int(i) + span_len,
+                    "_cross":  False,
+                    "_end_ch": int(ch),
+                    "_end_vs": int(vs),
                 })
 
+    if cross_verse:
+        rows.extend(_cross_verse_spans(df, cipher, max_span, target_set))
+
     return pd.DataFrame(rows)
+
+
+def _verses_are_consecutive(prev, nxt) -> bool:
+    """True when verse `nxt` directly follows `prev` in the same book.
+
+    Accepts the next verse in the same chapter, or the first verse of the next
+    chapter. Deliberately strict: any gap means the two verses are not adjacent
+    in the text and must not be bridged, which is what keeps the sparse
+    TextVariant track (7 scattered verses) from producing invented adjacencies.
+    Never bridges books.
+    """
+    (p_book, p_ch, p_vs), (n_book, n_ch, n_vs) = prev, nxt
+    if p_book != n_book:
+        return False
+    if p_ch == n_ch:
+        return n_vs == p_vs + 1
+    return n_ch == p_ch + 1 and n_vs == 1
+
+
+def _cross_verse_spans(df, cipher: str, max_span: int, target_set):
+    """Spans that straddle a verse boundary, for span_search(cross_verse=True).
+
+    Only spans that actually cross are returned; the within-verse ones are
+    produced by the caller's own walk. Windows are built over a run of
+    consecutive verses, then a window is kept only when it spans more than one
+    verse — so a span sitting wholly inside one verse of the run is skipped
+    rather than duplicated.
+    """
+    import numpy as _np
+
+    out = []
+    # One stream per track: the tracks are alternative readings of the text, so
+    # a span may never mix words from Ksiv and TextVariant.
+    for track, tgrp in df.groupby("variant_track", sort=False):
+        verses = list(tgrp.groupby(["book", "chapter", "verse"], sort=False))
+
+        # Split the track into maximal runs of genuinely consecutive verses,
+        # then scan each run once, end to end. An earlier version walked
+        # bounded windows with an overlapping tail and double-emitted every
+        # span that fell inside the overlap; the whole-run scan has no overlap
+        # to get wrong, so each window is visited exactly once by construction.
+        # Cost is bounded by max_span, not by run length: the inner loop is
+        # O(run_words x max_span) either way, and prefix sums make each window
+        # O(1). A whole book is ~30K words, so this stays well inside a second.
+        runs: List[list] = []
+        for key, grp in verses:
+            if runs and _verses_are_consecutive(runs[-1][-1][0], key):
+                runs[-1].append((key, grp))
+            else:
+                runs.append([(key, grp)])
+
+        for run in runs:
+            if len(run) < 2:
+                continue            # nothing to cross into
+            vals = _np.concatenate([g[cipher].to_numpy(dtype=_np.int64)
+                                    for _, g in run])
+            # Word index -> which verse of the run it belongs to, so a hit is
+            # reported against the verse it starts in, with an offset local to
+            # that verse (what the detail renderer expects).
+            starts, acc = [], 0
+            for _, g in run:
+                starts.append(acc)
+                acc += len(g)
+            owner = _np.zeros(acc, dtype=_np.int64)
+            for vi, s in enumerate(starts):
+                owner[s:] = vi
+            n = len(vals)
+            prefix = _np.concatenate([[0], _np.cumsum(vals)])
+            for span_len in range(2, min(max_span + 1, n + 1)):
+                span_vals = prefix[span_len:] - prefix[: n - span_len + 1]
+                hits = _np.where(_np.isin(span_vals, target_set))[0]
+                for i in hits:
+                    i = int(i)
+                    v0, v1 = int(owner[i]), int(owner[i + span_len - 1])
+                    if v0 == v1:
+                        continue        # wholly inside one verse: not ours
+                    (b, c0, s0), _ = run[v0]
+                    (_, c1, s1), _ = run[v1]
+                    local = i - starts[v0]
+                    out.append({
+                        "Book":  b,
+                        "Ch":    int(c0),
+                        "Vs":    int(s0),
+                        "Track": track,
+                        # Word numbers are relative to the starting verse, so
+                        # the range runs past that verse's word count — the
+                        # display marks these rows as crossing, and the detail
+                        # panel renders the whole run.
+                        "Words": f"{local+1}–{local+span_len}",
+                        cipher:  int(span_vals[i]),
+                        "_w0":   local,
+                        "_w1":   local + span_len,
+                        "_cross":  True,
+                        "_end_ch": int(c1),
+                        "_end_vs": int(s1),
+                    })
+    return out
 
 
 def _xm_count_matrix(
@@ -2070,12 +2246,39 @@ def _xm_count_matrix(
 # SECTION 8.  STATISTICS & VISUALIZATION HELPERS
 # ---------------------------------------------------------------------------
 
-def structure_frame(conn: sqlite3.Connection, boundary: str,
+def structure_frame(conn: sqlite3.Connection, *boundaries: str,
                     track: str = "Ksiv") -> pd.DataFrame:
-    trk = "Aggregate" if boundary in ("Perek", "Sefer") else track
+    """Units of one or more boundary types, on a single variant track.
+
+    Accepts several boundaries so Tab 2 can list first and second half-verses
+    together in one frame (they are separate rows in `units`, not a single
+    combined boundary). Ordered by book/chapter/verse and then by boundary, so
+    a verse's two halves land adjacent and in reading order rather than being
+    interleaved arbitrarily by insertion order.
+    """
+    if not boundaries:
+        raise ValueError("structure_frame requires at least one boundary")
+    # Perek/Sefer rows are stored on the Aggregate track; the flag is keyed off
+    # the boundary, so mixing an aggregate boundary with a per-track one in a
+    # single call would need two different tracks and is refused rather than
+    # silently returning half the rows.
+    aggregate = [b for b in boundaries if b in ("Perek", "Sefer")]
+    if aggregate and len(aggregate) != len(boundaries):
+        raise ValueError("cannot mix Perek/Sefer with per-track boundaries")
+    trk = "Aggregate" if aggregate else track
+    placeholders = ",".join("?" * len(boundaries))
+    # CASE keeps FirstHalf before SecondHalf without relying on alphabetical
+    # order of the type names (which happens to agree here, but would not for
+    # any other pair we might combine later).
+    order_case = " ".join(
+        f"WHEN ? THEN {i}" for i in range(len(boundaries)))
     return pd.read_sql_query(
-        "SELECT * FROM units WHERE boundary_type=? AND variant_track=?",
-        raw_conn(conn), params=[boundary, trk])
+        f"SELECT * FROM units "
+        f"WHERE boundary_type IN ({placeholders}) AND variant_track=? "
+        f"ORDER BY {_book_rank_sql('book')}, book, chapter, verse, "
+        f"CASE boundary_type {order_case} ELSE 99 END",
+        raw_conn(conn),
+        params=[*boundaries, trk, *boundaries])
 
 
 def extremes_table(conn: sqlite3.Connection,
@@ -2309,7 +2512,8 @@ def cipher_breakdown(cipher: str, consonants: str,
 
 def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      colel, vals, query_breakdown=None, query_val=None,
-                     match_nikud_unreliable=False) -> str:
+                     match_nikud_unreliable=False, english="",
+                     english_is_full_verse=False) -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -2326,6 +2530,13 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     cipher's value for it was computed without nikud. Without this, the export
     could show a "Your Word" total contradicting an uncaveated "Matched Text"
     total (e.g. 50 vs 0) with no explanation anywhere in the document.
+
+    `english` is the JPS 1985 translation, included only when the reader ticked
+    the panel's checkbox — the export mirrors the panel rather than always
+    carrying it. `english_is_full_verse` marks the case where the unit is a
+    word/phrase/half-verse but the translation necessarily covers the whole
+    verse (JPS has no word-level alignment to the Hebrew), so the heading says
+    so instead of implying the English renders just the highlighted span.
     """
     import html as _h
     from datetime import date as _d
@@ -2366,11 +2577,17 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         # differ by 1, and labelling the match's value as "Value" under
         # "Search Query" conflated the two.
         _val_shown = query_val if query_val is not None else val
+        # Tab 2 reaches this with a *selected corpus unit* rather than a typed
+        # query, and passes a label saying so; "Search Query" / "Input" would
+        # otherwise describe something the reader never entered.
+        _q_label = query_info.get("label") or ""
+        _sec1_title = e(_q_label) if _q_label else "Search Query"
+        _input_row_label = "Text" if _q_label else "Input"
         sec1 = f"""
 <div class="sec">
-  <div class="sec-title">Search Query</div>
+  <div class="sec-title">{_sec1_title}</div>
   <table class="kv">
-    <tr><td class="kl">Input</td><td class="kv-val rtl">{raw}</td></tr>
+    <tr><td class="kl">{_input_row_label}</td><td class="kv-val rtl">{raw}</td></tr>
     <tr><td class="kl">Consonants searched</td><td class="kv-val rtl">{cons}</td></tr>
     <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
     <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
@@ -2381,11 +2598,24 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         sec1 = ""
 
     # ── Section 2: source match ───────────────────────────────────────────────
+    # The translation is escaped, unlike the Hebrew line above it: hl_verse is
+    # markup we generated (the <mark> highlight), whereas `english` is corpus
+    # text and must never be able to inject tags into the export.
+    if english:
+        _en_label = ("English (%s) — full verse" % ENGLISH_VERSION_LABEL
+                     if english_is_full_verse
+                     else "English (%s)" % ENGLISH_VERSION_LABEL)
+        en_block = (f'<p class="en-label">{e(_en_label)}</p>'
+                    f'<div class="en">{e(english)}</div>'
+                    f'<p class="fn">{e(ENGLISH_ATTRIBUTION)}</p>')
+    else:
+        en_block = ""
     sec2 = f"""
 <div class="sec">
   <div class="sec-title">Source Text</div>
   <p class="ref"><strong>{book} {ch}:{vs}</strong> &nbsp;·&nbsp; <em class="gloss">{gloss}</em></p>
   <div class="verse rtl">{hl_verse}</div>
+  {en_block}
 </div>"""
 
     # ── Query and match accuracy warnings ────────────────────────────────────
@@ -2463,9 +2693,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     # Gematria-value-mode prints, which pass query_breakdown=None) and the
     # method has a letter/mark breakdown at all.
     if query_breakdown:
+        # Matches the section-1 heading: "Your Word" is right for a typed Tab 1
+        # search, wrong for a Tab 2 unit the reader selected from the table.
+        _bd_label = e((query_info or {}).get("label") or "") or "Your Word"
         sec1b = f"""
 <div class="sec">
-  <div class="sec-title">Calculation — Your Word ({method})</div>
+  <div class="sec-title">Calculation — {_bd_label} ({method})</div>
   {_breakdown_table(query_breakdown)}
 </div>"""
     else:
@@ -2516,6 +2749,12 @@ body{font-family:'Noto Serif Hebrew','SBL Hebrew','Times New Roman',serif;
 .gloss{color:#444;font-size:9pt}
 .verse{font-size:15pt;line-height:2.4;border:1px solid #bbb;
        padding:8px 14px;margin:6px 0;text-align:right;direction:rtl}
+.en-label{font-size:9pt;font-weight:bold;color:#333;margin:8px 0 2px}
+.en{font-size:11pt;line-height:1.55;direction:ltr;text-align:left;
+    border-left:3px solid #bbb;padding:4px 0 4px 10px;margin:0 0 4px;
+    /* A cross-verse span's translation is several verses separated by blank
+       lines; without this the export would run them together. */
+    white-space:pre-line}
 .hl{background:#ddd;text-decoration:underline;border:1px solid #000;
     padding:0 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 table.bd{width:100%;border-collapse:collapse;margin-top:6px}
@@ -2968,9 +3207,11 @@ def run_app() -> None:
     # docs; no connection or resource teardown is involved), `ttl` is a second,
     # independent safety net.
     @st.cache_data(show_spinner=False, max_entries=100, ttl=3600)
-    def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel, tracks):
+    def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel,
+                           tracks, cross_verse=False):
         return span_search(_conn, target, cipher, max_span=max_span, colel=colel,
-                           tracks=list(tracks) if tracks else None)
+                           tracks=list(tracks) if tracks else None,
+                           cross_verse=cross_verse)
 
     @st.cache_data(show_spinner=False, max_entries=100, ttl=3600)
     def cached_xm_matrix(_conn, corpus_key, a_vals_items, colel, tracks, boundaries):
@@ -3006,6 +3247,21 @@ def run_app() -> None:
         row = raw_conn(_conn).execute(f"SELECT {cols} FROM units{clause}",
                                       params).fetchone()
         return {c: (n or 1) for c, n in zip(CIPHER_NAMES, row)}
+
+    # Loaded once per container and shared across sessions. ~23k short strings
+    # (a few MB) — small enough beside the corpus itself that a single unbounded
+    # entry is not a repeat of the cache-growth problem that caused the hangs;
+    # it takes no arguments, so it can only ever hold one entry.
+    @st.cache_resource(show_spinner=False)
+    def _english_index() -> Dict[Tuple[str, int, int], str]:
+        return load_english()
+
+    def verse_english(book, chapter, verse) -> str:
+        """Translation for one verse, or "" when unavailable."""
+        try:
+            return _english_index().get((book, int(chapter), int(verse)), "")
+        except (TypeError, ValueError):
+            return ""
 
     # max_entries=3 comfortably holds the base corpus + one custom-refs corpus
     # + one in-flight rebuild, so repeated "Retry Sefaria fetch" clicks (each
@@ -3168,7 +3424,7 @@ def run_app() -> None:
 
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
                             active_method=None, query_info=None, colel=False,
-                            span_range=None, track=None):
+                            span_range=None, track=None, end_ref=None):
         import streamlit.components.v1 as _components
         if boundary not in DETAIL_BOUNDARIES:
             return
@@ -3182,6 +3438,34 @@ def run_app() -> None:
         src_text = v.text
         if track == "Kri" and getattr(v, "kri_text", None):
             src_text = v.kri_text
+        # A cross-verse span's word offsets are relative to the FIRST verse but
+        # run past its end, so the source has to be the whole run of verses the
+        # span covers. Joining them here means every downstream step — the
+        # highlight, the consonants, the cipher values, the print-out — operates
+        # on the same text the span was scored over, with no special-casing.
+        cross_run = []
+        if end_ref and boundary == "WordSpan":
+            _e_ch, _e_vs = int(end_ref[0]), int(end_ref[1])
+            _c, _s = int(chapter), int(verse)
+            while (_c, _s) <= (_e_ch, _e_vs):
+                _rv = verse_index.get((book, _c, _s))
+                if _rv is None:
+                    break
+                cross_run.append((_c, _s, _rv))
+                if (_c, _s) == (_e_ch, _e_vs):
+                    break
+                # Step to the next verse, rolling over to the next chapter when
+                # this one runs out. Bounded by the end ref, so a missing verse
+                # (which `break` above already guards) cannot loop forever.
+                if verse_index.get((book, _c, _s + 1)) is not None:
+                    _s += 1
+                else:
+                    _c, _s = _c + 1, 1
+            if len(cross_run) > 1:
+                src_text = " ".join(
+                    (rv.kri_text if track == "Kri" and getattr(rv, "kri_text", None)
+                     else rv.text)
+                    for _, _, rv in cross_run)
         # A word span is not a stored boundary: reconstruct it from the word
         # offsets so the displayed text, the consonants, and the cipher values
         # all describe the span rather than the whole verse.
@@ -3206,7 +3490,20 @@ def run_app() -> None:
             span_w_cons = " ".join(_tok[_i0:_i1])
             span_cons = "".join(_tok[_i0:_i1])
         friendly_boundary = BOUNDARY_LABELS.get(boundary, boundary)
-        st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
+        # A cross-verse span is cited as a range, and says so in words: the
+        # sof-pasuq it crosses is a real division in the text, so the panel
+        # should never let it read like an ordinary single-verse match.
+        is_cross = len(cross_run) > 1
+        if is_cross:
+            _last_c, _last_s, _ = cross_run[-1]
+            ref_label = (f"{book} {chapter}:{verse}–{_last_s}"
+                         if _last_c == int(chapter) else
+                         f"{book} {chapter}:{verse}–{_last_c}:{_last_s}")
+            st.markdown(f"**{ref_label}** · _{friendly_boundary}_")
+            st.caption("⚠️ This span crosses a verse boundary (sof pasuq ׃). "
+                       "The text below is the full run of verses it covers.")
+        else:
+            st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
         sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase",
                                 "FirstHalf", "SecondHalf", "WordSpan")
         highlighted_html = ""
@@ -3302,6 +3599,50 @@ def run_app() -> None:
                 st.markdown("**Full paragraph block:**")
                 for rv in run:
                     st.markdown(f"- {rv.book} {rv.chapter}:{rv.verse} — {rv.text}")
+        # ── English translation (opt-in) ─────────────────────────────────────
+        # Always the FULL verse's translation, even when the unit is a word,
+        # phrase or half-verse: JPS is a sense-for-sense translation with no
+        # word-level alignment to the Hebrew, so there is no honest way to show
+        # "the English of this half-verse." Labelled accordingly for sub-units
+        # rather than implying a correspondence that doesn't exist.
+        # The key is shared with the print-out below, so ticking the box both
+        # reveals the text here and includes it in the export.
+        # Defined here rather than in the print block below because the English
+        # checkbox key must share this panel's identity: two detail panels open
+        # at once (e.g. a Tab 1 result and a cross-method result) would collide
+        # on a fixed key and mirror each other's tick state.
+        _uid = f"{book}_{chapter}_{verse}_{boundary}_{active_method}"
+        _show_en_key = f"show_en_{_uid}"
+        # For a cross-verse span the run is what the reader is looking at, so
+        # the translation covers every verse in it, each labelled with its own
+        # reference — one undifferentiated block would obscure where each verse
+        # begins, which is the very boundary this panel is flagging.
+        if is_cross:
+            _parts = []
+            for _c, _s, _ in cross_run:
+                _t = verse_english(book, _c, _s)
+                if _t:
+                    _parts.append(f"{_c}:{_s}  {_t}")
+            english_text = "\n\n".join(_parts)
+        else:
+            english_text = verse_english(book, chapter, verse)
+        show_english = False
+        if english_text:
+            show_english = st.checkbox(
+                "Show English translation", key=_show_en_key, value=False,
+                help=_tip("JPS 1985 (© Jewish Publication Society, CC BY-NC). "
+                          "Shown for the full verse, and included in the "
+                          "print-out / download while ticked."))
+            if show_english:
+                if sub_unit:
+                    st.markdown(f"**English ({ENGLISH_VERSION_LABEL}) — full verse:**")
+                else:
+                    st.markdown(f"**English ({ENGLISH_VERSION_LABEL}):**")
+                # st.markdown would interpret stray _ * [ ] in the translation
+                # as formatting (the markdown-injection class of bug fixed in
+                # 4702cd8), so the text goes through st.text, not markdown.
+                st.text(english_text)
+                st.caption(ENGLISH_ATTRIBUTION)
         # ── Print / Export ───────────────────────────────────────────────────
         # The print-out used to show only how the *matched* text arrives at its
         # value, never how the searched word itself does — even though showing
@@ -3317,7 +3658,6 @@ def run_app() -> None:
                 _q_cons, _q_raw, word_consonants=_q_wcons).get(active_method)
             query_breakdown = cipher_breakdown(active_method, _q_cons, _q_wcons,
                                                cantillated=_q_raw)
-        _uid = f"{book}_{chapter}_{verse}_{boundary}_{active_method}"
         _print_key   = f"do_print_{_uid}"
         _html_doc = build_print_html(
             query_info,
@@ -3326,6 +3666,10 @@ def run_app() -> None:
             breakdown_rows, active_method or "Standard", colel, vals,
             query_breakdown=query_breakdown, query_val=query_val,
             match_nikud_unreliable=match_nikud_unreliable,
+            # Only when the box is ticked: the export mirrors what the panel
+            # shows rather than always carrying the translation.
+            english=(english_text if show_english else ""),
+            english_is_full_verse=sub_unit,
         )
         _pc, _dc = st.columns(2)
         with _pc:
@@ -3388,6 +3732,33 @@ def run_app() -> None:
                "Search for phrases and names, explore structural patterns, and analyse the "
                "statistical fingerprint of the Tanach across 34 gematria methods.")
         )
+        # Texts and licences, stated explicitly. "Sourced from Sefaria" named
+        # only the aggregator, not the underlying edition or its terms — and
+        # the bundled translation is CC-BY-NC, whose attribution requirement is
+        # a licence condition rather than a courtesy, so it has to be visible
+        # somewhere durable rather than only in the detail panel that shows it.
+        with st.expander("Texts & licences"):
+            st.markdown(
+                "**Hebrew (used for every gematria calculation)** — "
+                "*Tanach with Ta'amei Hamikra*, 23,206 cantillated Masoretic "
+                "verses, from [tanach.us](http://www.tanach.us/Tanach.xml) "
+                "via [Sefaria](https://www.sefaria.org). **Public Domain.**\n\n"
+                "**English translation (display only — never used in any "
+                "calculation)** — *Tanakh: The Holy Scriptures*, "
+                "© 1985 The Jewish Publication Society, via Sefaria. "
+                "Licensed [CC BY-NC 4.0]"
+                "(https://creativecommons.org/licenses/by-nc/4.0/).\n\n"
+                "The translation is shown for the full verse only. It is a "
+                "sense-for-sense translation with no word-level alignment to "
+                "the Hebrew, so it is never sliced to match a word, phrase or "
+                "half-verse — the gematria unit is marked in the Hebrew line "
+                "above it.\n\n"
+                "Two verses (Joshua 21:36–37) are present in the Hebrew text "
+                "but absent from this translation, which follows manuscripts "
+                "that omit them; the translation option simply does not appear "
+                "for those two verses.\n\n"
+                "This application is itself licensed CC BY-NC 4.0."
+            )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
@@ -4205,6 +4576,19 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         )
                     with sc2:
                         span_max = st.slider("Max words in span", 2, 15, 7, key="span_max")
+                    # Off by default: a span that crosses a sof-pasuq crosses a
+                    # real division in the text, so including those is the
+                    # reader's decision, not a silent default. Keyed on the
+                    # searched word for the same reason as the scan checkbox
+                    # above — a bare key would carry the setting onto an
+                    # unrelated later search.
+                    span_cross = st.checkbox(
+                        "Include spans that cross verse boundaries",
+                        key=f"span_cross_{_c_cons}",
+                        help=_tip("Off: every span stays inside one verse. On: also "
+                                  "finds spans running from the end of one verse into "
+                                  "the next, across the sof pasuq (׃). Those rows are "
+                                  "marked 'crosses verses'. Never crosses between books."))
                     span_tgt = vals[span_cipher]
                     st.markdown(
                         f"Searching **{span_cipher} = {span_tgt}**"
@@ -4215,17 +4599,37 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         span_df = cached_span_search(
                             conn, corpus_key, span_tgt, span_cipher,
                             span_max, colel, tuple(effective_tracks or ()),
+                            span_cross,
                         )
                     if span_df.empty:
                         st.info("No multi-word span matches this value with the current settings.")
                     else:
-                        st.markdown(f"**{len(span_df)} span match(es)**")
+                        _n_cross = (int(span_df["_cross"].sum())
+                                    if "_cross" in span_df.columns else 0)
+                        st.markdown(
+                            f"**{len(span_df)} span match(es)**"
+                            + (f" — {_n_cross} of them cross a verse boundary"
+                               if _n_cross else ""))
                         # Internal offset columns stay out of the table; row order is
                         # unchanged, so selection indices still address span_df.
+                        # _cross is promoted to a visible column first, so a
+                        # crossing row is identifiable in the table itself and
+                        # not only after opening its detail panel.
+                        _span_vis = span_df.copy()
+                        if span_cross and _n_cross:
+                            # zip over the raw columns rather than itertuples():
+                            # pandas renames leading-underscore fields to _2/_3
+                            # positionally, so r._cross would not resolve.
+                            _span_vis.insert(
+                                4, "Spans",
+                                [f"→ {int(ec)}:{int(ev)}" if cx else "within verse"
+                                 for cx, ec, ev in zip(span_df["_cross"],
+                                                       span_df["_end_ch"],
+                                                       span_df["_end_vs"])])
                         span_show = shape_result_columns(
                             hide_uniform_track(
-                                span_df[[c for c in span_df.columns
-                                         if not c.startswith("_")]]),
+                                _span_vis[[c for c in _span_vis.columns
+                                           if not c.startswith("_")]]),
                             app_view)
                         span_event = st.dataframe(
                             span_show, width="stretch", hide_index=True,
@@ -4240,7 +4644,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
                                     "WordSpan", active_method=span_cipher,
                                     span_range=(int(sr["_w0"]), int(sr["_w1"])),
-                                    track=sr["Track"], colel=colel)
+                                    track=sr["Track"], colel=colel,
+                                    end_ref=((int(sr["_end_ch"]), int(sr["_end_vs"]))
+                                             if sr.get("_cross") else None))
         else:
             st.warning("Enter a Hebrew phrase to search.")
 
@@ -4250,21 +4656,37 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
       with tab2:
         st.subheader("Scriptural Structural Explorer")
         t2_ciphers = CIPHER_NAMES
+        # "BothHalves" is a tab-2-only pseudo-boundary, not a stored boundary_type.
+        # Browsing here is about comparing units, and forcing a choice between
+        # first and second half made the two searchable only in isolation — a
+        # half-verse's counterpart was always one radio click away. The combined
+        # option lists both, with a Half column saying which is which.
         kind = st.radio(
             "Browse by",
             ["Perek", "Sefer", "Petucha", "Setuma", "Verse",
-             "FirstHalf", "SecondHalf", "TiphchaPhrase", "ZakefPhrase"],
+             "BothHalves", "TiphchaPhrase", "ZakefPhrase"],
             horizontal=True,
-            format_func=lambda b: BOUNDARY_LABELS.get(b, b))
-        df = structure_frame(conn, kind)
-        if df.empty:
-            st.info(f"No {BOUNDARY_LABELS.get(kind, kind)} units in the loaded corpus yet.")
+            format_func=lambda b: T2_BOUNDARY_LABELS.get(
+                b, BOUNDARY_LABELS.get(b, b)))
+        if kind == "BothHalves":
+            df = structure_frame(conn, "FirstHalf", "SecondHalf")
         else:
-            display_cols = (["book", "chapter", "verse",
-                             "variant_track"] + t2_ciphers)
+            df = structure_frame(conn, kind)
+        if df.empty:
+            st.info(f"No {T2_BOUNDARY_LABELS.get(kind, BOUNDARY_LABELS.get(kind, kind))} units in the loaded corpus yet.")
+        else:
+            # boundary_type is carried only for the combined half-verse view,
+            # where it is the one thing distinguishing two rows of the same
+            # verse; for every other `kind` it is constant and would be noise.
+            display_cols = (["book", "chapter", "verse", "boundary_type",
+                             "variant_track"] + t2_ciphers
+                            if kind == "BothHalves" else
+                            ["book", "chapter", "verse", "variant_track"] + t2_ciphers)
             show = df[[c for c in display_cols if c in df.columns]].rename(
                 columns={"book": "Book", "chapter": "Chapter", "verse": "Verse",
-                         "variant_track": "Track"})
+                         "boundary_type": "Half", "variant_track": "Track"})
+            if "Half" in show.columns:
+                show["Half"] = show["Half"].map(lambda h: HALF_LABELS.get(h, h))
             # Drop before labelling: the check reads raw track names, and a
             # uniform-Ksiv listing should not advertise a variant column.
             show = hide_uniform_track(show)
@@ -4283,6 +4705,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
                 "Verse":   st.column_config.NumberColumn("Verse", width="small"),
                 "Track":   st.column_config.TextColumn("Track", width="small"),
+                "Half":    st.column_config.TextColumn("Half", width="small"),
             }
             for _c in t2_ciphers:
                 t2_col_config[_c] = st.column_config.NumberColumn(_c, width="small")
@@ -4296,7 +4719,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 column_config=t2_col_config,
                 height=400,
                 key="t2_sel")
-            st.caption(f"{len(show)} {BOUNDARY_LABELS.get(kind, kind)} unit(s). "
+            st.caption(f"{len(show)} {T2_BOUNDARY_LABELS.get(kind, BOUNDARY_LABELS.get(kind, kind))} unit(s). "
                        "Every method column is an indexed gematria total for that block.")
 
             cipher_pick = st.selectbox(
@@ -4323,13 +4746,25 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 st.markdown(
                     f"**{cipher_pick} = {cell_val}** — every unit in the corpus "
                     f"that shares this value (up to 50 per method):")
+                # BothHalves is not a real boundary_type, so the detail panel
+                # (which highlights the matched span and derives word-aware
+                # consonants per boundary) has to be told which half this row
+                # actually is. Recovered from the row's own Half label rather
+                # than from `kind`, which no longer identifies one boundary.
+                if kind == "BothHalves":
+                    _row_boundary = next(
+                        (b for b, lbl in HALF_LABELS.items()
+                         if lbl == row2.get("Half")), "FirstHalf")
+                else:
+                    _row_boundary = kind
                 match_df = search_value_all_methods(conn, cell_val)
                 if match_df.empty:
                     st.info("No corpus unit has this exact value under any method.")
-                    if kind in DETAIL_BOUNDARIES:
+                    if _row_boundary in DETAIL_BOUNDARIES:
                         with st.expander("📜 Verse detail", expanded=True):
                             render_verse_detail(
-                                row2["Book"], row2["Chapter"], row2["Verse"], kind)
+                                row2["Book"], row2["Chapter"], row2["Verse"],
+                                _row_boundary)
                 else:
                     ev_match = st.dataframe(
                         match_df[["Method", "Book", "Chapter", "Verse",
@@ -4341,11 +4776,65 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                f"{match_df['Method'].nunique()} method(s).")
                     if ev_match.selection.rows:
                         rm = match_df.iloc[ev_match.selection.rows[0]]
+                        # A Tab 2 print-out used to carry only the *matched*
+                        # unit's calculation, because query_info was never
+                        # passed here — so the export of "these two units share
+                        # a value" showed the working for one of them and left
+                        # the selected unit (the reason the reader is looking at
+                        # this row at all) unaccounted for. The selected unit
+                        # plays the same role Tab 1's search word does, so it is
+                        # threaded through as query_info and appears under
+                        # "Your Word" alongside the match.
+                        # `show` is the display frame — the consonants column is
+                        # filtered out of it — so the selected unit's text is
+                        # read from `df` at the same positional index, which is
+                        # safe only because `show` is built from `df` by column
+                        # selection and row filtering that preserves the index.
+                        _sel_src = df.loc[show.index[sel_rows[0]]]
+                        _sel_cons = str(_sel_src.get("consonants", "") or "")
+                        _sel_v = verse_index.get(
+                            (row2["Book"], int(row2["Chapter"]),
+                             int(row2["Verse"])))
+                        _sel_raw = ""
+                        if _sel_v is not None and _sel_cons:
+                            # Recover the pointed text so vowel-mark methods in
+                            # the export are computed with nikud, matching how
+                            # the panel scores the matched unit.
+                            _sel_raw = locate_vocalized(_sel_v.text, _sel_cons)
+                        # wcons must keep word boundaries or the word-aware
+                        # ciphers (Kaful/Mityashev/Boneeh/HaAchor) score the
+                        # unit as one long token. Derived per boundary the same
+                        # way render_verse_detail derives its own w_cons.
+                        _sel_b = str(_sel_src.get("boundary_type", ""))
+                        if _sel_v is not None and _sel_b == "FirstHalf":
+                            _sel_w = split_halves_word_cons(_sel_v.text)[0]
+                        elif _sel_v is not None and _sel_b == "SecondHalf":
+                            _sel_w = split_halves_word_cons(_sel_v.text)[1]
+                        elif _sel_v is not None and _sel_b == "Verse":
+                            _sel_w = " ".join(tokenize_words(_sel_v.text))
+                        else:
+                            # Word / phrase units: recover spacing from the
+                            # located pointed text when possible, else treat as
+                            # a single token (correct for Word, the common case).
+                            _sel_w = (" ".join(tokenize_words(_sel_raw))
+                                      if _sel_raw else _sel_cons)
+                        # Tab 2 has no typed search word, so the export's
+                        # default "Your Word" heading would misdescribe what
+                        # this section shows; `label` renames it to the unit the
+                        # reader actually selected.
+                        _sel_ref = (f"{row2['Book']} {row2['Chapter']}:"
+                                    f"{row2['Verse']}")
+                        _t2_query = ({"raw": _sel_raw or _sel_cons,
+                                      "cons": _sel_cons,
+                                      "wcons": _sel_w or _sel_cons,
+                                      "label": f"Selected Unit ({_sel_ref})"}
+                                     if _sel_cons else None)
                         with st.expander("📜 Verse detail", expanded=True):
                             render_verse_detail(
                                 rm["Book"], rm["Chapter"], rm["Verse"],
                                 rm["Boundary"], matched_text=rm.get("Text"),
-                                active_method=str(rm.get("Method", "")))
+                                active_method=str(rm.get("Method", "")),
+                                query_info=_t2_query)
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
     # Guarded for app view (tab3 is None there). The two-space `with` keeps
