@@ -1529,9 +1529,13 @@ def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
 ENGLISH_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
 
 # Attribution for the bundled translation. The 1985 JPS is licensed CC-BY-NC,
-# and attribution is a *condition* of that licence, not a courtesy — so this
-# string is rendered wherever the English appears (detail panel, print-out,
-# Guide), including in exported documents that leave the site.
+# and attribution is a *condition* of that licence, not a courtesy — so
+# ENGLISH_ATTRIBUTION is rendered wherever the English appears (detail panel,
+# print-out, Guide), including in exported documents that leave the site.
+# The edition name is deliberately NOT repeated in the "English" headings above
+# those blocks: the attribution line sits directly beneath and already carries
+# it. Kept as a named constant because it identifies which text is bundled and
+# is the thing to change alongside VERSION in fetch_english.py on a swap.
 ENGLISH_VERSION_LABEL = "JPS 1985"
 ENGLISH_ATTRIBUTION = ("English: “Tanakh: The Holy Scriptures” © 1985 "
                        "The Jewish Publication Society, via Sefaria. "
@@ -2602,9 +2606,10 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     # markup we generated (the <mark> highlight), whereas `english` is corpus
     # text and must never be able to inject tags into the export.
     if english:
-        _en_label = ("English (%s) — full verse" % ENGLISH_VERSION_LABEL
-                     if english_is_full_verse
-                     else "English (%s)" % ENGLISH_VERSION_LABEL)
+        # Edition name omitted here for the same reason as on screen: the
+        # attribution line rendered immediately below carries it.
+        _en_label = ("English — full verse" if english_is_full_verse
+                     else "English")
         en_block = (f'<p class="en-label">{e(_en_label)}</p>'
                     f'<div class="en">{e(english)}</div>'
                     f'<p class="fn">{e(ENGLISH_ATTRIBUTION)}</p>')
@@ -3634,10 +3639,15 @@ def run_app() -> None:
                           "Shown for the full verse, and included in the "
                           "print-out / download while ticked."))
             if show_english:
+                # No edition name in the heading — the attribution caption
+                # directly below already names it, and repeating it here just
+                # crowded the line. "full verse" stays: it is not attribution,
+                # it says the English covers the whole verse rather than the
+                # sub-unit being scored.
                 if sub_unit:
-                    st.markdown(f"**English ({ENGLISH_VERSION_LABEL}) — full verse:**")
+                    st.markdown("**English — full verse:**")
                 else:
-                    st.markdown(f"**English ({ENGLISH_VERSION_LABEL}):**")
+                    st.markdown("**English:**")
                 # st.markdown would interpret stray _ * [ ] in the translation
                 # as formatting (the markdown-injection class of bug fixed in
                 # 4702cd8), so the text goes through st.text, not markdown.
