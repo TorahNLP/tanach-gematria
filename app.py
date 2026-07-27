@@ -4544,6 +4544,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                         rd["Book"], rd["Chapter"], rd["Verse"],
                                         rd["Boundary"], matched_text=rd.get("Text"),
                                         active_method=drill_b,
+                                        # Same searched word as the main results
+                                        # list — a cross-method drill-down is
+                                        # still "this word equals that text",
+                                        # so the print-out needs both halves.
+                                        query_info=st.session_state.get("t1_committed"),
+                                        colel=colel,
                                     )
 
             with st.expander("🔍 All word-span matches", expanded=False):
@@ -4645,6 +4651,13 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     "WordSpan", active_method=span_cipher,
                                     span_range=(int(sr["_w0"]), int(sr["_w1"])),
                                     track=sr["Track"], colel=colel,
+                                    # The span scan searches the value of the
+                                    # word the reader typed, so the print-out
+                                    # owes them that word's own calculation
+                                    # alongside the span's — without this the
+                                    # export showed only half of "these two
+                                    # are equal".
+                                    query_info=st.session_state.get("t1_committed"),
                                     end_ref=((int(sr["_end_ch"]), int(sr["_end_vs"]))
                                              if sr.get("_cross") else None))
         else:
@@ -4762,9 +4775,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     st.info("No corpus unit has this exact value under any method.")
                     if _row_boundary in DETAIL_BOUNDARIES:
                         with st.expander("📜 Verse detail", expanded=True):
+                            # No query_info: nothing in the corpus shares this
+                            # value, so the selected unit is the only text on
+                            # screen — there is no second half of an equality to
+                            # print. active_method is still passed, or the panel
+                            # would show no breakdown at all for the very method
+                            # the reader picked.
                             render_verse_detail(
                                 row2["Book"], row2["Chapter"], row2["Verse"],
-                                _row_boundary)
+                                _row_boundary, active_method=cipher_pick)
                 else:
                     ev_match = st.dataframe(
                         match_df[["Method", "Book", "Chapter", "Verse",
@@ -5003,13 +5022,58 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             ("Unit A", ref_a_str, active_ma),
                             ("Unit B", ref_b_str, active_mb),
                         ]
-                    for label, ref_str, meth in pairs:
+                    # Every pattern here is a claim that two units share a value,
+                    # so each unit's print-out owes the reader the *other* one's
+                    # calculation too — otherwise the export shows one side of an
+                    # equality and silently drops the half that makes it a
+                    # pattern at all. The counterpart plays the role Tab 1's
+                    # search word plays, so it is threaded through as query_info
+                    # (labelled, since the reader typed nothing).
+                    def _t3_counterpart(other_ref, other_meth, other_label):
+                        p = parse_pattern_ref(other_ref)
+                        if not p:
+                            return None
+                        ob, oc, ov, obound = p
+                        orow = raw_conn(conn).execute(
+                            "SELECT consonants FROM units WHERE book=? AND chapter=? "
+                            "AND verse=? AND boundary_type=? AND variant_track='Ksiv'",
+                            (ob, int(oc), int(ov), obound)).fetchone()
+                        if not orow or not orow[0]:
+                            return None
+                        ocons = str(orow[0])
+                        ov_obj = verse_index.get((ob, int(oc), int(ov)))
+                        oraw = (locate_vocalized(ov_obj.text, ocons)
+                                if ov_obj is not None else "")
+                        # Word-boundary-aware consonants, derived per boundary the
+                        # same way render_verse_detail derives its own — without
+                        # this the word-aware ciphers score the unit as one token.
+                        if ov_obj is not None and obound == "FirstHalf":
+                            owc = split_halves_word_cons(ov_obj.text)[0]
+                        elif ov_obj is not None and obound == "SecondHalf":
+                            owc = split_halves_word_cons(ov_obj.text)[1]
+                        elif ov_obj is not None and obound == "Verse":
+                            owc = " ".join(tokenize_words(ov_obj.text))
+                        else:
+                            owc = (" ".join(tokenize_words(oraw)) if oraw else ocons)
+                        return {"raw": oraw or ocons, "cons": ocons,
+                                "wcons": owc or ocons,
+                                "label": f"{other_label} ({ob} {oc}:{ov})"}
+
+                    for idx, (label, ref_str, meth) in enumerate(pairs):
                         parsed = parse_pattern_ref(ref_str)
                         if parsed:
                             book, chap, vs, boundary = parsed
                             st.markdown(f"**{label}**")
-                            render_verse_detail(book, chap, vs, boundary,
-                                                active_method=meth)
+                            _other_label, _other_ref, _other_meth = pairs[1 - idx]
+                            render_verse_detail(
+                                book, chap, vs, boundary,
+                                active_method=meth,
+                                query_info=_t3_counterpart(
+                                    _other_ref, _other_meth, _other_label),
+                                # This tab's own colel toggle — `colel` is Tab
+                                # 1's widget and is not bound when Tab 3 renders
+                                # without it (app view sets tab1 = None).
+                                colel=t3_colel)
 
     # ===================== TAB 4: STATISTICS DASHBOARD ===================
     # Guarded for app view (tab4 is None there); see tab3 note above.
