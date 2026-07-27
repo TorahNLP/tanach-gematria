@@ -1527,11 +1527,23 @@ _NIKUD_RANGE_RE = re.compile(r"[֑-ׇ]")
 # This CANNOT be computed away: inventing vowels for the Ksiv would be
 # fabricating text. It is surfaced instead, wherever such a unit is displayed,
 # so a 0 is never read as a meaningful result.
+#
+# The note deliberately does NOT offer the Kri track as an alternative. The Kri
+# is a different word, often with different letters (מלכם / מה־לכם), so its
+# vowel-mark total answers a different question rather than supplying the
+# missing value — and app view is Ksiv-only anyway, so that advice would point
+# at something the reader cannot reach. The honest statement is that no
+# vocalised value exists for this word, not that one lives elsewhere.
 KSIV_UNPOINTED_NOTE = (
-    "This unit contains a Ksiv (written) word that the source text supplies "
-    "without vowel points — the vowels belong to the Kri (read) form. The four "
-    "vowel-mark methods (HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot) "
-    "therefore under-count it; switch to the Kri track for a vocalised value.")
+    "This unit contains a Ksiv (written) word that this edition supplies "
+    "without vowel points. In the Masoretic manuscripts the vowels of the Kri "
+    "are placed on the consonants of the Ksiv, so the written form has no "
+    "vocalisation of its own to count; editions that print the Ksiv bare are "
+    "reflecting that, not omitting data. The four vowel-mark methods "
+    "(HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot) therefore have "
+    "nothing to count for this word and under-report the total — treat their "
+    "value here as undefined rather than as zero. The other 30 methods are "
+    "unaffected.")
 
 
 def has_unpointed_word(text: str) -> bool:
