@@ -2822,7 +2822,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
 
     today   = _d.today().strftime("%Y-%m-%d")
     method  = e(CIPHER_DISPLAY_NAMES.get(active_method, active_method))
-    val     = vals.get(active_method, 0) if vals else 0
+    # None (not 0) when the caller withheld this method's value — a unit whose
+    # vowel total is incomplete has its four NIKUD_CIPHERS keys removed from
+    # `vals`, and defaulting to 0 here would print the very number the
+    # exclusion exists to suppress.
+    val     = (vals.get(active_method) if vals else None)
+    val_txt = "—" if val is None else str(val)
     boundary = match_info.get("boundary", "Verse")
     book    = e(str(match_info.get("book", "")))
     ch      = e(str(match_info.get("chapter", "")))
@@ -2840,7 +2845,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         # The query's own value, not the matched unit's — under colel they can
         # differ by 1, and labelling the match's value as "Value" under
         # "Search Query" conflated the two.
-        _val_shown = query_val if query_val is not None else val
+        _val_shown = query_val if query_val is not None else val_txt
         # Tab 2 reaches this with a *selected corpus unit* rather than a typed
         # query, and passes a label saying so; "Search Query" / "Input" would
         # otherwise describe something the reader never entered.
@@ -2992,7 +2997,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
 <div class="sec">
   <div class="sec-title">{sec3_title}</div>
   {match_nikud_warn}
-  <p>Total value: <strong>{val}</strong></p>
+  <p>Total value: <strong>{val_txt}</strong></p>
   <p class="fn">No per-letter breakdown for this method — its total is not a sum
   over letters (digital root, squared total, or a kolel that adds a single term).</p>
 </div>"""
@@ -3835,6 +3840,19 @@ def run_app() -> None:
         # explanation in every view and in the export, not just on the site.
         match_nikud_unreliable = bool(sub_unit and matched_text and not _located)
         vals = compute_all_ciphers(cons, cantillated_src, word_consonants=w_cons)
+        # This unit contains a Ksiv word the source prints unpointed, so its
+        # four vowel-mark totals are short by that word's contribution. Such
+        # units are already excluded from every search; the panel is reached by
+        # other routes (a letter-method search, or browsing in Tab 2), so the
+        # same rule is applied here — the four values are removed outright
+        # rather than shown as a misleading 0. Note ImHaNekudot/ImMiluiNekudot
+        # do NOT fall to 0: they add letters to marks, so they quietly collapse
+        # to the plain letter total, which reads as an ordinary number and is
+        # more misleading than the zero.
+        unit_nikud_partial = has_unpointed_word(cantillated_src)
+        if unit_nikud_partial:
+            for _c in NIKUD_CIPHERS:
+                vals.pop(_c, None)
         # App view drops the matched-consonants readout and this all-methods
         # table: the panel already opened on the one method the user searched
         # under (the caption/breakdown right below), and this table restates
@@ -3860,13 +3878,17 @@ def run_app() -> None:
         # prints bare — locate_vocalized happily finds `מצותו`, so
         # match_nikud_unreliable stays False and the reader would otherwise see
         # HaNekudot = 0 with no explanation at all.
-        ksiv_unpointed = bool(has_unpointed_word(cantillated_src)
+        ksiv_unpointed = bool(unit_nikud_partial
                               and active_method in NIKUD_CIPHERS)
-        if ksiv_unpointed:
+        if unit_nikud_partial:
             st.caption(f"⚠️ {KSIV_UNPOINTED_NOTE}")
-        # Per-letter (or per-vowel-mark) breakdown for the active method
+        # Per-letter (or per-vowel-mark) breakdown for the active method.
+        # Suppressed when the active method is a vowel-mark one on a unit whose
+        # vowel totals were removed above — a breakdown of marks that are not
+        # in the text would reinstate, letter by letter, exactly the number the
+        # exclusion exists to withhold.
         breakdown_rows = None
-        if active_method and active_method in CIPHERS:
+        if active_method and active_method in CIPHERS and not ksiv_unpointed:
             breakdown_rows = cipher_breakdown(active_method, cons, w_cons,
                                               cantillated=cantillated_src)
             if breakdown_rows:
