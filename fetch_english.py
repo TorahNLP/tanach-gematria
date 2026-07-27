@@ -9,13 +9,24 @@ produces tanach_english.jsonl with one line per verse:
 Keyed identically to tanach_corpus.jsonl (English book name, chapter, verse) so
 the app can join the two without any reconciliation step.
 
-WHY JPS 1917 AND NOT THE DEFAULT JPS:
-Sefaria's default English for Tanach is "Tanakh: The Holy Scriptures, published
-by JPS" (1985), which is licensed CC-BY-NC. A NonCommercial restriction is not
-something to bake into a public deploy. "The Holy Scriptures: A New Translation
-(JPS 1917)" is Public Domain and carries no such restriction, so it is what we
-bundle. The phrasing is archaic in places; that is the accepted trade for a
-text we can redistribute freely.
+WHICH TRANSLATION, AND THE LICENSING TRADE:
+This bundles "Tanakh: The Holy Scriptures, published by JPS" (1985), which is
+licensed **CC-BY-NC**. The public-domain alternative, "The Holy Scriptures: A
+New Translation (JPS 1917)", was fetched and reviewed first and rejected as too
+archaic for readers: 53% of its verses carry thee/thou/unto/hath. Readability
+won, deliberately, over the freer licence.
+
+Two consequences of that choice, both already handled but worth keeping in mind
+before swapping this back:
+  * CC-BY-NC requires **attribution**, which the app renders wherever the
+    translation appears (see ENGLISH_ATTRIBUTION in app.py).
+  * CC-BY-NC forbids **commercial** redistribution. The app is itself licensed
+    CC BY-NC 4.0, so this is consistent with how the project is already shipped
+    — but it does mean the translation cannot be relicensed commercially later
+    without swapping it back to the 1917 text.
+
+To swap: change VERSION below, rerun, and update the licence strings in app.py
+(ENGLISH_VERSION_LABEL / ENGLISH_ATTRIBUTION) and README.md to match.
 
 Run:  python fetch_english.py
 """
@@ -34,7 +45,9 @@ OUT_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
 CORPUS_FILE = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
 
 BASE = "https://www.sefaria.org/api/v3/texts/"
-VERSION = "english|The Holy Scriptures: A New Translation (JPS 1917)"
+VERSION = "english|Tanakh: The Holy Scriptures, published by JPS"
+# Public-domain fallback, kept here so the swap is a one-line edit:
+# VERSION = "english|The Holy Scriptures: A New Translation (JPS 1917)"
 
 # Sefaria returns translation text with presentational and editorial HTML:
 #   <big><strong>W</strong></big>hen God began...      (drop cap)
@@ -47,7 +60,16 @@ _FOOTNOTE_RE = re.compile(
     r"|<i[^>]*class=[\"']?footnote[\"']?[^>]*>.*?</i>",
     re.IGNORECASE | re.DOTALL,
 )
+# Line/verse-structure tags (poetry in Psalms etc. is laid out with <br>).
+# Dropping these like any other tag would fuse words across the break —
+# "green pastures;He leads me" — so they become a space, not nothing.
+_BREAK_RE = re.compile(r"<br\s*/?>|</p>|</div>", re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
+# The 1985 JPS closes a footnoted span with a bare "-a" / "-b" anchor that has
+# no markup around it, so tag-stripping alone leaves it stranded mid-sentence
+# ("water in places of repose;-a"). Removed only when preceded by a letter or
+# punctuation, so ordinary hyphenated words are untouched.
+_ORPHAN_ANCHOR_RE = re.compile(r"(?<=[\w.,;:!?”’)\]])-[a-z](?=\s|$|[.,;:!?”’)\]])")
 
 
 def clean(raw: str) -> str:
@@ -56,11 +78,19 @@ def clean(raw: str) -> str:
 
     if not raw:
         return ""
+    # Order matters: footnote bodies first (they are editorial apparatus, not
+    # the verse), then line breaks to spaces, then unwrap whatever markup
+    # remains, then the orphaned anchors the footnotes left behind.
     txt = _FOOTNOTE_RE.sub("", raw)
+    txt = _BREAK_RE.sub(" ", txt)
     txt = _TAG_RE.sub("", txt)
     txt = _h.unescape(txt)
-    # Collapse the whitespace left behind by removed tags.
-    return re.sub(r"\s+", " ", txt).strip()
+    txt = _ORPHAN_ANCHOR_RE.sub("", txt)
+    # Collapse the whitespace left behind by removed tags, and tidy the space
+    # that removing an inline anchor can leave in front of punctuation.
+    txt = re.sub(r"\s+", " ", txt)
+    txt = re.sub(r"\s+([.,;:!?])", r"\1", txt)
+    return txt.strip()
 
 
 def books_from_corpus() -> list[str]:

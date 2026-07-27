@@ -1528,11 +1528,14 @@ def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
 
 ENGLISH_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
 
-# Attribution for the bundled translation. Shown wherever the English appears
-# (detail panel, print-out, Guide) because that is the condition of using it.
-ENGLISH_VERSION_LABEL = "JPS 1917"
-ENGLISH_ATTRIBUTION = ("English: “The Holy Scriptures: A New Translation” "
-                       "(JPS 1917) — Public Domain, via Sefaria.")
+# Attribution for the bundled translation. The 1985 JPS is licensed CC-BY-NC,
+# and attribution is a *condition* of that licence, not a courtesy — so this
+# string is rendered wherever the English appears (detail panel, print-out,
+# Guide), including in exported documents that leave the site.
+ENGLISH_VERSION_LABEL = "JPS 1985"
+ENGLISH_ATTRIBUTION = ("English: “Tanakh: The Holy Scriptures” © 1985 "
+                       "The Jewish Publication Society, via Sefaria. "
+                       "Licensed CC BY-NC 4.0.")
 
 
 def load_english(path: pathlib.Path = ENGLISH_FILE) -> Dict[Tuple[str, int, int], str]:
@@ -2406,7 +2409,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     could show a "Your Word" total contradicting an uncaveated "Matched Text"
     total (e.g. 50 vs 0) with no explanation anywhere in the document.
 
-    `english` is the JPS 1917 translation, included only when the reader ticked
+    `english` is the JPS 1985 translation, included only when the reader ticked
     the panel's checkbox — the export mirrors the panel rather than always
     carrying it. `english_is_full_verse` marks the case where the unit is a
     word/phrase/half-verse but the translation necessarily covers the whole
@@ -3447,8 +3450,9 @@ def run_app() -> None:
         if english_text:
             show_english = st.checkbox(
                 "Show English translation", key=_show_en_key, value=False,
-                help=_tip("JPS 1917 (Public Domain). Shown for the full verse, "
-                          "and included in the print-out / download while ticked."))
+                help=_tip("JPS 1985 (© Jewish Publication Society, CC BY-NC). "
+                          "Shown for the full verse, and included in the "
+                          "print-out / download while ticked."))
             if show_english:
                 if sub_unit:
                     st.markdown(f"**English ({ENGLISH_VERSION_LABEL}) — full verse:**")
@@ -3548,6 +3552,33 @@ def run_app() -> None:
                "Search for phrases and names, explore structural patterns, and analyse the "
                "statistical fingerprint of the Tanach across 34 gematria methods.")
         )
+        # Texts and licences, stated explicitly. "Sourced from Sefaria" named
+        # only the aggregator, not the underlying edition or its terms — and
+        # the bundled translation is CC-BY-NC, whose attribution requirement is
+        # a licence condition rather than a courtesy, so it has to be visible
+        # somewhere durable rather than only in the detail panel that shows it.
+        with st.expander("Texts & licences"):
+            st.markdown(
+                "**Hebrew (used for every gematria calculation)** — "
+                "*Tanach with Ta'amei Hamikra*, 23,206 cantillated Masoretic "
+                "verses, from [tanach.us](http://www.tanach.us/Tanach.xml) "
+                "via [Sefaria](https://www.sefaria.org). **Public Domain.**\n\n"
+                "**English translation (display only — never used in any "
+                "calculation)** — *Tanakh: The Holy Scriptures*, "
+                "© 1985 The Jewish Publication Society, via Sefaria. "
+                "Licensed [CC BY-NC 4.0]"
+                "(https://creativecommons.org/licenses/by-nc/4.0/).\n\n"
+                "The translation is shown for the full verse only. It is a "
+                "sense-for-sense translation with no word-level alignment to "
+                "the Hebrew, so it is never sliced to match a word, phrase or "
+                "half-verse — the gematria unit is marked in the Hebrew line "
+                "above it.\n\n"
+                "Two verses (Joshua 21:36–37) are present in the Hebrew text "
+                "but absent from this translation, which follows manuscripts "
+                "that omit them; the translation option simply does not appear "
+                "for those two verses.\n\n"
+                "This application is itself licensed CC BY-NC 4.0."
+            )
         st.divider()
 
         with st.expander("How to use this app", expanded=True):
