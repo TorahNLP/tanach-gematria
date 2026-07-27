@@ -1507,6 +1507,47 @@ PREBUILT_DB   = pathlib.Path(__file__).parent / "tanach.db"
 # (542) *and* מצותיו (552), inflating the verse and every unit containing it.
 # 1,104 verses (1,279 occurrences) carry this notation.
 _KRI_BRACKET_RE = re.compile(r"\[([^\]]*)\]")
+# Hebrew points and cantillation marks. Used to detect Ksiv words that Sefaria
+# supplies unpointed — see KSIV_UNPOINTED_NOTE below.
+_NIKUD_RANGE_RE = re.compile(r"[֑-ׇ]")
+
+# Sefaria prints the Ksiv side of a Ksiv/Kri pair as BARE CONSONANTS: `מצותו`
+# against a fully pointed `[מִצְוֺתָ֖יו]`. 1,082 of the 1,102 divergences are
+# like this. That is a limitation of the source text, not of this app — the
+# Masoretic Ksiv has no independent vocalisation of its own to print, since the
+# vowels belong to the Kri reading.
+#
+# Consequence for the four vowel-mark ciphers (HaNekudot, ImHaNekudot,
+# MiluiNekudot, ImMiluiNekudot): they score that word from marks that simply
+# are not in the data, so it contributes 0 (or, for the Im* pair, only its
+# consonantal part). Deuteronomy 7:9's Ksiv מצותו gives HaNekudot 0 while its
+# Kri מצותיו gives 56. Every Ksiv verse in the pair set scores lower than its
+# Kri twin on these ciphers — all 1,101 of them.
+#
+# This CANNOT be computed away: inventing vowels for the Ksiv would be
+# fabricating text. It is surfaced instead, wherever such a unit is displayed,
+# so a 0 is never read as a meaningful result.
+KSIV_UNPOINTED_NOTE = (
+    "This unit contains a Ksiv (written) word that the source text supplies "
+    "without vowel points — the vowels belong to the Kri (read) form. The four "
+    "vowel-mark methods (HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot) "
+    "therefore under-count it; switch to the Kri track for a vocalised value.")
+
+
+def has_unpointed_word(text: str) -> bool:
+    """True when any word in `text` carries no vowel point or accent at all.
+
+    Used to flag Ksiv units whose value under the vowel-mark ciphers is
+    depressed because the source prints that word bare (see
+    KSIV_UNPOINTED_NOTE). Words with no letters (paseq, sof pasuq, paragraph
+    markers) are skipped — they are not words and are never pointed.
+    """
+    if not text:
+        return False
+    for tok in re.split(r"[\s" + re.escape(MAQAF) + r"]+", text):
+        if strip_to_consonants(tok) and not _NIKUD_RANGE_RE.search(tok):
+            return True
+    return False
 # Liturgical repetition notes: two verses (Lamentations 5:22, Ecclesiastes
 # 12:14) append the preceding verse again inside `<br><small>[...]</small>` so
 # the reader does not end a book on a sombre line. That is apparatus, not the
@@ -2620,7 +2661,7 @@ def cipher_breakdown(cipher: str, consonants: str,
 def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      colel, vals, query_breakdown=None, query_val=None,
                      match_nikud_unreliable=False, english="",
-                     english_is_full_verse=False) -> str:
+                     english_is_full_verse=False, ksiv_unpointed=False) -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -2753,6 +2794,11 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                         "nikud, so this total may not reflect the actual "
                         "reading.</div>"
                         if is_nikud and match_nikud_unreliable else "")
+    # A separate condition from the one above: there the pointed text could not
+    # be found; here it was found and the source itself prints it unpointed.
+    # Both make the same total untrustworthy, so both have to reach the export.
+    if is_nikud and ksiv_unpointed:
+        match_nikud_warn += f'<div class="warn">⚠ {e(KSIV_UNPOINTED_NOTE)}</div>'
 
     def _breakdown_table(rows) -> str:
         """Render one method's letter/mark breakdown as an HTML table."""
@@ -3692,6 +3738,16 @@ def run_app() -> None:
             st.caption("⚠️ Could not locate this unit's pointed text in the "
                        "verse; vowel-mark methods are computed without "
                        "nikud here.")
+        # Distinct from the warning above, and NOT covered by it: there the
+        # pointed text could not be found, so the caveat fires on a lookup
+        # failure. Here the lookup succeeds and returns a word the source
+        # prints bare — locate_vocalized happily finds `מצותו`, so
+        # match_nikud_unreliable stays False and the reader would otherwise see
+        # HaNekudot = 0 with no explanation at all.
+        ksiv_unpointed = bool(has_unpointed_word(cantillated_src)
+                              and active_method in NIKUD_CIPHERS)
+        if ksiv_unpointed:
+            st.caption(f"⚠️ {KSIV_UNPOINTED_NOTE}")
         # Per-letter (or per-vowel-mark) breakdown for the active method
         breakdown_rows = None
         if active_method and active_method in CIPHERS:
@@ -3783,6 +3839,9 @@ def run_app() -> None:
             # shows rather than always carrying the translation.
             english=(english_text if show_english else ""),
             english_is_full_verse=sub_unit,
+            # Same reasoning as match_nikud_unreliable: a caveat about a value
+            # being wrong has to travel with the document, not stay on screen.
+            ksiv_unpointed=ksiv_unpointed,
         )
         _pc, _dc = st.columns(2)
         with _pc:
