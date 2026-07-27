@@ -2021,6 +2021,7 @@ def span_search(
     max_span: int = 10,
     colel: bool = False,
     tracks: Optional[List[str]] = None,
+    cross_verse: bool = False,
 ) -> pd.DataFrame:
     """Find every contiguous multi-word span (2..max_span words) whose `cipher`
     value equals `target` (or target±1 if colel).  Works for all 34 ciphers
@@ -2032,6 +2033,24 @@ def span_search(
     source text — Word units are built from it (see verse_forks) — so they stay
     aligned with the DB row order this scan walks.  Underscore-prefixed columns
     are internal and dropped before display.
+
+    `cross_verse=False` (the default) confines every span to one verse, which is
+    what the sof-pasuq means: the verse is a real boundary in the text, not an
+    artefact of how it is stored.  `cross_verse=True` additionally returns spans
+    that straddle a verse boundary, marked `_cross=True` and carrying `_end_ch`/
+    `_end_vs` for the verse they end in.  Those rows are a superset — the
+    within-verse spans are still present and still marked `_cross=False` — so
+    the caller can label rather than re-run.
+
+    Two things the cross-verse walk must not do, both load-bearing:
+      * It may only bridge verses that are genuinely consecutive in the corpus.
+        The TextVariant track holds ~7 scattered verses (Genesis 18:5, Genesis
+        24:55, Numbers 31:2 …); streaming it naively would invent adjacencies
+        between verses that are nowhere near each other.  Bridges are therefore
+        allowed only between verses adjacent in the same chapter, or across a
+        chapter seam within one book.
+      * It never bridges books.  The end of Deuteronomy is not adjacent to the
+        start of Joshua in any sense a reader would accept.
     """
     import numpy as _np
 
@@ -2076,9 +2095,120 @@ def span_search(
                     cipher:  int(span_vals[i]),
                     "_w0":   int(i),
                     "_w1":   int(i) + span_len,
+                    "_cross":  False,
+                    "_end_ch": int(ch),
+                    "_end_vs": int(vs),
                 })
 
+    if cross_verse:
+        rows.extend(_cross_verse_spans(df, cipher, max_span, target_set))
+
     return pd.DataFrame(rows)
+
+
+def _verses_are_consecutive(prev, nxt) -> bool:
+    """True when verse `nxt` directly follows `prev` in the same book.
+
+    Accepts the next verse in the same chapter, or the first verse of the next
+    chapter. Deliberately strict: any gap means the two verses are not adjacent
+    in the text and must not be bridged, which is what keeps the sparse
+    TextVariant track (7 scattered verses) from producing invented adjacencies.
+    Never bridges books.
+    """
+    (p_book, p_ch, p_vs), (n_book, n_ch, n_vs) = prev, nxt
+    if p_book != n_book:
+        return False
+    if p_ch == n_ch:
+        return n_vs == p_vs + 1
+    return n_ch == p_ch + 1 and n_vs == 1
+
+
+def _cross_verse_spans(df, cipher: str, max_span: int, target_set):
+    """Spans that straddle a verse boundary, for span_search(cross_verse=True).
+
+    Only spans that actually cross are returned; the within-verse ones are
+    produced by the caller's own walk. Windows are built over a run of
+    consecutive verses, then a window is kept only when it spans more than one
+    verse — so a span sitting wholly inside one verse of the run is skipped
+    rather than duplicated.
+    """
+    import numpy as _np
+
+    out = []
+    # One stream per track: the tracks are alternative readings of the text, so
+    # a span may never mix words from Ksiv and TextVariant.
+    for track, tgrp in df.groupby("variant_track", sort=False):
+        verses = list(tgrp.groupby(["book", "chapter", "verse"], sort=False))
+        run: list = []           # consecutive verses accumulated so far
+
+        def flush(run):
+            if len(run) < 2:
+                return
+            vals = _np.concatenate([g[cipher].to_numpy(dtype=_np.int64)
+                                    for _, g in run])
+            # Word index -> which verse in the run it belongs to, so a hit can
+            # be reported against the verse it starts in with an offset local
+            # to that verse (what the detail renderer expects).
+            starts, acc = [], 0
+            for _, g in run:
+                starts.append(acc)
+                acc += len(g)
+            owner = _np.zeros(acc, dtype=_np.int64)
+            for vi, s in enumerate(starts):
+                owner[s:] = vi
+            n = len(vals)
+            prefix = _np.concatenate([[0], _np.cumsum(vals)])
+            for span_len in range(2, min(max_span + 1, n + 1)):
+                span_vals = prefix[span_len:] - prefix[: n - span_len + 1]
+                hits = _np.where(_np.isin(span_vals, target_set))[0]
+                for i in hits:
+                    i = int(i)
+                    v0, v1 = int(owner[i]), int(owner[i + span_len - 1])
+                    if v0 == v1:
+                        continue        # wholly inside one verse: not ours
+                    (b, c0, s0), _ = run[v0]
+                    (_, c1, s1), _ = run[v1]
+                    local = i - starts[v0]
+                    out.append({
+                        "Book":  b,
+                        "Ch":    int(c0),
+                        "Vs":    int(s0),
+                        "Track": track,
+                        # Word numbers are relative to the starting verse, so
+                        # the range runs past that verse's word count — the
+                        # display marks these rows as crossing, and the detail
+                        # panel renders the whole run.
+                        "Words": f"{local+1}–{local+span_len}",
+                        cipher:  int(span_vals[i]),
+                        "_w0":   local,
+                        "_w1":   local + span_len,
+                        "_cross":  True,
+                        "_end_ch": int(c1),
+                        "_end_vs": int(s1),
+                    })
+
+        for key, grp in verses:
+            if run and not _verses_are_consecutive(run[-1][0], key):
+                flush(run)
+                run = []
+            run.append((key, grp))
+            # Bound the window: a run only needs to be long enough to hold the
+            # longest span that starts in its first verse. Without this the run
+            # grows to a whole book and the prefix-sum walk redoes the same
+            # interior windows for every verse appended.
+            if sum(len(g) for _, g in run) > 2 * max_span:
+                flush(run)
+                # Keep a tail long enough that a span starting near the end of
+                # the flushed run can still reach into the next verses.
+                tail, total = [], 0
+                for item in reversed(run):
+                    tail.insert(0, item)
+                    total += len(item[1])
+                    if total >= max_span:
+                        break
+                run = tail
+        flush(run)
+    return out
 
 
 def _xm_count_matrix(
@@ -2629,7 +2759,10 @@ body{font-family:'Noto Serif Hebrew','SBL Hebrew','Times New Roman',serif;
        padding:8px 14px;margin:6px 0;text-align:right;direction:rtl}
 .en-label{font-size:9pt;font-weight:bold;color:#333;margin:8px 0 2px}
 .en{font-size:11pt;line-height:1.55;direction:ltr;text-align:left;
-    border-left:3px solid #bbb;padding:4px 0 4px 10px;margin:0 0 4px}
+    border-left:3px solid #bbb;padding:4px 0 4px 10px;margin:0 0 4px;
+    /* A cross-verse span's translation is several verses separated by blank
+       lines; without this the export would run them together. */
+    white-space:pre-line}
 .hl{background:#ddd;text-decoration:underline;border:1px solid #000;
     padding:0 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
 table.bd{width:100%;border-collapse:collapse;margin-top:6px}
@@ -3082,9 +3215,11 @@ def run_app() -> None:
     # docs; no connection or resource teardown is involved), `ttl` is a second,
     # independent safety net.
     @st.cache_data(show_spinner=False, max_entries=100, ttl=3600)
-    def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel, tracks):
+    def cached_span_search(_conn, corpus_key, target, cipher, max_span, colel,
+                           tracks, cross_verse=False):
         return span_search(_conn, target, cipher, max_span=max_span, colel=colel,
-                           tracks=list(tracks) if tracks else None)
+                           tracks=list(tracks) if tracks else None,
+                           cross_verse=cross_verse)
 
     @st.cache_data(show_spinner=False, max_entries=100, ttl=3600)
     def cached_xm_matrix(_conn, corpus_key, a_vals_items, colel, tracks, boundaries):
@@ -3297,7 +3432,7 @@ def run_app() -> None:
 
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
                             active_method=None, query_info=None, colel=False,
-                            span_range=None, track=None):
+                            span_range=None, track=None, end_ref=None):
         import streamlit.components.v1 as _components
         if boundary not in DETAIL_BOUNDARIES:
             return
@@ -3311,6 +3446,34 @@ def run_app() -> None:
         src_text = v.text
         if track == "Kri" and getattr(v, "kri_text", None):
             src_text = v.kri_text
+        # A cross-verse span's word offsets are relative to the FIRST verse but
+        # run past its end, so the source has to be the whole run of verses the
+        # span covers. Joining them here means every downstream step — the
+        # highlight, the consonants, the cipher values, the print-out — operates
+        # on the same text the span was scored over, with no special-casing.
+        cross_run = []
+        if end_ref and boundary == "WordSpan":
+            _e_ch, _e_vs = int(end_ref[0]), int(end_ref[1])
+            _c, _s = int(chapter), int(verse)
+            while (_c, _s) <= (_e_ch, _e_vs):
+                _rv = verse_index.get((book, _c, _s))
+                if _rv is None:
+                    break
+                cross_run.append((_c, _s, _rv))
+                if (_c, _s) == (_e_ch, _e_vs):
+                    break
+                # Step to the next verse, rolling over to the next chapter when
+                # this one runs out. Bounded by the end ref, so a missing verse
+                # (which `break` above already guards) cannot loop forever.
+                if verse_index.get((book, _c, _s + 1)) is not None:
+                    _s += 1
+                else:
+                    _c, _s = _c + 1, 1
+            if len(cross_run) > 1:
+                src_text = " ".join(
+                    (rv.kri_text if track == "Kri" and getattr(rv, "kri_text", None)
+                     else rv.text)
+                    for _, _, rv in cross_run)
         # A word span is not a stored boundary: reconstruct it from the word
         # offsets so the displayed text, the consonants, and the cipher values
         # all describe the span rather than the whole verse.
@@ -3335,7 +3498,20 @@ def run_app() -> None:
             span_w_cons = " ".join(_tok[_i0:_i1])
             span_cons = "".join(_tok[_i0:_i1])
         friendly_boundary = BOUNDARY_LABELS.get(boundary, boundary)
-        st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
+        # A cross-verse span is cited as a range, and says so in words: the
+        # sof-pasuq it crosses is a real division in the text, so the panel
+        # should never let it read like an ordinary single-verse match.
+        is_cross = len(cross_run) > 1
+        if is_cross:
+            _last_c, _last_s, _ = cross_run[-1]
+            ref_label = (f"{book} {chapter}:{verse}–{_last_s}"
+                         if _last_c == int(chapter) else
+                         f"{book} {chapter}:{verse}–{_last_c}:{_last_s}")
+            st.markdown(f"**{ref_label}** · _{friendly_boundary}_")
+            st.caption("⚠️ This span crosses a verse boundary (sof pasuq ׃). "
+                       "The text below is the full run of verses it covers.")
+        else:
+            st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
         sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase",
                                 "FirstHalf", "SecondHalf", "WordSpan")
         highlighted_html = ""
@@ -3445,7 +3621,19 @@ def run_app() -> None:
         # on a fixed key and mirror each other's tick state.
         _uid = f"{book}_{chapter}_{verse}_{boundary}_{active_method}"
         _show_en_key = f"show_en_{_uid}"
-        english_text = verse_english(book, chapter, verse)
+        # For a cross-verse span the run is what the reader is looking at, so
+        # the translation covers every verse in it, each labelled with its own
+        # reference — one undifferentiated block would obscure where each verse
+        # begins, which is the very boundary this panel is flagging.
+        if is_cross:
+            _parts = []
+            for _c, _s, _ in cross_run:
+                _t = verse_english(book, _c, _s)
+                if _t:
+                    _parts.append(f"{_c}:{_s}  {_t}")
+            english_text = "\n\n".join(_parts)
+        else:
+            english_text = verse_english(book, chapter, verse)
         show_english = False
         if english_text:
             show_english = st.checkbox(
@@ -4396,6 +4584,19 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         )
                     with sc2:
                         span_max = st.slider("Max words in span", 2, 15, 7, key="span_max")
+                    # Off by default: a span that crosses a sof-pasuq crosses a
+                    # real division in the text, so including those is the
+                    # reader's decision, not a silent default. Keyed on the
+                    # searched word for the same reason as the scan checkbox
+                    # above — a bare key would carry the setting onto an
+                    # unrelated later search.
+                    span_cross = st.checkbox(
+                        "Include spans that cross verse boundaries",
+                        key=f"span_cross_{_c_cons}",
+                        help=_tip("Off: every span stays inside one verse. On: also "
+                                  "finds spans running from the end of one verse into "
+                                  "the next, across the sof pasuq (׃). Those rows are "
+                                  "marked 'crosses verses'. Never crosses between books."))
                     span_tgt = vals[span_cipher]
                     st.markdown(
                         f"Searching **{span_cipher} = {span_tgt}**"
@@ -4406,17 +4607,37 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         span_df = cached_span_search(
                             conn, corpus_key, span_tgt, span_cipher,
                             span_max, colel, tuple(effective_tracks or ()),
+                            span_cross,
                         )
                     if span_df.empty:
                         st.info("No multi-word span matches this value with the current settings.")
                     else:
-                        st.markdown(f"**{len(span_df)} span match(es)**")
+                        _n_cross = (int(span_df["_cross"].sum())
+                                    if "_cross" in span_df.columns else 0)
+                        st.markdown(
+                            f"**{len(span_df)} span match(es)**"
+                            + (f" — {_n_cross} of them cross a verse boundary"
+                               if _n_cross else ""))
                         # Internal offset columns stay out of the table; row order is
                         # unchanged, so selection indices still address span_df.
+                        # _cross is promoted to a visible column first, so a
+                        # crossing row is identifiable in the table itself and
+                        # not only after opening its detail panel.
+                        _span_vis = span_df.copy()
+                        if span_cross and _n_cross:
+                            # zip over the raw columns rather than itertuples():
+                            # pandas renames leading-underscore fields to _2/_3
+                            # positionally, so r._cross would not resolve.
+                            _span_vis.insert(
+                                4, "Spans",
+                                [f"→ {int(ec)}:{int(ev)}" if cx else "within verse"
+                                 for cx, ec, ev in zip(span_df["_cross"],
+                                                       span_df["_end_ch"],
+                                                       span_df["_end_vs"])])
                         span_show = shape_result_columns(
                             hide_uniform_track(
-                                span_df[[c for c in span_df.columns
-                                         if not c.startswith("_")]]),
+                                _span_vis[[c for c in _span_vis.columns
+                                           if not c.startswith("_")]]),
                             app_view)
                         span_event = st.dataframe(
                             span_show, width="stretch", hide_index=True,
@@ -4431,7 +4652,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     sr["Book"], int(sr["Ch"]), int(sr["Vs"]),
                                     "WordSpan", active_method=span_cipher,
                                     span_range=(int(sr["_w0"]), int(sr["_w1"])),
-                                    track=sr["Track"], colel=colel)
+                                    track=sr["Track"], colel=colel,
+                                    end_ref=((int(sr["_end_ch"]), int(sr["_end_vs"]))
+                                             if sr.get("_cross") else None))
         else:
             st.warning("Enter a Hebrew phrase to search.")
 
