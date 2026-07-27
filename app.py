@@ -550,6 +550,29 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 }
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
+# The four methods that score vowel marks rather than letters. Defined here,
+# beside CIPHER_NAMES, because the search layer needs it long before the
+# breakdown helpers further down do.
+NIKUD_CIPHERS = ("HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot")
+
+
+def nikud_partial_clause(cipher: str) -> str:
+    """SQL predicate excluding units with a knowably incomplete vowel total.
+
+    A unit whose text contains a Ksiv word the source prints unpointed has a
+    vowel-mark total that is short by that word's contribution — every other
+    word counted, one could not. Such a value must not appear in results at
+    all: unlike a missing value it looks entirely ordinary, so a reader has no
+    way to tell a genuine match from an artefact of the shortfall.
+
+    Returns an empty string for the other 30 methods, which are unaffected —
+    they score letters, which are fully present in the Ksiv.
+
+    Callers append this to their WHERE clause; it introduces no parameters, so
+    it never disturbs the caller's parameter ordering.
+    """
+    return " AND nikud_partial = 0" if cipher in NIKUD_CIPHERS else ""
+
 # Classical / Talmud-attested methods, listed first in app view (?view=app).
 BASIC_CIPHERS: List[str] = [
     "Standard", "Katan", "Gadol", "Siduri",
@@ -1774,6 +1797,13 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
             variant_track  TEXT,
             consonants     TEXT,
             text_display   TEXT,
+            -- 1 when this unit's own text contains a word the source prints
+            -- without vowel points (the Ksiv side of a Ksiv/Kri pair). Such a
+            -- unit's four vowel-mark totals are not merely unknown, they are
+            -- knowably short: every other word contributed and that one did
+            -- not. Recorded once here so all thirteen query paths can exclude
+            -- them with a single predicate instead of each re-deriving it.
+            nikud_partial  INTEGER DEFAULT 0,
             {CIPHER_COLS}
         )
     """)
@@ -1782,13 +1812,19 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
                disp=None, cantillated="", word_cons=""):
         if not cons:
             return
+        # Judged on the unit's OWN cantillated text, never the parent verse's:
+        # a pointed word sitting beside a bare one is itself perfectly valid,
+        # and flagging by verse would condemn ~16,000 sound Word units to
+        # protect ~1,300.
+        partial = 1 if has_unpointed_word(cantillated or "") else 0
         cur.execute(
             f"""INSERT INTO units
                 (sub_id, book, chapter, verse, parsha, boundary_type,
-                 variant_track, consonants, text_display, {CIPHER_INSERT_COLS})
-                VALUES (?,?,?,?,?,?,?,?,?,{CIPHER_PLACEHOLDERS})""",
+                 variant_track, consonants, text_display, nikud_partial,
+                 {CIPHER_INSERT_COLS})
+                VALUES (?,?,?,?,?,?,?,?,?,?,{CIPHER_PLACEHOLDERS})""",
             (sub_id, book, chapter, verse, parsha, boundary, track, cons,
-             _display_form(cons, disp, word_cons),
+             _display_form(cons, disp, word_cons), partial,
              *_cipher_tuple(cons, cantillated, word_cons)),
         )
 
@@ -1854,10 +1890,16 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
             cons = "".join(m.full_consonants for m in members)
             word_cons_agg = " ".join(w for m in members for w in m.words)
             sample = members[0]
+            # Aggregates carried no cantillated text, so their vowel-mark
+            # totals were 0 for every chapter and book in the corpus — not a
+            # partial value, an absent one. Joining the members' cantillated
+            # text gives these units real vowel-mark totals, and lets the same
+            # unpointed-word test apply to them as to everything else.
+            cant_agg = " ".join(m.cantillated_text for m in members)
             insert(id_fn(key, sample), sample.book,
                    sample.chapter if boundary_name == "Perek" else 0,
                    0, sample.parsha, boundary_name, "Aggregate", cons,
-                   word_cons=word_cons_agg)
+                   cantillated=cant_agg, word_cons=word_cons_agg)
 
     aggregate(lambda f: (f.book, f.chapter), "Perek",
               lambda k, s: f"PEREK_{book_slug(k[0])}_{k[1]}")
@@ -1873,9 +1915,13 @@ def build_database(verses: List[VerseInput]) -> sqlite3.Connection:
             block_n += 1
             cons = "".join(m.full_consonants for m in block)
             word_cons_block = " ".join(w for m in block for w in m.words)
+            # Same fix as the Perek/Sefer aggregates above: without this a
+            # paragraph block's vowel-mark totals were all 0.
+            cant_block = " ".join(m.cantillated_text for m in block)
             insert(f"BLOCK_{f.paragraph_marker}_{block_n}", block[0].book,
                    block[0].chapter, block[0].verse, block[0].parsha,
-                   f.paragraph_marker, "Aggregate", cons, word_cons=word_cons_block)
+                   f.paragraph_marker, "Aggregate", cons,
+                   cantillated=cant_block, word_cons=word_cons_block)
             block = []
     if block:  # flush verses after the last paragraph marker
         block_n += 1
@@ -1952,7 +1998,12 @@ def internal_balance_matches(
                 "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u1.verse=u2.verse "
                 "WHERE u1.boundary_type='FirstHalf' AND u2.boundary_type='SecondHalf' "
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-                f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
+                # Each side is guarded by its OWN method: a pattern is only as
+                # sound as both halves of it, so an incomplete vowel total on
+                # either side would make the "balance" an artefact.
+                + nikud_partial_clause(ma).replace("nikud_partial", "u1.nikud_partial")
+                + nikud_partial_clause(mb).replace("nikud_partial", "u2.nikud_partial") +
+                f" AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 f"AND ABS(u1.{ma} - u2.{mb}) <= ? "
                 f"ORDER BY {_book_rank_sql('u1.book')}, u1.book, u1.chapter, u1.verse LIMIT ?",
                 raw_conn(conn), params=[min_value, min_value, tol, limit],
@@ -1984,7 +2035,10 @@ def proximity_echo_matches(
             "ON u1.book=u2.book AND u1.chapter=u2.chapter AND u2.verse=u1.verse+1 "
             "WHERE u1.boundary_type='Verse' AND u2.boundary_type='Verse' "
             "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-            f"AND u1.{m} >= ? AND ABS(u1.{m} - u2.{m}) <= ? "
+            # Both verses of the pair, same method on each side.
+            + nikud_partial_clause(m).replace("nikud_partial", "u1.nikud_partial")
+            + nikud_partial_clause(m).replace("nikud_partial", "u2.nikud_partial") +
+            f" AND u1.{m} >= ? AND ABS(u1.{m} - u2.{m}) <= ? "
             f"ORDER BY {_book_rank_sql('u1.book')}, u1.book, u1.chapter, u1.verse LIMIT ?",
             raw_conn(conn), params=[min_value, tol, limit],
         )
@@ -2021,7 +2075,9 @@ def whole_unit_echo_matches(
                 f"FROM units u1 JOIN units u2 ON u1.{ma} = u2.{mb} "
                 "WHERE u1.boundary_type=? AND u2.boundary_type=? "
                 "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv' "
-                f"AND u1.{ma} >= ? AND u2.{mb} >= ? "
+                + nikud_partial_clause(ma).replace("nikud_partial", "u1.nikud_partial")
+                + nikud_partial_clause(mb).replace("nikud_partial", "u2.nikud_partial") +
+                f" AND u1.{ma} >= ? AND u2.{mb} >= ? "
                 "AND u1.rowid != u2.rowid "
                 "ORDER BY " + _book_rank_sql("u1.book") + ", u1.book, u1.chapter, u1.verse, u2.rowid "
                 "LIMIT ?",
@@ -2062,6 +2118,9 @@ def search_value(conn: sqlite3.Connection, cipher: str, value: int,
     if boundaries:
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
+    # Units with an incomplete vowel total never enter a vowel-method result.
+    if cipher in NIKUD_CIPHERS:
+        where.append("nikud_partial = 0")
     sql = (f"SELECT book AS Book, chapter AS Chapter, verse AS Verse, "
            f"boundary_type AS Boundary, variant_track AS Track, "
            f"text_display AS Text, {cipher} AS Value, sub_id AS SubID "
@@ -2089,14 +2148,26 @@ def count_value(conn: sqlite3.Connection, cipher: str, value: int,
     if boundaries:
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
+    # Must mirror search_value's exclusion exactly: this count is the numerator
+    # for coincidence rates, so counting units the search itself will never
+    # return would report a rate for results the reader cannot see.
+    if cipher in NIKUD_CIPHERS:
+        where.append("nikud_partial = 0")
     sql = "SELECT COUNT(*) FROM units WHERE " + " AND ".join(where)
     return int(pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0, 0])
 
 
 def boundary_population(conn: sqlite3.Connection,
                         tracks: Optional[List[str]] = None,
-                        boundaries: Optional[List[str]] = None) -> int:
-    """Total units matching the given track/boundary filters — the denominator."""
+                        boundaries: Optional[List[str]] = None,
+                        cipher: Optional[str] = None) -> int:
+    """Total units matching the given track/boundary filters — the denominator.
+
+    `cipher` narrows the population to the units that method can actually
+    return. It matters only for the four vowel-mark methods, where the excluded
+    units would otherwise inflate the denominator and depress every rarity
+    figure computed against it.
+    """
     where, params = [], []
     if tracks:
         where.append("variant_track IN (%s)" % ",".join("?" * len(tracks)))
@@ -2104,6 +2175,8 @@ def boundary_population(conn: sqlite3.Connection,
     if boundaries:
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
+    if cipher in NIKUD_CIPHERS:
+        where.append("nikud_partial = 0")
     sql = "SELECT COUNT(*) FROM units" + (" WHERE " + " AND ".join(where) if where else "")
     return int(pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0, 0])
 
@@ -2148,6 +2221,10 @@ def search_value_all_methods(
         if boundaries:
             where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
             branch_params += list(boundaries)
+        # Per-branch, so the four vowel-mark branches drop incomplete units
+        # while the other 30 branches are untouched.
+        if c in NIKUD_CIPHERS:
+            where.append("nikud_partial = 0")
         unions.append(
             f"SELECT * FROM ("
             f"SELECT '{c}' AS Method, book AS Book, chapter AS Chapter, "
@@ -2220,8 +2297,13 @@ def span_search(
         track_cond = "AND variant_track IN (%s)" % ",".join("?" * len(tracks))
         params = list(tracks)
 
+    # A span is a sum over Word units, so one unpointed word poisons every span
+    # that covers it. Excluding those words here removes them from BOTH the
+    # within-verse and cross-verse walks — and, because a dropped word would
+    # otherwise silently close the gap between its neighbours, the surviving
+    # words are no longer treated as adjacent either (see the guard below).
     sql = (
-        f"SELECT book, chapter, verse, variant_track, {cipher} "
+        f"SELECT book, chapter, verse, variant_track, {cipher}, nikud_partial "
         f"FROM units WHERE boundary_type='Word' {track_cond} "
         f"ORDER BY {_book_rank_sql('book')}, book, chapter, verse, variant_track, rowid"
     )
@@ -2233,11 +2315,20 @@ def span_search(
         [target - 1, target, target + 1] if colel else [target], dtype=_np.int64
     )
 
+    # Rows are NOT deleted for an unpointed word: `_w0`/`_w1` are indices into
+    # tokenize_words(), so removing a row would shift every later index and the
+    # detail panel would highlight the wrong words. Instead the word is left in
+    # place and any window covering it is rejected below, via a prefix sum over
+    # the flag — a window is admissible only when it contains zero flagged
+    # words. For the 30 letter-based methods nothing is ever rejected.
+    _guard = cipher in NIKUD_CIPHERS
     rows = []
     for (book, ch, vs, track), grp in df.groupby(
         ["book", "chapter", "verse", "variant_track"], sort=False
     ):
         vals = grp[cipher].to_numpy(dtype=_np.int64)
+        bad = grp["nikud_partial"].to_numpy(dtype=_np.int64)
+        bad_prefix = _np.concatenate([[0], _np.cumsum(bad)])
         n = len(vals)
         if n < 2:
             continue
@@ -2245,6 +2336,10 @@ def span_search(
         for span_len in range(2, min(max_span + 1, n + 1)):
             span_vals = prefix[span_len:] - prefix[: n - span_len + 1]
             hits = _np.where(_np.isin(span_vals, target_set))[0]
+            if _guard and len(hits):
+                # Keep only windows containing no unpointed word.
+                covered = bad_prefix[hits + span_len] - bad_prefix[hits]
+                hits = hits[covered == 0]
             for i in hits:
                 rows.append({
                     "Book":  book,
@@ -2261,7 +2356,8 @@ def span_search(
                 })
 
     if cross_verse:
-        rows.extend(_cross_verse_spans(df, cipher, max_span, target_set))
+        rows.extend(_cross_verse_spans(df, cipher, max_span, target_set,
+                                       guard_nikud=_guard))
 
     return pd.DataFrame(rows)
 
@@ -2283,7 +2379,8 @@ def _verses_are_consecutive(prev, nxt) -> bool:
     return n_ch == p_ch + 1 and n_vs == 1
 
 
-def _cross_verse_spans(df, cipher: str, max_span: int, target_set):
+def _cross_verse_spans(df, cipher: str, max_span: int, target_set,
+                       guard_nikud: bool = False):
     """Spans that straddle a verse boundary, for span_search(cross_verse=True).
 
     Only spans that actually cross are returned; the within-verse ones are
@@ -2332,9 +2429,16 @@ def _cross_verse_spans(df, cipher: str, max_span: int, target_set):
                 owner[s:] = vi
             n = len(vals)
             prefix = _np.concatenate([[0], _np.cumsum(vals)])
+            # Same rejection rule as the within-verse walk above.
+            bad_run = _np.concatenate([g["nikud_partial"].to_numpy(dtype=_np.int64)
+                                       for _, g in run])
+            bad_prefix = _np.concatenate([[0], _np.cumsum(bad_run)])
             for span_len in range(2, min(max_span + 1, n + 1)):
                 span_vals = prefix[span_len:] - prefix[: n - span_len + 1]
                 hits = _np.where(_np.isin(span_vals, target_set))[0]
+                if guard_nikud and len(hits):
+                    covered = bad_prefix[hits + span_len] - bad_prefix[hits]
+                    hits = hits[covered == 0]
                 for i in hits:
                     i = int(i)
                     v0, v1 = int(owner[i]), int(owner[i + span_len - 1])
@@ -2489,7 +2593,7 @@ NEKUDA_NAMES: Dict[str, str] = {
     "ֹ": "חולם", "ֺ": "חולם חסר", "ֻ": "קובוץ", "ּ": "דגש",
 }
 
-NIKUD_CIPHERS = ("HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot")
+# NIKUD_CIPHERS moved up beside CIPHER_NAMES — the search layer needs it there.
 
 
 def locate_vocalized(cantillated: str, matched_cons: str) -> str:
