@@ -1501,11 +1501,112 @@ CORPUS_FILE   = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
 PREBUILT_DB   = pathlib.Path(__file__).parent / "tanach.db"
 
 
+# Sefaria writes a Ksiv/Kri divergence inline as `ksiv [kri]`: the written form
+# bare, the read form in square brackets. Left as-is, tokenize_words sees TWO
+# words and every cipher counts BOTH readings — Deuteronomy 7:9 scored מצותו
+# (542) *and* מצותיו (552), inflating the verse and every unit containing it.
+# 1,104 verses (1,279 occurrences) carry this notation.
+_KRI_BRACKET_RE = re.compile(r"\[([^\]]*)\]")
+# Liturgical repetition notes: two verses (Lamentations 5:22, Ecclesiastes
+# 12:14) append the preceding verse again inside `<br><small>[...]</small>` so
+# the reader does not end a book on a sombre line. That is apparatus, not the
+# verse, and it was being scored — and worse, the tags fused words across the
+# boundary (מאד + השיבנו -> מאדהשיבנו). Removed whole, before kri parsing, so
+# the bracket inside is never mistaken for a kri reading.
+_LITURGICAL_NOTE_RE = re.compile(r"<br\s*/?>\s*<small>.*?</small>",
+                                 re.IGNORECASE | re.DOTALL)
+
+
+def split_ksiv_kri(text: str) -> Tuple[str, Optional[str]]:
+    """Split Sefaria's inline `ksiv [kri]` notation into two readings.
+
+    Returns (ksiv_text, kri_text); kri_text is None when the verse has no
+    divergence, which is the overwhelming majority.
+
+    The Ksiv reading keeps the bare word and drops the bracket; the Kri reading
+    does the reverse. Both are returned as full cantillated verses so the
+    existing fork engine can treat them as it treats any other variant pair —
+    this function only untangles the notation, it does not decide anything about
+    how the two readings are scored.
+
+    Shapes in the real corpus, all handled here:
+      * one bare word + one bracket — the normal case;
+      * consecutive brackets sharing a run of bare words (Job 38:1
+        `מנ הסערה [מִ֥ן ׀] [הַסְּעָרָ֗ה]`), where N ksiv words precede N
+        brackets and must be matched up positionally;
+      * maqaf-joined words, where a whitespace token holds two words
+        (`אֶת־יעיש [יְע֥וּשׁ]` — only `יעיש` is the ksiv, `את` must survive) and
+        a bracket can be fused into the token (`לך־[לְכָה־]`). Splitting on
+        whitespace alone gets both of these wrong, so the scan is over
+        maqaf-aware units;
+      * a bracket containing a paseq `׀`, a separator rather than a word; it
+        contributes no letters and is carried through harmlessly.
+    """
+    text = _LITURGICAL_NOTE_RE.sub("", text)
+    if "[" not in text:
+        return text, None
+
+    # Split into units on whitespace AND maqaf, keeping the separators so both
+    # readings can be reassembled with the original spacing/punctuation intact.
+    parts = re.split(r"([\s" + re.escape(MAQAF) + r"]+)", text)
+    ksiv_parts: List[str] = []
+    kri_parts: List[str] = []
+    # Indices into ksiv_parts/kri_parts of the word units emitted so far, so a
+    # bracket run can reach back over separators to the words it replaces.
+    word_slots: List[int] = []
+    i = 0
+    while i < len(parts):
+        p = parts[i]
+        if "[" not in p:
+            ksiv_parts.append(p)
+            kri_parts.append(p)
+            if p.strip() and strip_to_consonants(p):
+                word_slots.append(len(kri_parts) - 1)
+            i += 1
+            continue
+        # Collect one maximal run of brackets, tolerating a bracket that spans
+        # parts because its content contains a space or maqaf.
+        brackets: List[str] = []
+        while i < len(parts) and "[" in parts[i]:
+            buf = parts[i]
+            i += 1
+            while buf.count("[") > buf.count("]") and i < len(parts):
+                buf += parts[i]
+                i += 1
+            brackets.append(buf)
+            # Skip a separator sitting between two brackets of the same run.
+            if (i < len(parts) and not parts[i].strip()
+                    and i + 1 < len(parts) and "[" in parts[i + 1]):
+                i += 1
+        # A leading fragment before "[" belongs to the Ksiv side of this same
+        # token (`לך־[לְכָה־]` → ksiv `לך־`, kri `לְכָה־`).
+        lead = brackets[0][:brackets[0].index("[")]
+        if lead:
+            ksiv_parts.append(lead)
+        # Replace this run's Ksiv word units with the bracket contents.
+        take = min(len(brackets), len(word_slots))
+        if take:
+            for slot in word_slots[-take:]:
+                kri_parts[slot] = ""
+            del word_slots[-take:]
+        kri_parts.append(" ".join(
+            _KRI_BRACKET_RE.sub(r"\1", b[b.index("["):]) for b in brackets))
+
+    ksiv_text = re.sub(r"\s+", " ", "".join(ksiv_parts)).strip()
+    kri_text = re.sub(r"\s+", " ", "".join(kri_parts)).strip()
+    return ksiv_text, (kri_text if kri_text != ksiv_text else None)
+
+
 def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
     """Load the pre-fetched full Tanach corpus from a local JSONL file.
 
     Each line: {"book": str, "chapter": int, "verse": int, "text": str}
     Returns an empty list if the file does not exist.
+
+    Verses carrying Sefaria's inline `ksiv [kri]` notation are split here, so
+    `text` is the written reading alone and `kri_text` carries the read one.
+    The fork engine then emits a proper Kri track for them, instead of the
+    ciphers silently summing both readings into one inflated Ksiv value.
     """
     if not path.exists():
         return []
@@ -1516,12 +1617,14 @@ def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
             if not line:
                 continue
             row = json.loads(line)
+            ksiv_text, kri_text = split_ksiv_kri(row["text"])
             verses.append(VerseInput(
                 book=row["book"],
                 chapter=int(row["chapter"]),
                 verse=int(row["verse"]),
                 parsha=row["book"],
-                text=row["text"],
+                text=ksiv_text,
+                kri_text=kri_text,
             ))
     return verses
 
