@@ -3126,6 +3126,12 @@ table.bd tr{break-inside:avoid;page-break-inside:avoid}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
   thead{display:table-header-group}
+  /* The header SHOULD repeat on a continued table; the total must not. A
+     tfoot defaults to table-footer-group, which browsers repeat at the foot of
+     every page a table spans — so a table split across two sheets printed
+     "סה״כ" twice, once under a section that carries on overleaf. Demoting it to
+     an ordinary row group prints it once, at the true end of the table. */
+  tfoot{display:table-row-group}
   body{padding:0}
 }"""
 
