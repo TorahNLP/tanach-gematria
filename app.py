@@ -3980,29 +3980,32 @@ def run_app() -> None:
             st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
         sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase",
                                 "FirstHalf", "SecondHalf", "WordSpan")
+        # Ksiv/Kri divergence is shown INLINE on the single cantillated line —
+        # the Kri bracketed after its Ksiv counterpart, the notation the source
+        # itself uses — rather than repeating the whole verse a second time for
+        # the sake of one or two differing words. Display only: the bracketed
+        # text is never part of `cons`/`w_cons` and contributes to no value.
+        #
+        # The brackets are inserted AFTER highlighting, because the highlight is
+        # computed against the Ksiv text and inserting words first would shift
+        # every offset it depends on.
+        _kri_line = getattr(v, "kri_text", None) if track != "Kri" else None
+        _has_kri = bool(_kri_line) and not is_cross
         highlighted_html = ""
         if sub_unit and src_text:
             matched_cons = strip_to_consonants(matched_text) if matched_text else None
             highlighted = _highlight_in_verse(src_text, boundary, matched_cons,
                                               span_range=span_range)
-            highlighted_html = highlighted
-            st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
         else:
-            highlighted_html = src_text or ""
-            st.markdown(f"**Cantillated:** {src_text}")
-        # Ksiv/Kri divergence: rather than repeat the whole verse a second time
-        # for the sake of one or two differing words, the Kri is shown inline in
-        # square brackets right after its Ksiv counterpart — the notation the
-        # source itself uses. Display only: the bracketed word is never part of
-        # `cons`/`w_cons`, so it contributes nothing to any value.
-        _kri_line = getattr(v, "kri_text", None) if track != "Kri" else None
-        if _kri_line and not is_cross:
-            _merged = merge_ksiv_kri_display(src_text, _kri_line)
-            if _merged:
-                st.markdown(f"**With Kri:** {_merged}")
-                st.caption("Bracketed word[s] are the Kri (read) form, shown for "
-                           "reference only — values are computed from the Ksiv "
-                           "(written) text.")
+            highlighted = src_text or ""
+        if _has_kri:
+            highlighted = merge_ksiv_kri_display(highlighted, _kri_line) or highlighted
+        highlighted_html = highlighted
+        st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
+        if _has_kri:
+            st.caption("Bracketed word[s] are the Kri (read) form, shown for "
+                       "reference only — values are computed from the Ksiv "
+                       "(written) text.")
         # Values: matched sub-unit when available, full verse otherwise.
         # In app view this readout is suppressed entirely — see below, near
         # where `vals` is displayed, for why and for the site-only caveat.
