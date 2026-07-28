@@ -4284,15 +4284,15 @@ def run_app() -> None:
                 {"Method": "Mityashev",
                  "Hebrew": "מספר מיושב (Mispar Mityashev)",
                  "Rule": "Each letter × total letter count of its word: Σ(vᵢ × N). N resets per word. 3-letter word: every value × 3.",
-                 "Earliest Source": "Traced to early Italian Kabbalistic manuscripts; documented in operational gematria manuals."},
+                 "Earliest Source": "No classical source identified. The name 'Mispar Mityashev' (מספר מיושב) does not appear in Pardes Rimonim's Sha'ar HaGematriaot (Gate 30), nor anywhere in Sefaria's corpus. It circulates in modern gematria calculators and reference lists; treat it as a modern method rather than a received one. Note that some sources use 'mispar meyushav' loosely for Mispar Katan, which is a different calculation from the one here."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
-                 "Earliest Source": "Ba'al HaTurim (R. Jacob ben Asher, 14th c.)."},
+                 "Earliest Source": "Ba'al HaTurim (R. Jacob ben Asher, 14th c.). Defined in Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §4 as the second clause of Mispar Musafi — 'או המלה עצמה', or the word itself."},
                 {"Method": "KololOtiyot",
                  "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
                  "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
-                 "Earliest Source": "Kabbalistic practice; parallel to the general Kolel tradition. Also called Mispar Musafi in later sources."}
+                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §4: 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה' — R. Moshe Cordovero (1548) defines Mispar Musafi as adding the word's letters to its value, or else the word itself. The first clause is this method; the second is Kolel (Word)."}
             ]))
 
         # App view searches the Ksiv track only, so the reading-track material
