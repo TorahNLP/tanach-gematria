@@ -3,9 +3,9 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `90b6c04` (Code review fixes: nikud accuracy warning reaches app view and print export)
-**Last DB-affecting commit:** `8f7b636` — rebuild `tanach.db` if you are older than this
-**Handoff date:** 2026-07-20
+**Last code commit:** `03baee7` (Cut the on-screen notes down)
+**Last DB-affecting commit:** `a8f4b90` — rebuild `tanach.db` if you are older than this
+**Handoff date:** 2026-07-28
 
 > ✅ **Everything in this document is pushed and verified live.**
 >
@@ -21,8 +21,12 @@
 > Streamlit sessions. That is easy to reintroduce.
 >
 > **Still open:** the variants-toggle redesign (not built, deferred) and
-> `TODO(site)` on the cleaned-consonants readout (deferred). `sub_id`,
-> `use_container_width` and the word-span click-through are all now resolved.
+> `TODO(site)` on the cleaned-consonants readout (deferred).
+>
+> ⚠️ **2026-07-28 session was mostly a correctness overhaul of Ksiv/Kri.**
+> Read that section and the unpointed-Ksiv rule before touching any cipher,
+> search path or the corpus loader. Two stored-data changes since the last
+> handoff (`44ac11c`, `a8f4b90`) — **rebuild `tanach.db`**.
 
 ---
 
@@ -607,6 +611,254 @@ mode has no picker — it searches every method by design.
 
 ---
 
+## ⚠️ Ksiv/Kri was double-counted — every value in 1,104 verses was wrong (`44ac11c`)
+
+**The single most important fix in this session's work.** Sefaria encodes a
+Ksiv/Kri divergence inline as `ksiv [kri]`. Nothing parsed that notation, so
+`tokenize_words` saw **two** words and every cipher counted **both** readings.
+Deuteronomy 7:9 scored `מצותו` (542) *and* `מצותיו` (552): Verse Standard 4222,
+where Ksiv is 3670 and Kri 3680.
+
+Not confined to spans — the doubled word sat in the Word units, so it
+propagated into every containing unit and every search, pattern and statistic.
+**Scope: 1,104 verses, 492 of 929 chapters, 37 of 39 books, ~397,000 of phantom
+value.**
+
+The app already had a Kri fork engine (`VerseInput.kri_text` → a `Kri` variant
+track), fully built and documented — the corpus simply never populated it (the
+Kri track had **zero** rows). `split_ksiv_kri()` in the loader feeds machinery
+that already existed. Kri track is now ~30,121 rows.
+
+**Four corpus shapes the parser handles** (verified against all 23,206 verses):
+
+1. one bare word + one bracket — the common case;
+2. consecutive brackets sharing a run of bare words — Job 38:1
+   `מנ הסערה [מִ֥ן ׀] [הַסְּעָרָ֗ה]`, matched positionally;
+3. **maqaf-joined tokens — this broke the first attempt.** `אֶת־יעיש [יְע֥וּשׁ]`
+   is ONE whitespace token holding TWO words, so dropping the token also dropped
+   `את`; `לך־[לְכָה־]` fuses the bracket into the token. Splitting on whitespace
+   failed **231 verses**. Must scan maqaf-aware units;
+4. one-word ksiv → multi-word kri (Isaiah 3:15 `מלכם`→`מה־לכם`, Psalms 55:16
+   `ישימות`→`ישי מות`). Word counts legitimately differ — **not** a parse error.
+
+Also stripped in the same pass: Lamentations 5:22 and Ecclesiastes 12:14 carry a
+liturgical repetition note in `<br><small>[...]</small>` (the previous verse
+repeated so a book does not end sombrely). It was being scored as scripture and
+fused words across the tag boundary (`מאד`+`השיבנו`). Removed **before** kri
+parsing so its bracket is never mistaken for a kri.
+
+---
+
+## Unpointed Ksiv: vowel-mark methods are undefined, not zero (`58a5f0f`, `b8ce7aa`, `7f037b6`)
+
+Sefaria prints the **Ksiv side as bare consonants** — 1,082 of the 1,102
+divergences. So the four vowel-mark ciphers score it from marks that are not in
+the data: Deut 7:9's Ksiv `מצותו` gives `HaNekudot` **0**. **All 1,101 Ksiv/Kri
+verse pairs score lower than their Kri twin on HaNekudot.**
+
+This is the source text's nature, not a defect here — in the Masoretic
+manuscripts the vowels of the Kri sit on the consonants of the Ksiv, so the
+written form has no vocalisation of its own. **Inventing vowels would be
+fabricating text.**
+
+**Joshua's rule — do not weaken this:** any word, verse, half-verse, phrase or
+span containing such a word is **excluded from all four vowel-mark methods,
+period.** Not flagged-but-shown, not shown as 0. His reasoning: the total is
+knowably *short* (every other word contributed, that one could not), and unlike
+a missing value it looks entirely ordinary in a results list.
+
+Implemented as a **`nikud_partial` column set at build time** — not thirteen
+query-site derivations that would drift. ⚠️ **This is a stored-data column: a DB
+built before it crashes with `no such column`.** `_build_connection` now checks
+the prebuilt schema and rebuilds rather than serving it (see the Streamlit Cloud
+entry below).
+
+Judged on each unit's **own** cantillated text, never the parent verse's — a
+pointed word beside a bare one is sound, and verse-level flagging would condemn
+~16,000 valid Word units to protect ~1,300. Applied in `search_value`,
+`count_value`, `boundary_population` (takes `cipher`, so the denominator matches
+the numerator), `search_value_all_methods`, all three pattern scans (**both**
+sides of each join), `span_search`, the detail panel and the print-out.
+
+**Spans use a different mechanism deliberately:** rows are **not** deleted,
+because `_w0`/`_w1` index `tokenize_words()` and removing one shifts every later
+index and mis-places the highlight. The word stays; any *window covering it* is
+rejected via a prefix sum over the flag.
+
+**Two traps worth remembering:**
+
+- `ImHaNekudot`/`ImMiluiNekudot` add letters to marks, so on an unpointed word
+  they do **not** fall to 0 — they collapse to the plain letter total (identical
+  to Standard), which reads as an ordinary number and is *more* misleading.
+- `vals.get(method, 0)` in `build_print_html` silently reinstated the suppressed
+  number. It now carries `None` and renders an em dash. A per-mark **breakdown
+  table** does the same thing — summing it rebuilds the withheld total — so
+  `build_print_html` clears `breakdown_rows`/`query_breakdown` itself rather
+  than trusting its caller.
+
+Fixed alongside: Perek/Sefer/paragraph-block aggregates passed no `cantillated`
+to `insert()`, so **every chapter and book had a vowel total of 0** — absent,
+not partial. They now join their members' cantillated text.
+
+**Display:** the Kri is shown inline in brackets on the single cantillated line
+(`הוצא [הַיְצֵ֣א]`), the notation the source uses — not as a second verse.
+`merge_ksiv_kri_display()` is the inverse of `split_ksiv_kri` and its output
+never reaches `cons`/`w_cons`. Brackets are inserted **after** highlighting,
+since the highlight is placed by word offset and inserting first would shift it.
+
+---
+
+## English translation (`307f9a0`, `d271319`, `7f78f31`)
+
+`tanach_english.jsonl`, keyed identically to `tanach_corpus.jsonl`, refetched
+with `python fetch_english.py`. **Display only — it takes no part in any
+calculation and is deliberately not in `tanach.db`**, so a translation refresh
+never forces a cipher rebuild. Loaded as a plain dict, cached once per container.
+
+**Which text, and why it changed twice:**
+
+1. **JPS 1917** (Public Domain) first — rejected as too archaic (53% of verses
+   carry thee/thou/unto/hath).
+2. **JPS 1985** — readable, but embeds critical apparatus mid-verse and renders
+   Gen 1:1 as "When God began to create".
+3. **Koren Jerusalem Bible** (current). Same CC-BY-NC tier as JPS 1985, so no
+   licence cost. Chosen for: "IN THE BEGINNING God created" (traditional
+   reading), transliterated Hebrew names (Yisra'el, Miżrayim), and **no
+   editorial apparatus fused into the verse**.
+
+Only four English versions on Sefaria cover the whole Tanach: Koren, JPS 1985,
+JPS Gender-Sensitive (renders the Name as "the ETERNAL" — ruled out), and JPS
+1917. Metsudah/ArtScroll-adjacent editions are Chumash-only or absent.
+
+**CC-BY-NC obliges attribution**, so `ENGLISH_ATTRIBUTION` is rendered in the
+**export** (a printed document leaves the site). On screen the short form
+`ENGLISH_ATTRIBUTION_SHORT` is used — the Guide and tooltip carry the full
+notice. It also **blocks commercial relicensing** while bundled; swapping back
+to JPS 1917 is a one-line `VERSION` change plus refetch.
+
+**Joshua 21:36–37** — Koren omits them (see below), so they are filled from the
+public-domain JPS 1917 via `FALLBACK_VERSION`/`FALLBACK_REFS` in
+`fetch_english.py`, which a refetch reproduces automatically. JPS 1917 brackets
+them; the brackets are stripped, since square brackets already mean Kri here.
+
+---
+
+## Joshua 21:36–37 are disputed — kept and flagged (`7f78f31`)
+
+Present in our Hebrew corpus (tanach.us) but **absent from most Masoretic
+manuscripts**; the same material is at I Chronicles 6:63–64.
+
+| Edition | 21:36–37 |
+|---|---|
+| **ArtScroll** | Footnote — *"not part of the original Masoretic text of Joshua"* |
+| **Koren** | Absent entirely |
+| **Miqra according to the Masorah** | Em-dash placeholder |
+| JPS 1985 / Gender-Sensitive / Fox | Placeholder |
+| JPS 1917 | Present, bracketed |
+| **tanach.us (ours)** | **Full text, unmarked** |
+
+**Joshua's call: keep and flag, not strip** — silently dropping verses is worse
+than showing them, and a numbering gap would be its own surprise. They *are*
+counted in the Joshua 21 and Sefer Joshua totals. `DISPUTED_VERSES` /
+`disputed_verse_note()` put a short note in the detail panel; the table takes a
+second case in one line.
+
+---
+
+## Cross-verse word spans, opt-in (`3c8cbba`, `32a8aa2`)
+
+`span_search(cross_verse=True)` also returns spans straddling a verse boundary.
+**Off by default** — the sof-pasuq is a real division, so including those is the
+reader's decision. Cost is small: ~1.4× more candidate windows at max_span=7.
+
+**Two invariants, both load-bearing:** it only bridges **genuinely consecutive**
+verses (the TextVariant track holds 7 scattered verses — a naive stream would
+invent adjacencies), and it **never bridges books**.
+
+⚠️ **The bug worth remembering:** the first implementation walked bounded
+windows with an overlapping tail and **double-emitted** every span inside the
+overlap — 19 of 301 real duplicates. Patching the arithmetic failed twice. The
+fix was structural: split each track into maximal runs of consecutive verses and
+scan each **once, end to end**. No overlap, nothing to double-count. It is also
+*faster*. Verified 217/217 against brute force.
+
+---
+
+## Tab 2: combined half-verses (`307f9a0`)
+
+`FirstHalf`/`SecondHalf` as separate radio options forced an arbitrary choice.
+Replaced by one **"Half-verses (split at the Asnachta ֑)"** option listing both,
+with a `Half` column. `BothHalves` is a **Tab-2-only pseudo-boundary**, not a
+stored `boundary_type`, so the detail panel resolves each row back to its real
+one. `structure_frame` now takes `*boundaries` (`track` became keyword-only).
+
+Also: Tab 2's print-out carried only the matched unit's calculation — the
+selected unit now threads through as `query_info` with a `label`, so the
+headings read "Selected Unit (Genesis 1:1)" rather than "Your Word".
+
+---
+
+## Method list: Mityashev out, Mispar HaMispari in (`a8f4b90`)
+
+⚠️ **Stored-data change — rebuild `tanach.db`.** Count stays **34**.
+
+**Removed `Mityashev`**: no classical source. `מספר מיושב` appears nowhere in
+Pardes Rimonim (Gates 30 or 22) and returns **zero hits** across Sefaria. The
+function, self-tests and word-boundary plumbing are **retained** so it can be
+reinstated in one line if a source turns up. Beware: some sources use "mispar
+meyushav" for *Mispar Katan*, a different calculation.
+
+**Added `Mispari`** (Mispar HaMispari), Pardes Rimonim Gate 30 §8: spell each
+letter's value as a Hebrew number-word and sum. Cordovero's two worked totals
+reproduce exactly — yud → עשרה = 575, heh → חמשה = 353 — and **they fix the
+orthography**: only the masculine forms (עשרה, חמשה, שלשים) give his numbers.
+Online calculators use feminine/modern forms and differ on **13 of 22 letters**.
+Values here will not match those tools; this is deliberate.
+
+**Gate 30 §9 (*Misparei HaGadol*) is deliberately not implemented** — the rule
+verifies (yud's milui יוד = 20 → עשרים = 620 = כתר) but only 4 of 22 letters have
+a milui total that is a named number, so 68% of a verse would contribute
+nothing. Cordovero demonstrates it on one letter as an observation, not a cipher
+for summing words.
+
+**Sourcing:** the Guide's 34 "Earliest Source" entries were swept — the only
+non-rabbinic citation (1906 Jewish Encyclopedia) is gone. `KololOtiyot` and
+`KololEhad` are now cited to Gate 30 §4 directly, both defined in one clause:
+*"מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה"*.
+
+---
+
+## ⚠️ A prebuilt DB older than the code now self-heals (`b08c1e4`)
+
+**Streamlit Cloud is a fourth deployment** (deploys from GitHub) and it ships
+`app.py` while reusing a stale `tanach.db`. When `nikud_partial` was added, its
+first search died with an opaque `DatabaseError`. The HF Space and the local host
+both rebuild the DB, which is why neither showed it.
+
+`_build_connection` now checks the `units` schema against what the release
+queries and **falls through to `build_database`** when anything is missing, with
+a warning about the one-time ~30s wait. Any deployment shipping new code against
+an old database self-heals instead of failing on first search.
+
+---
+
+## Print-out fixes (`a23f79f`, `a1e0a0b`, `0600686`)
+
+- **Breakdown tables are RTL.** Hebrew headers (אות / מוחלף / ערך) were laid out
+  left-to-right. Fixed with `direction:rtl` on `table.bd` rather than reordering
+  cells, so it cannot drift from the row-building code. `.num` keeps digits LTR.
+- **Large blank gaps.** `.sec` carried `break-inside:avoid`, so a long breakdown
+  that could not fit jumped the whole section to the next sheet. Sections may now
+  split; `table.bd tr` avoids splitting a row, `.sec-title` has `break-after:avoid`.
+- **The total printed on every continued page.** `tfoot` defaults to
+  `table-footer-group`, which repeats. Demoted to `table-row-group` in the print
+  stylesheet; `thead` still repeats, which is correct.
+- **Both calculations everywhere.** Three of seven `render_verse_detail` call
+  sites never passed `query_info`, so their exports showed one side of a
+  "these are equal" claim. All pass it now.
+
+---
+
 ## Known Issues / Gotchas
 
 | Item | Status |
@@ -620,6 +872,8 @@ mode has no picker — it searches every method by design.
 | ~~`use_container_width`~~ | Done (`8f7b636`): all 29 sites use `width="stretch"`. The removal date had already passed; only the 1.58.0 pin was keeping it alive, so an upgrade would have broken every table and chart at once. |
 | **First-load 500, fine on refresh** | **Reproduced 2026-07-19, and it is not app-side.** Right after a rebuild: request 1 hung 108s then returned HTTP 500 with a 3,038-byte body; request 2 returned 200 in 29ms. That body is HuggingFace's error page, not our 3,148-byte `index.html` — which is why no code of ours can intercept it. Causes: the Space is `cpu-basic` with a 48h sleep timer (cold wake ≈10s), and any rebuild restarts the container. Build is confirmed healthy: `builddb` ran 100.4s at image-build time, boot is ~10s, run logs clean. Only real mitigations are a keep-warm ping or a service worker; **Joshua declined the service worker** — it would install resident code on every visitor's device. |
 | Local `tanach.db` staleness | `tanach.db` is a **derived artifact** (gitignored, never regenerates on pull) holding boundary types, consonants, display text and all 34 cipher columns. Docker rebuilds it every build; **locally you must**. Two failure modes: a schema change crashes loudly (`no such column`), but a change to stored *values* fails **silently** — the app runs and serves stale data. After pulling anything that touches stored data: `rm tanach.db && python app.py builddb` (~100s). |
+| **A stale `tanach.db` now self-heals, but rebuild anyway** | Since `b08c1e4` `_build_connection` checks the `units` schema and rebuilds if a column this release queries is missing — that is what fixed Streamlit Cloud. It costs a one-time ~30s on first load, so locally still run `python app.py builddb` after pulling a ⚠️ commit. |
+| **Ksiv/Kri: never re-derive the flag at a query site** | `nikud_partial` is set once at build time precisely so the thirteen query paths cannot drift. Add new paths by reusing the column, not by recomputing `has_unpointed_word`. |
 | Transliteration search | Not built. |
 | On-screen Hebrew keyboard | Still commented out (`_KBD_KEY`). |
 | Auto-nikud for typed input | Deferred; design in Claude memory (corpus lookup first, tiny ONNX nakdan fallback). |
@@ -636,7 +890,9 @@ mode has no picker — it searches every method by design.
 | `.streamlit/config.toml` | Static serving + indigo theme |
 | `static/manifest.json`, `static/icon-*.png` | PWA assets (served at `/app/static/`) |
 | `fetch_corpus.py` | One-time corpus builder |
+| `fetch_english.py` | Translation fetcher (Koren + JPS 1917 fallback for Joshua 21:36–37) |
 | `tanach_corpus.jsonl` | Corpus data (committed) |
+| `tanach_english.jsonl` | Translation, display only (committed) |
 | `tanach.db` | SQLite cache (generated; gitignored) |
 | `Dockerfile` | HF Spaces build; builddb step bakes DB + head patch |
 | `requirements.txt` | **streamlit pinned** — see gotchas |
@@ -650,6 +906,28 @@ mode has no picker — it searches every method by design.
 cd "C:\Users\joshu.AKIVA\Desktop\tanakh-gematria"
 git add <files> && git commit -m "..." && git push   # → HF rebuild ~2–3 min
 ```
+
+**There are FOUR live targets. `git push` only updates two of them.**
+
+| Target | How it updates |
+|---|---|
+| HF Space (production) | `git push space main` → rebuild ~2–3 min |
+| GitHub | `git push origin main` |
+| **Streamlit Cloud** | deploys from GitHub automatically |
+| **Local Streamlit over Tailscale Funnel** | **does NOT update on push** |
+
+The local one runs `host/Start_Gematria.vbs` against the *working directory
+itself*, so files update on commit but the **running process keeps serving the
+code it imported at startup**. It must be restarted:
+
+```powershell
+Stop-Process -Id <pid listening on 8501> -Force
+Start-Process wscript.exe -ArgumentList '"...\host\Start_Gematria.vbs"' -WindowStyle Hidden
+```
+
+`host/gematria_watchdog.ps1` only relaunches when port 8501 is **down**, so it
+will never restart a healthy-but-stale process. Funnel maps port **8443** →
+`127.0.0.1:8501`; the bare hostname (no port) is a *different* app.
 
 Remote `space` → https://huggingface.co/spaces/TorahNLP/tanach-gematria, branch `main`.
 HF API status: `GET https://huggingface.co/api/spaces/TorahNLP/tanach-gematria`
@@ -677,6 +955,42 @@ real submit. Type with `type()`, then click the submit button — no Enter requi
 **Always re-verify live after deploy.** Local pass ≠ deployed pass; the pin reduces
 that gap but the app-view DOM differences that broke CSS tab hiding were only ever
 visible in production.
+
+---
+
+## Session Log (2026-07-28, newest first)
+
+*All pushed and live on all four targets.* ⚠️ marks a commit that changed
+**stored data** and therefore required a `tanach.db` rebuild:
+
+- `03baee7` Cut the on-screen notes down
+- `7f78f31` Switch the translation to Koren; flag Joshua 21:36-37 as disputed
+- `fa28946` Fill the two untranslated Joshua verses; shorten the licences section
+- `c99b399` Shape the cross-method drill-down table like every other result table
+- `433b7c0` Drop the 'Cantillated:' label from the verse-detail line
+- `846cc3a` Actually merge the Kri into the cantillated line (not a second line)
+- `1da645c` Kri in the print-out; honest label for pure-vowel methods
+- `4a55b10` Ksiv/Kri panel: gate the caveat by method, use a dash, show Kri inline
+- `b08c1e4` Rebuild a prebuilt DB whose schema predates this release
+- `a1e0a0b` Print the breakdown total once, not on every continued page
+- `a23f79f` Print-out: RTL breakdown tables; stop sections forcing page breaks
+- `dbd0e58` Stop the print-out rebuilding a suppressed vowel total
+- `fd448d1` Block nikud searches from a Ksiv unit in Tab 2
+- `a8f4b90` ⚠️ Swap the sourceless Mityashev for Cordovero's Mispar HaMispari
+- `550dadc` Source three weakly-cited methods from Pardes Rimonim itself
+- `fcbbe1f` Remove the only non-rabbinic citation from the Guide
+- `7f037b6` Apply the nikud exclusion in the detail panel too
+- `b8ce7aa` ⚠️ Exclude units with an incomplete vowel total from all nikud results
+- `17d42b6` Reword the unpointed-Ksiv note; stop pointing at the Kri track
+- `58a5f0f` Flag Ksiv words the source prints unpointed
+- `44ac11c` ⚠️ **Fix Ksiv/Kri double-counting — 1,104 verses were wrong**
+- `29b1538` Drop the edition name from the English headings
+- `0600686` Show both calculations in every verse-detail print-out
+- `689b401` ⚠️ Merge: English translation, Tab 2 half-verses, cross-verse spans
+- `32a8aa2` Fix duplicate cross-verse spans (whole-run scan, not overlapping windows)
+- `3c8cbba` Add opt-in cross-verse word spans
+- `d271319` Switch translation to JPS 1985; state every text licence explicitly
+- `307f9a0` ⚠️ English translation; Tab 2 half-verses; cross-verse spans
 
 ---
 
