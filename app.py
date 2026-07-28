@@ -4001,7 +4001,7 @@ def run_app() -> None:
         if _has_kri:
             highlighted = merge_ksiv_kri_display(highlighted, _kri_line) or highlighted
         highlighted_html = highlighted
-        st.markdown(f"**Cantillated:** {highlighted}", unsafe_allow_html=True)
+        st.markdown(highlighted, unsafe_allow_html=True)
         if _has_kri:
             st.caption("Bracketed word[s] are the Kri (read) form, shown for "
                        "reference only — values are computed from the Ksiv "
