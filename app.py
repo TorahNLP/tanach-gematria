@@ -4169,7 +4169,7 @@ def run_app() -> None:
                 {"Method": "KatanMispari",
                  "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
                  "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
-                 "Earliest Source": "Cataloged by early Renaissance Jewish scholars; referenced in the 1906 Jewish Encyclopedia under gematria variants. Treated in Pardes Rimonim (Gate 30)."},
+                 "Earliest Source": "Cataloged by early Renaissance Jewish scholars. Treated in Pardes Rimonim (Gate 30)."},
                 {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
                  "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
