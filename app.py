@@ -1630,12 +1630,9 @@ DISPUTED_VERSES: Dict[Tuple[str, int, int], str] = {
 }
 DISPUTED_VERSE_NOTES: Dict[str, str] = {
     "joshua-21-36-37": (
-        "**Disputed verse.** Joshua 21:36–37 are absent from most Masoretic "
-        "manuscripts; the same information appears at I Chronicles 6:63–64. "
-        "ArtScroll notes they are “not part of the original Masoretic text of "
-        "Joshua”, and Koren and *Miqra according to the Masorah* omit them. "
-        "They are present in this corpus and are counted in the values here, "
-        "including the Joshua 21 and Sefer Joshua totals."
+        "**Disputed verse.** Absent from most Masoretic manuscripts (cf. "
+        "I Chronicles 6:63–64); ArtScroll and Koren omit it. It is counted "
+        "in the values here."
     ),
 }
 
@@ -3052,9 +3049,8 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     if kri_display:
         kri_block = (f'<p class="en-label">With Kri (read form in brackets)</p>'
                      f'<div class="verse rtl">{e(kri_display)}</div>'
-                     f'<p class="fn">Bracketed words are the Kri and are not '
-                     f'included in any calculation; values follow the Ksiv '
-                     f'(written) text.</p>')
+                     f'<p class="fn">Bracketed = Kri, not counted. '
+                     f'Values follow the Ksiv.</p>')
     else:
         kri_block = ""
     sec2 = f"""
@@ -4006,8 +4002,8 @@ def run_app() -> None:
                          if _last_c == int(chapter) else
                          f"{book} {chapter}:{verse}–{_last_c}:{_last_s}")
             st.markdown(f"**{ref_label}** · _{friendly_boundary}_")
-            st.caption("⚠️ This span crosses a verse boundary (sof pasuq ׃). "
-                       "The text below is the full run of verses it covers.")
+            st.caption("⚠️ Crosses a verse boundary (sof pasuq ׃). "
+                       "Full run shown below.")
         else:
             st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
         # Verses whose presence in the Masoretic text is disputed. Checked
@@ -4042,9 +4038,7 @@ def run_app() -> None:
         highlighted_html = highlighted
         st.markdown(highlighted, unsafe_allow_html=True)
         if _has_kri:
-            st.caption("Bracketed word[s] are the Kri (read) form, shown for "
-                       "reference only — values are computed from the Ksiv "
-                       "(written) text.")
+            st.caption("Bracketed = Kri, not counted. Values follow the Ksiv.")
         # Values: matched sub-unit when available, full verse otherwise.
         # In app view this readout is suppressed entirely — see below, near
         # where `vals` is displayed, for why and for the site-only caveat.
@@ -4423,28 +4417,13 @@ def run_app() -> None:
                 "variants can be formed by combining them. Each is listed with "
                 "the earliest source known for it.")
             st.info(
-                "**On sourcing.** Every method below cites a classical or "
-                "rabbinic source. Two consequences worth stating plainly:\n\n"
-                "**Mispar HaMispari follows Cordovero's spellings, not the "
-                "calculators'.** Pardes Rimonim Gate 30 §8 gives two worked "
-                "totals — yud → עשרה = 575, heh → חמשה = 353 — and only the "
-                "masculine forms (עשרה, חמשה, שלשים) reproduce them. Online "
-                "gematria calculators generally use the feminine/modern forms "
-                "(עשר, חמש, שלושים), which differ on 13 of the 22 letters. "
-                "Values here will therefore not match those tools; the primary "
-                "source is preferred.\n\n"
-                "**One Gate 30 method is deliberately not implemented.** "
-                "Cordovero's §9, *Misparei HaGadol*, takes a letter's milui "
-                "total and then names that number (yud → יוד = 20 → עשרים = "
-                "620 = כתר, which verifies). The rule is clear, but only 4 of "
-                "22 letters have a milui total that is a named Hebrew number, "
-                "so over two-thirds of any verse would contribute nothing. He "
-                "demonstrates it on a single letter as an observation, not as "
-                "a cipher for summing words, and presenting near-silence as a "
-                "total would mislead.\n\n"
-                "*Mispar Mityashev*, offered by many calculators, was removed "
-                "for the opposite reason: no source for it could be found in "
-                "Pardes Rimonim or anywhere in Sefaria's corpus.")
+                "**Mispar HaMispari** uses Cordovero's spellings (עשרה, חמשה), "
+                "which his own worked totals fix. Calculators using the modern "
+                "forms (עשר, חמש) differ on 13 of 22 letters.\n\n"
+                "*Misparei HaGadol* (Gate 30 §9) is not implemented — only 4 of "
+                "22 letters yield a value, so most of a verse would count as "
+                "nothing. *Mispar Mityashev* was dropped: no classical source "
+                "found.")
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -5391,11 +5370,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             _t2_blocked = bool(sel_rows) and _sel_partial and cipher_pick in NIKUD_CIPHERS
             if _t2_blocked:
                 st.warning(
-                    f"**{cipher_pick}** is unavailable for this unit: it "
-                    "contains a Ksiv word the source prints without vowel "
-                    "points, so its vowel-mark total is incomplete and cannot "
-                    "be searched. Pick one of the other 30 methods, which are "
-                    "unaffected.")
+                    f"**{cipher_pick}** is unavailable here: this unit "
+                    "contains a Ksiv word printed without nikud, so its total "
+                    "is incomplete. The other 30 methods work.")
 
             if sel_rows and not _t2_blocked:
                 cell_val = int(row2[cipher_pick])
