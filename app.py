@@ -3851,6 +3851,16 @@ def run_app() -> None:
         else:
             highlighted_html = src_text or ""
             st.markdown(f"**Cantillated:** {src_text}")
+        # Ksiv/Kri divergence: show the read form too, plainly and without any
+        # highlight. The highlight marks the unit that was actually scored, and
+        # nothing on the Kri line was — this track's values come from the
+        # written text. Showing it unmarked lets the reader see the vocalised
+        # word (the Ksiv is printed bare) without implying it was counted.
+        _kri_line = getattr(v, "kri_text", None) if track != "Kri" else None
+        if _kri_line and not is_cross:
+            st.markdown(f"**Kri (read):** {_kri_line}")
+            st.caption("Shown for reference and not highlighted — values on this "
+                       "track are computed from the Ksiv (written) text above.")
         # Values: matched sub-unit when available, full verse otherwise.
         # In app view this readout is suppressed entirely — see below, near
         # where `vals` is displayed, for why and for the site-only caveat.
@@ -5137,17 +5147,45 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                      "any of the 34 methods.")
 
             sel_rows = event2.selection.rows
+            _sel_partial = False
             if sel_rows:
                 row2 = show.iloc[sel_rows[0]]
 
+                # Does the selected unit itself contain an unpointed Ksiv word?
+                # If so its four vowel-mark totals are short by that word's
+                # contribution, and must neither be displayed nor used as a
+                # search target — a knowably incomplete number would otherwise
+                # go looking for units that "share" it. Read from `df` (the
+                # source frame) because `show` drops the flag column.
+                _sel_partial = bool(
+                    df.loc[show.index[sel_rows[0]]].get("nikud_partial", 0))
+
                 # Show this row's values across the 34 methods.
                 summary = {c: int(row2[c]) for c in t2_ciphers if c in row2.index}
+                if _sel_partial:
+                    for _c in NIKUD_CIPHERS:
+                        summary.pop(_c, None)
                 st.markdown("**Selected unit — values across the 34 methods:**"
                             if t2_ciphers is CIPHER_NAMES else
                             "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
                              width="stretch", hide_index=True)
+                if _sel_partial:
+                    st.caption(f"⚠️ {KSIV_UNPOINTED_NOTE}")
 
+            # Refuse the search outright rather than running it on a value that
+            # is known to be wrong. Guarded with a flag rather than st.stop(),
+            # which would also kill Tabs 3 and 4 further down the script.
+            _t2_blocked = bool(sel_rows) and _sel_partial and cipher_pick in NIKUD_CIPHERS
+            if _t2_blocked:
+                st.warning(
+                    f"**{cipher_pick}** is unavailable for this unit: it "
+                    "contains a Ksiv word the source prints without vowel "
+                    "points, so its vowel-mark total is incomplete and cannot "
+                    "be searched. Pick one of the other 30 methods, which are "
+                    "unaffected.")
+
+            if sel_rows and not _t2_blocked:
                 cell_val = int(row2[cipher_pick])
                 st.markdown(
                     f"**{cipher_pick} = {cell_val}** — every unit in the corpus "
