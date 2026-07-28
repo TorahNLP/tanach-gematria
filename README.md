@@ -31,8 +31,8 @@ The translation is CC-BY-NC: attribution is a condition of the licence, and the
 app renders it wherever the English appears, including in exported documents.
 Re-licensing this project commercially would require swapping the translation
 for the public-domain JPS 1917 (one-line change in `fetch_english.py`, then
-refetch). Joshua 21:36–37 are present in the Hebrew but absent from the 1985
-translation, which follows manuscripts that omit them.
+refetch). Joshua 21:36–37, which the 1985 edition omits, are filled from the
+public-domain JPS 1917.
 
 **Features:** Atnach-based half-verse splitting · Ksiv/Kri + Masoretic textual
 variant forking (Itture Sopherim, Esther doublets) · Colel (±1) search ·

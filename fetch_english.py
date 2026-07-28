@@ -47,7 +47,14 @@ CORPUS_FILE = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
 BASE = "https://www.sefaria.org/api/v3/texts/"
 VERSION = "english|Tanakh: The Holy Scriptures, published by JPS"
 # Public-domain fallback, kept here so the swap is a one-line edit:
-# VERSION = "english|The Holy Scriptures: A New Translation (JPS 1917)"
+FALLBACK_VERSION = "english|The Holy Scriptures: A New Translation (JPS 1917)"
+
+# JPS 1985 omits Joshua 21:36-37, which are absent from some Masoretic
+# manuscripts, so those two verses came back with Hebrew but no English. The
+# public-domain JPS 1917 does translate them (bracketed, to mark the textual
+# doubt), so they are filled from there rather than left blank. Nothing else
+# in the corpus needs this — it is exactly two verses.
+FALLBACK_REFS = [("Joshua", 21, 36), ("Joshua", 21, 37)]
 
 # Sefaria returns translation text with presentational and editorial HTML:
 #   <big><strong>W</strong></big>hen God began...      (drop cap)
@@ -145,9 +152,30 @@ def fetch_book(book: str, timeout: int = 45, retries: int = 3):
                 yield ci, vi, en
 
 
+def fetch_one(ref: str, version: str, timeout: int = 30) -> str:
+    """Fetch a single verse from a named version; "" on any failure."""
+    query = urllib.parse.urlencode({"version": version},
+                                   quote_via=urllib.parse.quote)
+    try:
+        req = urllib.request.Request(
+            f"{BASE}{urllib.parse.quote(ref)}?{query}",
+            headers={"User-Agent": "tanach-gematria/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+        text = data.get("versions", [{}])[0].get("text", "")
+        if isinstance(text, list):
+            text = " ".join(map(str, text))
+        # JPS 1917 brackets these verses to flag the textual doubt. The app
+        # already uses square brackets for the Kri, so they are stripped here
+        # to avoid two unrelated meanings for the same notation.
+        return clean(str(text)).strip("[]").strip()
+    except Exception:                                 # noqa: BLE001
+        return ""
+
+
 def main() -> int:
     books = books_from_corpus()
-    print(f"Fetching JPS 1917 for {len(books)} books -> {OUT_FILE.name}")
+    print(f"Fetching English for {len(books)} books -> {OUT_FILE.name}")
     total, failed = 0, []
     with open(OUT_FILE, "w", encoding="utf-8") as out:
         for i, book in enumerate(books, 1):
@@ -165,6 +193,19 @@ def main() -> int:
                 print(f"  [{i:2}/{len(books)}] {book:<16} FAILED: {exc}")
             out.flush()
             time.sleep(0.4)          # be polite to Sefaria
+
+        # Fill the handful of verses the primary version omits (see
+        # FALLBACK_REFS) from the public-domain JPS 1917.
+        for book, ch, vs in FALLBACK_REFS:
+            txt = fetch_one(f"{book} {ch}.{vs}", FALLBACK_VERSION)
+            if txt:
+                out.write(json.dumps(
+                    {"book": book, "chapter": ch, "verse": vs, "en": txt},
+                    ensure_ascii=False) + "\n")
+                total += 1
+                print(f"  [fallback] {book} {ch}:{vs} from JPS 1917")
+            else:
+                print(f"  [fallback] {book} {ch}:{vs} FAILED")
     print(f"\nWrote {total} verses to {OUT_FILE}")
     if failed:
         print(f"FAILED books ({len(failed)}): {', '.join(failed)}")

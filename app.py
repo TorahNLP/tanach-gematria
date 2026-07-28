@@ -4286,25 +4286,18 @@ def run_app() -> None:
         # somewhere durable rather than only in the detail panel that shows it.
         with st.expander("Texts & licences"):
             st.markdown(
-                "**Hebrew (used for every gematria calculation)** — "
-                "*Tanach with Ta'amei Hamikra*, 23,206 cantillated Masoretic "
-                "verses, from [tanach.us](http://www.tanach.us/Tanach.xml) "
-                "via [Sefaria](https://www.sefaria.org). **Public Domain.**\n\n"
-                "**English translation (display only — never used in any "
-                "calculation)** — *Tanakh: The Holy Scriptures*, "
+                "**Hebrew** (all calculations) — *Tanach with Ta'amei "
+                "Hamikra*, from [tanach.us](http://www.tanach.us/Tanach.xml) "
+                "via [Sefaria](https://www.sefaria.org). Public Domain.\n\n"
+                "**English** (display only) — *Tanakh: The Holy Scriptures*, "
                 "© 1985 The Jewish Publication Society, via Sefaria. "
-                "Licensed [CC BY-NC 4.0]"
-                "(https://creativecommons.org/licenses/by-nc/4.0/).\n\n"
-                "The translation is shown for the full verse only. It is a "
-                "sense-for-sense translation with no word-level alignment to "
-                "the Hebrew, so it is never sliced to match a word, phrase or "
-                "half-verse — the gematria unit is marked in the Hebrew line "
-                "above it.\n\n"
-                "Two verses (Joshua 21:36–37) are present in the Hebrew text "
-                "but absent from this translation, which follows manuscripts "
-                "that omit them; the translation option simply does not appear "
-                "for those two verses.\n\n"
-                "This application is itself licensed CC BY-NC 4.0."
+                "[CC BY-NC 4.0]"
+                "(https://creativecommons.org/licenses/by-nc/4.0/). "
+                "Joshua 21:36–37, which it omits, are from the "
+                "public-domain JPS 1917.\n\n"
+                "Translations are shown for the whole verse — JPS is "
+                "sense-for-sense, with no word-level alignment to the Hebrew.\n\n"
+                "This application is licensed CC BY-NC 4.0."
             )
         st.divider()
 
