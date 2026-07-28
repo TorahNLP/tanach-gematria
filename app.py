@@ -1737,23 +1737,55 @@ def merge_ksiv_kri_display(ksiv: str, kri: str) -> str:
     `w_cons`.
 
     Words are compared on consonants, so a Ksiv printed bare still matches its
-    pointed Kri counterpart. Returns "" when the two readings cannot be aligned
-    word-for-word — Isaiah 3:15 (מלכם → מה־לכם) and Psalms 55:16 (ישימות →
-    ישי מות) legitimately differ in word count — and the caller then falls back
-    to showing nothing rather than a mangled line.
+    pointed Kri counterpart.
+
+    The two readings need not have the same word count: one Ksiv word can be
+    read as several (Isaiah 3:15 מלכם → מַה־לָּכֶם, Psalms 55:16 ישימות →
+    יַשִּׁי מָוֶת) and vice versa. Alignment therefore walks both sequences and,
+    at a divergence, brackets the whole run of Kri words that stands in for the
+    run of Ksiv words — `ישימות [יַשִּׁי מָוֶת]` — rather than requiring a
+    one-to-one match. Resynchronisation is by finding the next word the two
+    readings agree on.
     """
     if not ksiv or not kri:
         return ""
-    k_toks = ksiv.split(" ")
-    q_toks = kri.split(" ")
-    if len(k_toks) != len(q_toks):
-        return ""
+    k_toks = [t for t in ksiv.split(" ") if t]
+    q_toks = [t for t in kri.split(" ") if t]
+    kc = [strip_to_consonants(t) for t in k_toks]
+    qc = [strip_to_consonants(t) for t in q_toks]
+
     out: List[str] = []
-    for kt, qt in zip(k_toks, q_toks):
-        out.append(kt)
-        if strip_to_consonants(kt) != strip_to_consonants(qt):
-            out.append(f"[{qt}]")
-    return " ".join(out)
+    i = j = 0
+    while i < len(k_toks) and j < len(q_toks):
+        if kc[i] == qc[j]:
+            out.append(k_toks[i])
+            i += 1
+            j += 1
+            continue
+        # Divergence: find the next point where the readings agree again, so a
+        # 1→2 (or 2→1) substitution is bracketed as a single run.
+        anchor = None
+        for di in range(i, min(i + 4, len(k_toks))):
+            for dj in range(j, min(j + 4, len(q_toks))):
+                if kc[di] and kc[di] == qc[dj] and (di, dj) != (i, j):
+                    anchor = (di, dj)
+                    break
+            if anchor:
+                break
+        ni, nj = anchor if anchor else (len(k_toks), len(q_toks))
+        k_run = " ".join(k_toks[i:ni]) or ""
+        q_run = " ".join(q_toks[j:nj]) or ""
+        if k_run:
+            out.append(k_run)
+        if q_run:
+            out.append(f"[{q_run}]")
+        i, j = ni, nj
+    # Trailing remainder on either side (rare; keeps the line complete).
+    if i < len(k_toks):
+        out.append(" ".join(k_toks[i:]))
+    if j < len(q_toks):
+        out.append(f"[{' '.join(q_toks[j:])}]")
+    return " ".join(x for x in out if x)
 
 
 def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
@@ -2866,7 +2898,8 @@ def cipher_breakdown(cipher: str, consonants: str,
 def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      colel, vals, query_breakdown=None, query_val=None,
                      match_nikud_unreliable=False, english="",
-                     english_is_full_verse=False, ksiv_unpointed=False) -> str:
+                     english_is_full_verse=False, ksiv_unpointed=False,
+                     kri_display="") -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -2946,12 +2979,19 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         _q_label = query_info.get("label") or ""
         _sec1_title = e(_q_label) if _q_label else "Search Query"
         _input_row_label = "Text" if _q_label else "Input"
+        # HaNekudot and MiluiNekudot score the vowel marks ALONE — the letters
+        # shown on this row take no part in the total, so calling them "searched"
+        # under those two methods is simply wrong. (ImHaNekudot/ImMiluiNekudot
+        # do add the letters, so their label is accurate.)
+        _cons_row_label = ("Consonants (not counted by this method)"
+                           if active_method in ("HaNekudot", "MiluiNekudot")
+                           else "Consonants searched")
         sec1 = f"""
 <div class="sec">
   <div class="sec-title">{_sec1_title}</div>
   <table class="kv">
     <tr><td class="kl">{_input_row_label}</td><td class="kv-val rtl">{raw}</td></tr>
-    <tr><td class="kl">Consonants searched</td><td class="kv-val rtl">{cons}</td></tr>
+    <tr><td class="kl">{_cons_row_label}</td><td class="kv-val rtl">{cons}</td></tr>
     <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
     <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
     <tr><td class="kl">Colel (±1)</td><td class="kv-val">{colel_txt}</td></tr>
@@ -2974,11 +3014,23 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                     f'<p class="fn">{e(ENGLISH_ATTRIBUTION)}</p>')
     else:
         en_block = ""
+    # Ksiv/Kri line, escaped: unlike hl_verse (markup we generated) this is
+    # corpus text. Shown without the <mark> highlight, since nothing in it was
+    # scored — the Kri is reference, and the Ksiv is already marked above.
+    if kri_display:
+        kri_block = (f'<p class="en-label">With Kri (read form in brackets)</p>'
+                     f'<div class="verse rtl">{e(kri_display)}</div>'
+                     f'<p class="fn">Bracketed words are the Kri and are not '
+                     f'included in any calculation; values follow the Ksiv '
+                     f'(written) text.</p>')
+    else:
+        kri_block = ""
     sec2 = f"""
 <div class="sec">
   <div class="sec-title">Source Text</div>
   <p class="ref"><strong>{book} {ch}:{vs}</strong> &nbsp;·&nbsp; <em class="gloss">{gloss}</em></p>
   <div class="verse rtl">{hl_verse}</div>
+  {kri_block}
   {en_block}
 </div>"""
 
@@ -3954,10 +4006,19 @@ def run_app() -> None:
         # Values: matched sub-unit when available, full verse otherwise.
         # In app view this readout is suppressed entirely — see below, near
         # where `vals` is displayed, for why and for the site-only caveat.
+        #
+        # HaNekudot and MiluiNekudot score the vowel marks ALONE, so the letters
+        # on this row contribute nothing to the total and must not be labelled
+        # as what matched. (ImHaNekudot/ImMiluiNekudot DO add the letters, so
+        # their label stays accurate.) The old comment further down noting this
+        # mislabelling is now resolved rather than deferred.
+        _pure_nikud = active_method in ("HaNekudot", "MiluiNekudot")
+        _cons_lbl = ("Consonants (not counted by this method)" if _pure_nikud
+                     else "Matched consonants")
         if span_cons is not None:
             cons = span_cons
             if not app_view:
-                st.markdown(f"**Matched consonants:** `{cons}`")
+                st.markdown(f"**{_cons_lbl}:** `{cons}`")
                 if variant_consonantal_only:
                     st.caption("Textual-variant track: the variant reading exists "
                                "in the consonantal text only, so the cantillated "
@@ -3966,11 +4027,11 @@ def run_app() -> None:
         elif sub_unit and matched_text:
             cons = strip_to_consonants(matched_text)
             if not app_view:
-                st.markdown(f"**Matched consonants:** `{cons}`")
+                st.markdown(f"**{_cons_lbl}:** `{cons}`")
         else:
             cons = strip_to_consonants(src_text)
             if not app_view:
-                st.markdown(f"**Consonants:** `{cons}`")
+                st.markdown(f"**{'Consonants (not counted by this method)' if _pure_nikud else 'Consonants'}:** `{cons}`")
         # Derive word-boundary-aware consonants for Kaful/Mityashev/Meshulash
         if boundary == "FirstHalf":
             w_cons, _ = split_halves_word_cons(src_text)
@@ -4015,10 +4076,8 @@ def run_app() -> None:
         # under (the caption/breakdown right below), and this table restates
         # the other 33 without being asked. Still computed either way — `vals`
         # feeds the print-out below regardless of whether it is shown here.
-        # This also resolves a real mislabelling for pure-vowel ciphers
-        # (HaNekudot/MiluiNekudot): "Matched consonants" implied the consonants
-        # were what matched, when only the vowel marks were. Left as-is on the
-        # site for now.
+        # (The pure-vowel mislabelling this comment used to defer — "Matched
+        # consonants" under HaNekudot/MiluiNekudot — is now fixed above.)
         if not app_view:
             # "—" rather than a dropped column, matching Tab 1's convention for
             # a query typed without nikud: the table keeps its shape and the
@@ -4149,6 +4208,12 @@ def run_app() -> None:
             # Same reasoning as match_nikud_unreliable: a caveat about a value
             # being wrong has to travel with the document, not stay on screen.
             ksiv_unpointed=ksiv_unpointed,
+            # The Kri belongs in the export for the same reason it belongs on
+            # screen — a reader looking at a bare Ksiv word needs the vocalised
+            # reading. Display only: it is not in `cons` and takes no part in
+            # any total.
+            kri_display=(merge_ksiv_kri_display(src_text, _kri_line)
+                         if (_kri_line and not is_cross) else ""),
         )
         _pc, _dc = st.columns(2)
         with _pc:
