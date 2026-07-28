@@ -2980,6 +2980,13 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     # Both make the same total untrustworthy, so both have to reach the export.
     if is_nikud and ksiv_unpointed:
         match_nikud_warn += f'<div class="warn">⚠ {e(KSIV_UNPOINTED_NOTE)}</div>'
+        # Enforced here, not merely upstream: a per-mark breakdown sums to the
+        # very total being withheld (Genesis 8:17 rebuilt HaNekudot=922 from 61
+        # rows), so any caller that hands over breakdown rows for a vowel method
+        # on an unpointed unit would leak the number into the export. The panel
+        # already suppresses these, but the document must not depend on that.
+        breakdown_rows = None
+        query_breakdown = None
 
     def _breakdown_table(rows) -> str:
         """Render one method's letter/mark breakdown as an HTML table."""
