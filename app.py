@@ -3080,9 +3080,15 @@ body{font-family:'Noto Serif Hebrew','SBL Hebrew','Times New Roman',serif;
     padding-bottom:5px;margin-bottom:14px;font-size:9pt}
 .pf{border-top:1px solid #000;margin-top:14px;padding-top:3px;
     font-size:8pt;color:#555}
-.sec{margin-bottom:16px;break-inside:avoid}
+/* No break-inside:avoid here — see table.bd. Keeping a whole section together
+   is only desirable when it fits on a page; a 60-row breakdown does not, and
+   forcing it whole left large blank areas. The section title is kept with the
+   content that follows it instead, which is the part that actually matters. */
+.sec{margin-bottom:16px}
 .sec-title{font-size:12pt;font-weight:bold;border-bottom:1px solid #000;
-           margin-bottom:6px;padding-bottom:2px}
+           margin-bottom:6px;padding-bottom:2px;
+           /* Never let a page break fall between a heading and its table. */
+           break-after:avoid;page-break-after:avoid}
 .kv{width:100%;border-collapse:collapse}
 .kv td{padding:2px 6px;vertical-align:top}
 .kl{width:38%;font-weight:bold;color:#333}
@@ -3099,10 +3105,21 @@ body{font-family:'Noto Serif Hebrew','SBL Hebrew','Times New Roman',serif;
     white-space:pre-line}
 .hl{background:#ddd;text-decoration:underline;border:1px solid #000;
     padding:0 2px;-webkit-box-decoration-break:clone;box-decoration-break:clone}
-table.bd{width:100%;border-collapse:collapse;margin-top:6px}
+/* Breakdown tables are read as Hebrew: the first column (אות) belongs on the
+   RIGHT and the value column (ערך) on the left. The cells are emitted in
+   logical order, so one direction rule flips the whole table rather than
+   reordering every row by hand. Numeric cells stay LTR via .num below, so the
+   digits themselves are unaffected. */
+table.bd{width:100%;border-collapse:collapse;margin-top:6px;direction:rtl}
 table.bd thead th{background:#f0f0f0;border:1px solid #000;padding:4px 7px;font-weight:bold}
 table.bd tbody td{border:1px solid #bbb;padding:3px 7px}
 table.bd tfoot td{border-top:3px double #000;padding:4px 7px}
+/* A long breakdown table cannot fit in what is left of the page, so
+   break-inside:avoid on its section pushed the ENTIRE section to the next
+   sheet and left most of the current one blank. Sections may now split across
+   pages; the header row repeats (thead display:table-header-group, below) so a
+   continued table stays readable, and rows themselves never split. */
+table.bd tr{break-inside:avoid;page-break-inside:avoid}
 .num{text-align:center;direction:ltr}
 .warn{border:2px solid #000;padding:7px 10px;font-weight:bold;margin-bottom:8px}
 .fn{font-size:9pt;color:#555;font-style:italic;margin-top:5px}
