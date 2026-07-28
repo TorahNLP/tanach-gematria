@@ -1618,9 +1618,9 @@ _NIKUD_RANGE_RE = re.compile(r"[֑-ׇ]")
 # at something the reader cannot reach. The honest statement is that no
 # vocalised value exists for this word, not that one lives elsewhere.
 KSIV_UNPOINTED_NOTE = (
-    "Contains a Ksiv word printed without vowel points (the vowels belong to "
-    "the Kri), so the four vowel-mark methods are undefined here. The other 30 "
-    "are unaffected.")
+    "Contains a Ksiv word printed without nikud (the nikud belongs to the Kri), "
+    "so the four vowel-mark methods are undefined here. The other 30 are "
+    "unaffected.")
 
 
 def has_unpointed_word(text: str) -> bool:
@@ -1727,6 +1727,35 @@ def split_ksiv_kri(text: str) -> Tuple[str, Optional[str]]:
     return ksiv_text, (kri_text if kri_text != ksiv_text else None)
 
 
+def merge_ksiv_kri_display(ksiv: str, kri: str) -> str:
+    """Recombine the two readings into one line, Kri bracketed after its Ksiv.
+
+    The inverse of split_ksiv_kri, for DISPLAY ONLY — it restores the notation
+    the source uses (`ksiv [kri]`) so the panel can show one verse instead of
+    repeating the whole thing to highlight one or two differing words. Nothing
+    here feeds a calculation: the bracketed word never reaches `cons` or
+    `w_cons`.
+
+    Words are compared on consonants, so a Ksiv printed bare still matches its
+    pointed Kri counterpart. Returns "" when the two readings cannot be aligned
+    word-for-word — Isaiah 3:15 (מלכם → מה־לכם) and Psalms 55:16 (ישימות →
+    ישי מות) legitimately differ in word count — and the caller then falls back
+    to showing nothing rather than a mangled line.
+    """
+    if not ksiv or not kri:
+        return ""
+    k_toks = ksiv.split(" ")
+    q_toks = kri.split(" ")
+    if len(k_toks) != len(q_toks):
+        return ""
+    out: List[str] = []
+    for kt, qt in zip(k_toks, q_toks):
+        out.append(kt)
+        if strip_to_consonants(kt) != strip_to_consonants(qt):
+            out.append(f"[{qt}]")
+    return " ".join(out)
+
+
 def load_from_jsonl(path: pathlib.Path = CORPUS_FILE) -> List[VerseInput]:
     """Load the pre-fetched full Tanach corpus from a local JSONL file.
 
@@ -1763,7 +1792,7 @@ ENGLISH_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
 
 # Attribution for the bundled translation. The 1985 JPS is licensed CC-BY-NC,
 # and attribution is a *condition* of that licence, not a courtesy — so
-# ENGLISH_ATTRIBUTION is rendered wherever the English appears (detail panel,
+# Attribution is rendered wherever the English appears (detail panel,
 # print-out, Guide), including in exported documents that leave the site.
 # The edition name is deliberately NOT repeated in the "English" headings above
 # those blocks: the attribution line sits directly beneath and already carries
@@ -1773,6 +1802,12 @@ ENGLISH_VERSION_LABEL = "JPS 1985"
 ENGLISH_ATTRIBUTION = ("English: “Tanakh: The Holy Scriptures” © 1985 "
                        "The Jewish Publication Society, via Sefaria. "
                        "Licensed CC BY-NC 4.0.")
+# Short form for the on-screen panel. The full notice above stays on the
+# EXPORT: a printed or downloaded document travels away from the site, so the
+# licence has to travel with it, whereas on screen the Guide's "Texts &
+# licences" section and the checkbox tooltip are a click away and the full
+# string was crowding a caption that appears under every affected verse.
+ENGLISH_ATTRIBUTION_SHORT = "© 1985 JPS · CC BY-NC"
 
 
 def load_english(path: pathlib.Path = ENGLISH_FILE) -> Dict[Tuple[str, int, int], str]:
@@ -2881,6 +2916,11 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     # `vals`, and defaulting to 0 here would print the very number the
     # exclusion exists to suppress.
     val     = (vals.get(active_method) if vals else None)
+    # Withheld here rather than by the caller stripping `vals`: the panel now
+    # keeps the real numbers so it can render "—" in place of them, so the
+    # export has to apply the same rule itself.
+    if ksiv_unpointed and active_method in NIKUD_CIPHERS:
+        val = None
     val_txt = "—" if val is None else str(val)
     boundary = match_info.get("boundary", "Verse")
     book    = e(str(match_info.get("book", "")))
@@ -3898,16 +3938,19 @@ def run_app() -> None:
         else:
             highlighted_html = src_text or ""
             st.markdown(f"**Cantillated:** {src_text}")
-        # Ksiv/Kri divergence: show the read form too, plainly and without any
-        # highlight. The highlight marks the unit that was actually scored, and
-        # nothing on the Kri line was — this track's values come from the
-        # written text. Showing it unmarked lets the reader see the vocalised
-        # word (the Ksiv is printed bare) without implying it was counted.
+        # Ksiv/Kri divergence: rather than repeat the whole verse a second time
+        # for the sake of one or two differing words, the Kri is shown inline in
+        # square brackets right after its Ksiv counterpart — the notation the
+        # source itself uses. Display only: the bracketed word is never part of
+        # `cons`/`w_cons`, so it contributes nothing to any value.
         _kri_line = getattr(v, "kri_text", None) if track != "Kri" else None
         if _kri_line and not is_cross:
-            st.markdown(f"**Kri (read):** {_kri_line}")
-            st.caption("Shown for reference and not highlighted — values on this "
-                       "track are computed from the Ksiv (written) text above.")
+            _merged = merge_ksiv_kri_display(src_text, _kri_line)
+            if _merged:
+                st.markdown(f"**With Kri:** {_merged}")
+                st.caption("Bracketed word[s] are the Kri (read) form, shown for "
+                           "reference only — values are computed from the Ksiv "
+                           "(written) text.")
         # Values: matched sub-unit when available, full verse otherwise.
         # In app view this readout is suppressed entirely — see below, near
         # where `vals` is displayed, for why and for the site-only caveat.
@@ -3967,9 +4010,6 @@ def run_app() -> None:
         # to the plain letter total, which reads as an ordinary number and is
         # more misleading than the zero.
         unit_nikud_partial = has_unpointed_word(cantillated_src)
-        if unit_nikud_partial:
-            for _c in NIKUD_CIPHERS:
-                vals.pop(_c, None)
         # App view drops the matched-consonants readout and this all-methods
         # table: the panel already opened on the one method the user searched
         # under (the caption/breakdown right below), and this table restates
@@ -3980,7 +4020,14 @@ def run_app() -> None:
         # were what matched, when only the vowel marks were. Left as-is on the
         # site for now.
         if not app_view:
-            st.dataframe(pd.DataFrame([vals]), width="stretch", hide_index=True)
+            # "—" rather than a dropped column, matching Tab 1's convention for
+            # a query typed without nikud: the table keeps its shape and the
+            # reader can see which four methods are unavailable and why.
+            _vals_disp = {
+                k: ("—" if (unit_nikud_partial and k in NIKUD_CIPHERS) else v)
+                for k, v in vals.items()
+            }
+            st.dataframe(pd.DataFrame([_vals_disp]), width="stretch", hide_index=True)
         # Not part of the app-view simplification above: this says a value the
         # user is looking at may be WRONG, which matters in every view — code
         # review found it gated behind `if not app_view:`, so app-view users
@@ -3997,7 +4044,12 @@ def run_app() -> None:
         # HaNekudot = 0 with no explanation at all.
         ksiv_unpointed = bool(unit_nikud_partial
                               and active_method in NIKUD_CIPHERS)
-        if unit_nikud_partial:
+        # Gated on the ACTIVE METHOD, not merely on the unit: the caveat says
+        # nothing about Gadol, Standard or the other 27 letter-based methods,
+        # so showing it under their breakdowns was noise. The four vowel-mark
+        # columns are still removed from the all-methods table above whenever
+        # the unit is flagged, regardless of which method is active.
+        if ksiv_unpointed:
             st.caption(f"⚠️ {KSIV_UNPOINTED_NOTE}")
         # Per-letter (or per-vowel-mark) breakdown for the active method.
         # Suppressed when the active method is a vowel-mark one on a unit whose
@@ -4066,7 +4118,7 @@ def run_app() -> None:
                 # as formatting (the markdown-injection class of bug fixed in
                 # 4702cd8), so the text goes through st.text, not markdown.
                 st.text(english_text)
-                st.caption(ENGLISH_ATTRIBUTION)
+                st.caption(ENGLISH_ATTRIBUTION_SHORT)
         # ── Print / Export ───────────────────────────────────────────────────
         # The print-out used to show only how the *matched* text arrives at its
         # value, never how the searched word itself does — even though showing
@@ -5207,18 +5259,23 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 _sel_partial = bool(
                     df.loc[show.index[sel_rows[0]]].get("nikud_partial", 0))
 
-                # Show this row's values across the 34 methods.
-                summary = {c: int(row2[c]) for c in t2_ciphers if c in row2.index}
-                if _sel_partial:
-                    for _c in NIKUD_CIPHERS:
-                        summary.pop(_c, None)
+                # Show this row's values across the 34 methods. A unit carrying
+                # an unpointed Ksiv word shows "—" for the four vowel-mark
+                # methods rather than dropping the columns: same convention Tab
+                # 1 uses for a query typed without nikud, so the table keeps its
+                # shape and the reader can see WHICH methods are unavailable.
+                summary = {
+                    c: ("—" if (_sel_partial and c in NIKUD_CIPHERS)
+                        else int(row2[c]))
+                    for c in t2_ciphers if c in row2.index
+                }
                 st.markdown("**Selected unit — values across the 34 methods:**"
                             if t2_ciphers is CIPHER_NAMES else
                             "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
                              width="stretch", hide_index=True)
                 if _sel_partial:
-                    st.caption(f"⚠️ {KSIV_UNPOINTED_NOTE}")
+                    st.caption(f"— = {KSIV_UNPOINTED_NOTE}")
 
             # Refuse the search outright rather than running it on a value that
             # is known to be wrong. Guarded with a flag rather than st.stop(),
