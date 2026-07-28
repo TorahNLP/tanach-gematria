@@ -5100,7 +5100,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             st.info(f"No corpus unit matches {drill_a}/{drill_b} at the current filters.")
                         else:
                             ev_drill = st.dataframe(
-                                drill_res, width="stretch", hide_index=True,
+                                # Shaped like every other result table: combines
+                                # Book/Chapter/Verse into one reference and drops
+                                # SubID in app view, and hides a Track column
+                                # that is the same on every row. Row order and
+                                # count are untouched, so the selection index
+                                # below still addresses drill_res.
+                                shape_result_columns(
+                                    drop_uniform_track(drill_res), app_view),
+                                width="stretch", hide_index=True,
                                 on_select="rerun", selection_mode="single-row",
                                 # _c_cons suffix: same reason as t1_sel_* above —
                                 # a stale row index would otherwise apply to a
@@ -5389,6 +5397,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 _row_boundary, active_method=cipher_pick)
                 else:
                     ev_match = st.dataframe(
+                        # Left as an explicit column list: Tab 2 is site-only,
+                        # so shape_result_columns would change nothing except to
+                        # re-introduce the SubID column this list deliberately
+                        # omits. Track is excluded for the same reason it is
+                        # dropped elsewhere — every row here is Ksiv.
                         match_df[["Method", "Book", "Chapter", "Verse",
                                   "Boundary", "Text", "Value"]],
                         width="stretch", hide_index=True,
