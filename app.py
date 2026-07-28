@@ -1617,6 +1617,38 @@ _NIKUD_RANGE_RE = re.compile(r"[֑-ׇ]")
 # missing value — and app view is Ksiv-only anyway, so that advice would point
 # at something the reader cannot reach. The honest statement is that no
 # vocalised value exists for this word, not that one lives elsewhere.
+# Verses present in this corpus (tanach.us) but absent from the primary
+# Masoretic witnesses, and therefore from the editions most readers hold —
+# ArtScroll footnotes them as "not part of the original Masoretic text of
+# Joshua", while Koren and Miqra according to the Masorah omit them outright.
+# They are KEPT and scored, because the corpus includes them and silently
+# dropping verses is worse than showing them, but the panel says plainly what
+# they are so a total that includes them is never mistaken for undisputed.
+DISPUTED_VERSES: Dict[Tuple[str, int, int], str] = {
+    ("Joshua", 21, 36): "joshua-21-36-37",
+    ("Joshua", 21, 37): "joshua-21-36-37",
+}
+DISPUTED_VERSE_NOTES: Dict[str, str] = {
+    "joshua-21-36-37": (
+        "**Disputed verse.** Joshua 21:36–37 are absent from most Masoretic "
+        "manuscripts; the same information appears at I Chronicles 6:63–64. "
+        "ArtScroll notes they are “not part of the original Masoretic text of "
+        "Joshua”, and Koren and *Miqra according to the Masorah* omit them. "
+        "They are present in this corpus and are counted in the values here, "
+        "including the Joshua 21 and Sefer Joshua totals."
+    ),
+}
+
+
+def disputed_verse_note(book, chapter, verse) -> str:
+    """Editorial note for a verse whose presence in the text is disputed."""
+    try:
+        key = DISPUTED_VERSES.get((book, int(chapter), int(verse)))
+    except (TypeError, ValueError):
+        return ""
+    return DISPUTED_VERSE_NOTES.get(key, "") if key else ""
+
+
 KSIV_UNPOINTED_NOTE = (
     "Contains a Ksiv word printed without nikud (the nikud belongs to the Kri), "
     "so the four vowel-mark methods are undefined here. The other 30 are "
@@ -1830,16 +1862,16 @@ ENGLISH_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
 # those blocks: the attribution line sits directly beneath and already carries
 # it. Kept as a named constant because it identifies which text is bundled and
 # is the thing to change alongside VERSION in fetch_english.py on a swap.
-ENGLISH_VERSION_LABEL = "JPS 1985"
-ENGLISH_ATTRIBUTION = ("English: “Tanakh: The Holy Scriptures” © 1985 "
-                       "The Jewish Publication Society, via Sefaria. "
+ENGLISH_VERSION_LABEL = "Koren Jerusalem Bible"
+ENGLISH_ATTRIBUTION = ("English: The Koren Jerusalem Bible, © Koren "
+                       "Publishers Jerusalem, via Sefaria. "
                        "Licensed CC BY-NC 4.0.")
 # Short form for the on-screen panel. The full notice above stays on the
 # EXPORT: a printed or downloaded document travels away from the site, so the
 # licence has to travel with it, whereas on screen the Guide's "Texts &
 # licences" section and the checkbox tooltip are a click away and the full
 # string was crowding a caption that appears under every affected verse.
-ENGLISH_ATTRIBUTION_SHORT = "© 1985 JPS · CC BY-NC"
+ENGLISH_ATTRIBUTION_SHORT = "© Koren Publishers Jerusalem · CC BY-NC"
 
 
 def load_english(path: pathlib.Path = ENGLISH_FILE) -> Dict[Tuple[str, int, int], str]:
@@ -2917,11 +2949,11 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     could show a "Your Word" total contradicting an uncaveated "Matched Text"
     total (e.g. 50 vs 0) with no explanation anywhere in the document.
 
-    `english` is the JPS 1985 translation, included only when the reader ticked
+    `english` is the bundled translation, included only when the reader ticked
     the panel's checkbox — the export mirrors the panel rather than always
     carrying it. `english_is_full_verse` marks the case where the unit is a
     word/phrase/half-verse but the translation necessarily covers the whole
-    verse (JPS has no word-level alignment to the Hebrew), so the heading says
+    verse (there is no word-level alignment to the Hebrew), so the heading says
     so instead of implying the English renders just the highlighted span.
     """
     import html as _h
@@ -3978,6 +4010,13 @@ def run_app() -> None:
                        "The text below is the full run of verses it covers.")
         else:
             st.markdown(f"**{book} {chapter}:{verse}** · _{friendly_boundary}_")
+        # Verses whose presence in the Masoretic text is disputed. Checked
+        # across the whole run for a cross-verse span, since such a span can
+        # reach into a disputed verse from an undisputed one.
+        _disputed = {disputed_verse_note(book, c, s)
+                     for c, s, _ in (cross_run or [(chapter, verse, None)])}
+        for _note in sorted(n for n in _disputed if n):
+            st.info(_note)
         sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase",
                                 "FirstHalf", "SecondHalf", "WordSpan")
         # Ksiv/Kri divergence is shown INLINE on the single cantillated line —
@@ -4163,9 +4202,9 @@ def run_app() -> None:
         if english_text:
             show_english = st.checkbox(
                 "Show English translation", key=_show_en_key, value=False,
-                help=_tip("JPS 1985 (© Jewish Publication Society, CC BY-NC). "
-                          "Shown for the full verse, and included in the "
-                          "print-out / download while ticked."))
+                help=_tip("Koren Jerusalem Bible (© Koren Publishers "
+                          "Jerusalem, CC BY-NC). Shown for the full verse, and "
+                          "included in the print-out / download while ticked."))
             if show_english:
                 # No edition name in the heading — the attribution caption
                 # directly below already names it, and repeating it here just
@@ -4289,13 +4328,13 @@ def run_app() -> None:
                 "**Hebrew** (all calculations) — *Tanach with Ta'amei "
                 "Hamikra*, from [tanach.us](http://www.tanach.us/Tanach.xml) "
                 "via [Sefaria](https://www.sefaria.org). Public Domain.\n\n"
-                "**English** (display only) — *Tanakh: The Holy Scriptures*, "
-                "© 1985 The Jewish Publication Society, via Sefaria. "
+                "**English** (display only) — *The Koren Jerusalem Bible*, "
+                "© Koren Publishers Jerusalem, via Sefaria. "
                 "[CC BY-NC 4.0]"
                 "(https://creativecommons.org/licenses/by-nc/4.0/). "
                 "Joshua 21:36–37, which it omits, are from the "
                 "public-domain JPS 1917.\n\n"
-                "Translations are shown for the whole verse — JPS is "
+                "Translations are shown for the whole verse — they are "
                 "sense-for-sense, with no word-level alignment to the Hebrew.\n\n"
                 "This application is licensed CC BY-NC 4.0."
             )

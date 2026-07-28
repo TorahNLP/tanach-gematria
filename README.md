@@ -25,14 +25,22 @@ a sub-verse unit.
 | Text | Edition | Licence |
 |---|---|---|
 | Hebrew (all calculations) | *Tanach with Ta'amei Hamikra*, from [tanach.us](http://www.tanach.us/Tanach.xml) via [Sefaria](https://www.sefaria.org) | Public Domain |
-| English (display only) | *Tanakh: The Holy Scriptures*, © 1985 The Jewish Publication Society, via Sefaria | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) |
+| English (display only) | *The Koren Jerusalem Bible*, © Koren Publishers Jerusalem, via Sefaria | [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/) |
 
 The translation is CC-BY-NC: attribution is a condition of the licence, and the
 app renders it wherever the English appears, including in exported documents.
 Re-licensing this project commercially would require swapping the translation
 for the public-domain JPS 1917 (one-line change in `fetch_english.py`, then
-refetch). Joshua 21:36–37, which the 1985 edition omits, are filled from the
-public-domain JPS 1917.
+refetch). Joshua 21:36–37, which Koren omits, are filled from the
+public-domain JPS 1917 — see the note on those verses below.
+
+**Joshua 21:36–37** are present in the Hebrew corpus (tanach.us) but absent
+from most Masoretic manuscripts; the same material appears at I Chronicles
+6:63–64. ArtScroll footnotes them as "not part of the original Masoretic text
+of Joshua", and Koren and *Miqra according to the Masorah* omit them. They are
+kept and scored here — silently dropping verses is worse than showing them —
+and the verse-detail panel flags them so a total including them is never
+mistaken for undisputed.
 
 **Features:** Atnach-based half-verse splitting · Ksiv/Kri + Masoretic textual
 variant forking (Itture Sopherim, Esther doublets) · Colel (±1) search ·

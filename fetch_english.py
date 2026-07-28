@@ -45,15 +45,15 @@ OUT_FILE = pathlib.Path(__file__).parent / "tanach_english.jsonl"
 CORPUS_FILE = pathlib.Path(__file__).parent / "tanach_corpus.jsonl"
 
 BASE = "https://www.sefaria.org/api/v3/texts/"
-VERSION = "english|Tanakh: The Holy Scriptures, published by JPS"
+VERSION = "english|The Koren Jerusalem Bible"
 # Public-domain fallback, kept here so the swap is a one-line edit:
 FALLBACK_VERSION = "english|The Holy Scriptures: A New Translation (JPS 1917)"
 
-# JPS 1985 omits Joshua 21:36-37, which are absent from some Masoretic
-# manuscripts, so those two verses came back with Hebrew but no English. The
-# public-domain JPS 1917 does translate them (bracketed, to mark the textual
-# doubt), so they are filled from there rather than left blank. Nothing else
-# in the corpus needs this — it is exactly two verses.
+# Koren, like ArtScroll and MAM, omits Joshua 21:36-37 — they are absent from
+# the primary Masoretic witnesses (see KSIV note in app.py). The Hebrew corpus
+# includes them, so without a fallback those two verses would show Hebrew and
+# no English. JPS 1917 does translate them (bracketed, to mark the doubt), so
+# they are filled from there. Exactly two verses corpus-wide.
 FALLBACK_REFS = [("Joshua", 21, 36), ("Joshua", 21, 37)]
 
 # Sefaria returns translation text with presentational and editorial HTML:
