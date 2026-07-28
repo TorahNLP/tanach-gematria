@@ -1618,15 +1618,9 @@ _NIKUD_RANGE_RE = re.compile(r"[֑-ׇ]")
 # at something the reader cannot reach. The honest statement is that no
 # vocalised value exists for this word, not that one lives elsewhere.
 KSIV_UNPOINTED_NOTE = (
-    "This unit contains a Ksiv (written) word that this edition supplies "
-    "without vowel points. In the Masoretic manuscripts the vowels of the Kri "
-    "are placed on the consonants of the Ksiv, so the written form has no "
-    "vocalisation of its own to count; editions that print the Ksiv bare are "
-    "reflecting that, not omitting data. The four vowel-mark methods "
-    "(HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot) therefore have "
-    "nothing to count for this word and under-report the total — treat their "
-    "value here as undefined rather than as zero. The other 30 methods are "
-    "unaffected.")
+    "Contains a Ksiv word printed without vowel points (the vowels belong to "
+    "the Kri), so the four vowel-mark methods are undefined here. The other 30 "
+    "are unaffected.")
 
 
 def has_unpointed_word(text: str) -> bool:
@@ -3654,9 +3648,32 @@ def run_app() -> None:
         # script-runner thread, which a raw sqlite3 connection cannot survive.
         if not extra_refs_key and PREBUILT_DB.exists():
             disk = sqlite3.connect(str(PREBUILT_DB), check_same_thread=False)
-            conn = share_in_memory(disk)
-            disk.close()
-            return conn, len(verses), True, verse_index
+            # A prebuilt DB from an older release can be missing columns this
+            # release queries — a deployment that ships app.py but reuses a
+            # stale tanach.db (Streamlit Cloud does exactly this) would then
+            # fail with an opaque DatabaseError on the first search. Rather
+            # than trust the file, check its schema and fall through to a
+            # rebuild if it predates the current one.
+            try:
+                _have = {r[1] for r in disk.execute("PRAGMA table_info(units)")}
+            except sqlite3.Error:
+                _have = set()
+            _need = set(CIPHER_NAMES) | {"nikud_partial", "boundary_type",
+                                         "variant_track", "consonants"}
+            _stale = _need - _have
+            if _stale:
+                disk.close()
+                # Falls through to build_database below (~20-30s) instead of
+                # serving a DB that cannot answer this release's queries.
+                st.warning(
+                    f"Bundled database is from an earlier version (missing: "
+                    f"{', '.join(sorted(_stale)[:4])}"
+                    f"{'…' if len(_stale) > 4 else ''}). Rebuilding it now — "
+                    "this takes about half a minute and happens once.")
+            else:
+                conn = share_in_memory(disk)
+                disk.close()
+                return conn, len(verses), True, verse_index
         built = build_database(verses)
         conn = share_in_memory(built)
         built.close()
