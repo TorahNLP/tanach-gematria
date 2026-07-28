@@ -424,7 +424,19 @@ def g_haachor(s: str) -> int:
 
 
 def g_mityashev(s: str) -> int:
-    """Mispar Mityashev - each letter × letter count of its word; N resets per word."""
+    """Mispar Mityashev - each letter × letter count of its word; N resets per word.
+
+    RETAINED BUT NOT OFFERED. This is not in CIPHERS, so the app never computes
+    or indexes it. No classical source could be found for the method under this
+    name: מספר מיושב appears nowhere in Pardes Rimonim's Sha'ar HaGematriaot
+    (Gate 30 or 22) and returns zero hits across Sefaria's corpus, and the
+    earlier citation ("early Italian Kabbalistic manuscripts") named nothing a
+    reader could check. It was swapped out for Mispar HaMispari, which Cordovero
+    defines explicitly. Kept here — with its self-tests and its word-boundary
+    plumbing — so reinstating it is a one-line change if a source turns up.
+    Beware when researching: some sources use 'mispar meyushav' for Mispar Katan
+    (truncating zeros), which is a different calculation from this one.
+    """
     total = 0
     for word in s.split():
         vals = [STANDARD.get(_normalize_final(c), 0) for c in word
@@ -443,6 +455,50 @@ def g_kolel_otiyot(s: str) -> int:
     """Mispar Kolel (Letters) - Standard total + count of letters in the unit."""
     n = sum(1 for c in s if STANDARD.get(_normalize_final(c), 0))
     return g_absolute(s) + n
+
+
+# Hebrew number-names, in the spellings Cordovero uses in Pardes Rimonim Gate 30.
+# His own worked values fix the orthography and are the reason this table is
+# masculine/classical rather than the feminine/modern forms (עשר, ארבע, שלושים)
+# that online calculators use: he states yud -> עשרה = 575 (תקע"ה) and
+# heh -> חמשה = 353 (שנ"ג), and only these spellings reproduce those totals.
+# Following him means values here differ from those calculators on 13 of 22
+# letters — a deliberate choice of the primary source over the popular table.
+NUMBER_NAMES: Dict[int, str] = {
+    1: "אחד", 2: "שנים", 3: "שלשה", 4: "ארבעה", 5: "חמשה",
+    6: "ששה", 7: "שבעה", 8: "שמונה", 9: "תשעה", 10: "עשרה",
+    20: "עשרים", 30: "שלשים", 40: "ארבעים", 50: "חמשים",
+    60: "ששים", 70: "שבעים", 80: "שמונים", 90: "תשעים",
+    100: "מאה", 200: "מאתים", 300: "שלשמאות", 400: "ארבעמאות",
+}
+
+
+def _number_name_value(n: int) -> int:
+    """Gematria of the Hebrew name of the number `n`, or 0 if unnamed."""
+    return g_absolute(NUMBER_NAMES.get(n, ""))
+
+
+def g_mispari(s: str) -> int:
+    """Mispar HaMispari - spell each letter's VALUE as a Hebrew number-word.
+
+    Pardes Rimonim, Gate 30 §8: "י עשרה, ועשרה עולה תקע\"ה" — yud is 'ten',
+    and 'asarah' totals 575. Final forms take their base letter's value, since
+    the number named is the same.
+    """
+    return sum(_number_name_value(STANDARD.get(_normalize_final(c), 0))
+               for c in s)
+
+
+# NOT IMPLEMENTED — Pardes Rimonim Gate 30 §9, "מספריי הגדול".
+# Cordovero's example decodes cleanly ("יו\"ד במילואו עשרים, ועשרים בגימט' כתר":
+# yud's milui יוד = 20, and עשרים = 620 = כתר, which verifies), so the rule is
+# not in doubt: take each letter's MILUI total, then name THAT number. It is
+# omitted because it does not survive generalisation to running text. Only 4 of
+# 22 letters have a milui total that is a named Hebrew number (ה, י, כ, מ); the
+# other 18 contribute nothing, so 68% of Genesis 1:1 would vanish. Cordovero
+# demonstrates it on a single letter as an exegetical observation, not as a
+# cipher for summing words, and shipping it as a searchable method would
+# present near-silence as a total. See the Guide's note on Gate 30.
 
 
 def g_reverse_ordinal(s: str) -> int:
@@ -509,6 +565,7 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Katan":            g_katan,             # Mispar Katan (reduced, drop zeros)
     "Gadol":            g_gadol,             # Mispar Gadol (finals 500-900)
     "KatanMispari":     g_katan_mispari,     # Mispar Katan Mispari (digital root)
+    "Mispari":          g_mispari,           # Mispar HaMispari (name each letter's value)
     # ── Ordinal / positional ciphers ─────────────────────────────────────────
     "Siduri":           g_siduri,            # Mispar Siduri (ordinal 1-22)
     "ReverseOrdinal":   g_reverse_ordinal,   # Reverse ordinal: Tav=1 … Alef=22
@@ -543,7 +600,10 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     # ── Word-structure ciphers ────────────────────────────────────────────────
     "Boneeh":          g_boneeh,            # Mispar Bone'eh (building / prefix sums)
     "HaAchor":         g_haachor,           # Mispar HaAchor (value × position in word)
-    "Mityashev":       g_mityashev,         # Mispar Mityashev (value × word letter count)
+    # Mityashev is deliberately ABSENT from this table — see g_mityashev. The
+    # function, its self-tests and its word-boundary plumbing are all retained
+    # so it can be reinstated the moment a source turns up; it simply is not
+    # offered as one of the app's methods while it has none.
     # ── Kolel / additive ciphers ─────────────────────────────────────────────
     "KololEhad":       g_kolel_ehad,        # Kolel +1 (word as single unit)
     "KololOtiyot":     g_kolel_otiyot,      # Kolel +N (letter count)
@@ -640,7 +700,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "AchasBeta":       "Achas Beta — אח\"ס בט\"ע",
     "Boneeh":          "Bone'eh — מספר בונה",
     "HaAchor":         "HaAchor — מספר האחור",
-    "Mityashev":       "Mityashev — מספר מיושב",
+    "Mispari":         "Mispari — מספר המספריי",
     "KololEhad":       "Kolel (Word) — כולל",
     "KololOtiyot":     "Kolel (Letters) — כולל אותיות",
 }
@@ -679,7 +739,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "AchasBeta":       "7/7/7 cyclic rotation across groups א-ז / ח-נ / ס-ש; ת is invariant. Pardes Rimonim.",
     "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
     "HaAchor":         "Each Standard value × its ordinal position within the word; position resets per word. Pardes Rimonim Sha'ar 30.",
-    "Mityashev":       "Each Standard value × total letter count of its word: Σ(vᵢ × N). N resets per word.",
+    "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum those words' values. י=10→עשרה=575, ה=5→חמשה=353.",
     "KololEhad":       "Standard total + 1 (the word counted as one collective unit).",
     "KololOtiyot":     "Standard total + number of letters in the unit (one per letter). Also called Mispar Musafi.",
 }
@@ -3608,12 +3668,12 @@ def run_app() -> None:
         st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
         st.write(", ".join(CIPHER_NAMES))
         st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
-                   "Value: Ribua, HaMerubahKlali, Kidmi, KatanMispari, ReverseOrdinal. "
+                   "Value: Ribua, HaMerubahKlali, Kidmi, KatanMispari, Mispari, ReverseOrdinal. "
                    "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim. "
                    "Vowel-mark (nikud): HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot. "
                    "Name-expansion (Maleh): MiluiMaleh, NeelAmMaleh, EmtzaiyotMaleh. "
                    "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
-                   "Word-structure: HaAchor, Mityashev, Boneeh. "
+                   "Word-structure: HaAchor, Boneeh. "
                    "Kolel: KololEhad, KololOtiyot. "
                    "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, SecondHalf, Verse, Perek, Sefer.")
 
@@ -4153,6 +4213,29 @@ def run_app() -> None:
                 "catalogue — the tradition contains many more, and further "
                 "variants can be formed by combining them. Each is listed with "
                 "the earliest source known for it.")
+            st.info(
+                "**On sourcing.** Every method below cites a classical or "
+                "rabbinic source. Two consequences worth stating plainly:\n\n"
+                "**Mispar HaMispari follows Cordovero's spellings, not the "
+                "calculators'.** Pardes Rimonim Gate 30 §8 gives two worked "
+                "totals — yud → עשרה = 575, heh → חמשה = 353 — and only the "
+                "masculine forms (עשרה, חמשה, שלשים) reproduce them. Online "
+                "gematria calculators generally use the feminine/modern forms "
+                "(עשר, חמש, שלושים), which differ on 13 of the 22 letters. "
+                "Values here will therefore not match those tools; the primary "
+                "source is preferred.\n\n"
+                "**One Gate 30 method is deliberately not implemented.** "
+                "Cordovero's §9, *Misparei HaGadol*, takes a letter's milui "
+                "total and then names that number (yud → יוד = 20 → עשרים = "
+                "620 = כתר, which verifies). The rule is clear, but only 4 of "
+                "22 letters have a milui total that is a named Hebrew number, "
+                "so over two-thirds of any verse would contribute nothing. He "
+                "demonstrates it on a single letter as an observation, not as "
+                "a cipher for summing words, and presenting near-silence as a "
+                "total would mislead.\n\n"
+                "*Mispar Mityashev*, offered by many calculators, was removed "
+                "for the opposite reason: no source for it could be found in "
+                "Pardes Rimonim or anywhere in Sefaria's corpus.")
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -4281,10 +4364,10 @@ def run_app() -> None:
                  "Hebrew": "מספר האחור (Mispar HaAchor)",
                  "Rule": "Each letter × its ordinal position within the word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
                  "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30, Ch. 8)."},
-                {"Method": "Mityashev",
-                 "Hebrew": "מספר מיושב (Mispar Mityashev)",
-                 "Rule": "Each letter × total letter count of its word: Σ(vᵢ × N). N resets per word. 3-letter word: every value × 3.",
-                 "Earliest Source": "No classical source identified. The name 'Mispar Mityashev' (מספר מיושב) does not appear in Pardes Rimonim's Sha'ar HaGematriaot (Gate 30), nor anywhere in Sefaria's corpus. It circulates in modern gematria calculators and reference lists; treat it as a modern method rather than a received one. Note that some sources use 'mispar meyushav' loosely for Mispar Katan, which is a different calculation from the one here."},
+                {"Method": "Mispari",
+                 "Hebrew": "מספר המספריי (Mispar HaMispari)",
+                 "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13.",
+                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §8, R. Moshe Cordovero (1548): 'מספר המספריי ר\"ל י' עשרה, ועשרה עולה תקע\"ה. ה' חמשה, וחמשה עולה שנ\"ג' — yud is 'ten', and 'asarah' totals 575; heh is 'five', and 'chamishah' totals 353. NOTE ON SPELLING: this app follows Cordovero's own orthography, which his two worked totals fix precisely (עשרה, חמשה — masculine forms). Online calculators generally use the feminine/modern spellings (עשר, ארבע, שלושים), which yield different values for 13 of the 22 letters. The primary source is preferred here."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
