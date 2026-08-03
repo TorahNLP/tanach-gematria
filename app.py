@@ -3268,7 +3268,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     if query_info:
         raw  = e(query_info.get("raw", ""))
         cons = e(query_info.get("cons", ""))
-        colel_txt = "Applied (±1)" if colel else "Not applied"
+        # "also" matters: colel widens the search to value−1/value+1 IN
+        # ADDITION to the exact value (SQL BETWEEN), it does not replace it.
+        colel_txt = ("Applied — exact value, and ±1"
+                     if colel and active_method not in COLEL_EXEMPT
+                     else "On, but not applied to this method"
+                     if colel else "Not applied")
         # The query's own value, not the matched unit's — under colel they can
         # differ by 1, and labelling the match's value as "Value" under
         # "Search Query" conflated the two.
@@ -3351,6 +3356,23 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      f'Values follow the Ksiv.</p>')
     else:
         kri_block = ""
+    # Colel note. The "Colel (±1)" row lives in sec1, which only renders when
+    # there IS a query_info — so a Gematria-value-mode print, or Tab 2's
+    # no-match path, said nothing about colel even with it switched on. A ±1
+    # match printed with no such note reads as an exact equality, which is
+    # precisely the misleading case. This sits in Source Text, which always
+    # renders, and appears only when colel is on (and does something: the
+    # exempt methods stay exact).
+    if colel and active_method not in COLEL_EXEMPT:
+        colel_note = ('<p class="fn"><strong>כולל (±1) applied.</strong> '
+                      'Matches include values one above and one below the '
+                      'target as well as the exact value, so a match here may '
+                      'differ from the searched value by 1.</p>')
+    elif colel:
+        colel_note = ('<p class="fn">כולל (±1) was on, but is not applied to '
+                      f'{e(str(active_method))} — its matches are exact.</p>')
+    else:
+        colel_note = ""
     sec2 = f"""
 <div class="sec">
   <div class="sec-title">Source Text</div>
@@ -3358,6 +3380,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
   <div class="verse rtl">{hl_verse}</div>
   {kri_block}
   {en_block}
+  {colel_note}
 </div>"""
 
     # ── Query and match accuracy warnings ────────────────────────────────────
