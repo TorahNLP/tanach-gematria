@@ -705,7 +705,7 @@ def nikud_partial_clause(cipher: str) -> str:
     all: unlike a missing value it looks entirely ordinary, so a reader has no
     way to tell a genuine match from an artefact of the shortfall.
 
-    Returns an empty string for the other 30 methods, which are unaffected —
+    Returns an empty string for the other methods, which are unaffected —
     they score letters, which are fully present in the Ksiv.
 
     Callers append this to their WHERE clause; it introduces no parameters, so
@@ -1729,6 +1729,153 @@ DISPUTED_VERSE_NOTES: Dict[str, str] = {
 }
 
 
+# Book-name aliases for parse_verse_ref. Keys are lowercased and stripped of
+# spaces/punctuation by _norm_book_key, so "Song of Songs", "songofsongs" and
+# "shir hashirim" all collapse to the same lookup. Hebrew names are given in
+# the forms a reader would actually type, and the yeshivish transliterations
+# alongside the academic ones — this audience writes "Bereishis", not "Genesis".
+_BOOK_ALIASES: Dict[str, str] = {
+    # Torah
+    "genesis": "Genesis", "gen": "Genesis", "bereishis": "Genesis",
+    "bereishit": "Genesis", "bereshit": "Genesis", "בראשית": "Genesis",
+    "exodus": "Exodus", "exod": "Exodus", "ex": "Exodus", "shemos": "Exodus",
+    "shemot": "Exodus", "שמות": "Exodus",
+    "leviticus": "Leviticus", "lev": "Leviticus", "vayikra": "Leviticus",
+    "ויקרא": "Leviticus",
+    "numbers": "Numbers", "num": "Numbers", "bamidbar": "Numbers",
+    "במדבר": "Numbers",
+    "deuteronomy": "Deuteronomy", "deut": "Deuteronomy", "devarim": "Deuteronomy",
+    "דברים": "Deuteronomy",
+    # Nevi'im
+    "joshua": "Joshua", "josh": "Joshua", "yehoshua": "Joshua", "יהושע": "Joshua",
+    "judges": "Judges", "shoftim": "Judges", "שופטים": "Judges",
+    "1samuel": "I Samuel", "1sam": "I Samuel", "1shmuel": "I Samuel",
+    "1שמואל": "I Samuel",
+    "2samuel": "II Samuel", "2sam": "II Samuel", "2shmuel": "II Samuel",
+    "2שמואל": "II Samuel",
+    "1kings": "I Kings", "1melachim": "I Kings", "1מלכים": "I Kings",
+    "2kings": "II Kings", "2melachim": "II Kings", "2מלכים": "II Kings",
+    "isaiah": "Isaiah", "yeshayahu": "Isaiah", "ישעיהו": "Isaiah", "ישעיה": "Isaiah",
+    "jeremiah": "Jeremiah", "yirmiyahu": "Jeremiah", "ירמיהו": "Jeremiah",
+    "ירמיה": "Jeremiah",
+    "ezekiel": "Ezekiel", "yechezkel": "Ezekiel", "יחזקאל": "Ezekiel",
+    "hosea": "Hosea", "hoshea": "Hosea", "הושע": "Hosea",
+    "joel": "Joel", "yoel": "Joel", "יואל": "Joel",
+    "amos": "Amos", "עמוס": "Amos",
+    "obadiah": "Obadiah", "ovadiah": "Obadiah", "עובדיה": "Obadiah",
+    "jonah": "Jonah", "yonah": "Jonah", "יונה": "Jonah",
+    "micah": "Micah", "michah": "Micah", "מיכה": "Micah",
+    "nahum": "Nahum", "nachum": "Nahum", "נחום": "Nahum",
+    "habakkuk": "Habakkuk", "chavakuk": "Habakkuk", "חבקוק": "Habakkuk",
+    "zephaniah": "Zephaniah", "tzefaniah": "Zephaniah", "צפניה": "Zephaniah",
+    "haggai": "Haggai", "chagai": "Haggai", "חגי": "Haggai",
+    "zechariah": "Zechariah", "zecharia": "Zechariah", "זכריה": "Zechariah",
+    "malachi": "Malachi", "מלאכי": "Malachi",
+    # Ketuvim
+    "psalms": "Psalms", "psalm": "Psalms", "ps": "Psalms", "tehillim": "Psalms",
+    "תהלים": "Psalms", "תהילים": "Psalms",
+    "proverbs": "Proverbs", "prov": "Proverbs", "mishlei": "Proverbs",
+    "משלי": "Proverbs",
+    "job": "Job", "iyov": "Job", "איוב": "Job",
+    "songofsongs": "Song of Songs", "shirhashirim": "Song of Songs",
+    "song": "Song of Songs", "שירהשירים": "Song of Songs",
+    "ruth": "Ruth", "rus": "Ruth", "רות": "Ruth",
+    "lamentations": "Lamentations", "eichah": "Lamentations",
+    "eicha": "Lamentations", "איכה": "Lamentations",
+    "ecclesiastes": "Ecclesiastes", "koheles": "Ecclesiastes",
+    "kohelet": "Ecclesiastes", "קהלת": "Ecclesiastes",
+    "esther": "Esther", "esteir": "Esther", "אסתר": "Esther",
+    "daniel": "Daniel", "דניאל": "Daniel",
+    "ezra": "Ezra", "עזרא": "Ezra",
+    "nehemiah": "Nehemiah", "nechemiah": "Nehemiah", "נחמיה": "Nehemiah",
+    "1chronicles": "I Chronicles", "1chron": "I Chronicles",
+    "1divreihayamim": "I Chronicles", "1דבריהימים": "I Chronicles",
+    "2chronicles": "II Chronicles", "2chron": "II Chronicles",
+    "2divreihayamim": "II Chronicles", "2דבריהימים": "II Chronicles",
+}
+
+
+def _norm_book_key(s: str) -> str:
+    """Normalise a book name for alias lookup.
+
+    Lowercases, drops spacing and punctuation, and folds the several ways a
+    numbered book gets written into one key: a leading "1"/"2", "i"/"ii" or a
+    trailing Hebrew א/ב all become an arabic digit, so "II Kings", "2 Kings",
+    "2kings" and "מלכים ב" all reach the same entry. Digits must be KEPT (an
+    earlier version stripped them, which silently broke every "2 Kings" form).
+    """
+    t = s.strip().lower()
+    # Leading roman numerals -> digits, before punctuation is stripped.
+    t = re.sub(r"^(i{1,3})[\s.]+", lambda mo: str(len(mo.group(1))) + " ", t)
+    # Trailing Hebrew alef/bet marker ("מלכים ב") -> digit.
+    t = re.sub(r"[\s]*א$", " 1", t)
+    t = re.sub(r"[\s]*ב$", " 2", t)
+    kept = "".join(ch for ch in t
+                   if ch.isalpha() or ch.isdigit() or "א" <= ch <= "ת")
+    # Alias keys spell the number first ("2kings"); normalise "kings2" too.
+    mo = re.match(r"^([a-zא-ת]+)([12])$", kept)
+    if mo:
+        kept = mo.group(2) + mo.group(1)
+    return kept
+
+
+def _hebrew_numeral(s: str) -> Optional[int]:
+    """Read a Hebrew-letter numeral (א, טו, קכא) as an int, or None.
+
+    Uses STANDARD letter values, so טו = 15 and טז = 16 come out right without
+    special-casing — they are spelled that way precisely to avoid spelling a
+    divine name, and their values already sum correctly.
+    """
+    s = s.strip().replace("׳", "").replace("'", "").replace("״", "").replace('"', "")
+    if not s or not all("א" <= c <= "ת" for c in s):
+        return None
+    total = sum(STANDARD.get(FINAL_TO_BASE.get(c, c), 0) for c in s)
+    return total or None
+
+
+def parse_verse_ref(text: str) -> Optional[Tuple[str, int, int]]:
+    """Parse a free-text reference into (canonical_book, chapter, verse).
+
+    Accepts English, yeshivish and Hebrew book names, arabic or Hebrew-letter
+    numbers, and ':' '.' or whitespace as the chapter/verse separator:
+
+        "Genesis 1:1"  "Gen 1.1"  "bereishis 1 1"  "בראשית א:א"
+        "II Kings 2:1" "2 Kings 2:1"  "מלכים ב ב:א"
+
+    Returns None if the reference cannot be resolved. Callers must treat None
+    as "not a reference" rather than an error — Tab 2's filter box, for
+    example, falls back to a book-substring match.
+    """
+    if not text or not text.strip():
+        return None
+    raw = text.strip().replace("־", " ")
+    # Split off the trailing "<chapter><sep><verse>" and treat the rest as the
+    # book name. Scanning from the right keeps multi-word book names intact.
+    mt = re.search(r"^(.*?)[\s]*([0-9]+|[א-ת׳'\"]+)\s*[:.\s]\s*"
+                   r"([0-9]+|[א-ת׳'\"]+)\s*$", raw)
+    if not mt:
+        return None
+    book_part, ch_part, vs_part = mt.group(1), mt.group(2), mt.group(3)
+    if not book_part.strip():
+        return None
+
+    def _num(part: str) -> Optional[int]:
+        if part.isdigit():
+            return int(part) or None
+        return _hebrew_numeral(part)
+
+    chapter, verse = _num(ch_part), _num(vs_part)
+    if not chapter or not verse:
+        return None
+    key = _norm_book_key(book_part)
+    book = _BOOK_ALIASES.get(key)
+    if not book:
+        # A Hebrew two-part name ("מלכים ב") normalises to "מלכיםב", which the
+        # alias table already holds; anything else is unresolvable.
+        return None
+    return (book, chapter, verse)
+
+
 def disputed_verse_note(book, chapter, verse) -> str:
     """Editorial note for a verse whose presence in the text is disputed."""
     try:
@@ -1740,7 +1887,7 @@ def disputed_verse_note(book, chapter, verse) -> str:
 
 KSIV_UNPOINTED_NOTE = (
     "Contains a Ksiv word printed without nikud (the nikud belongs to the Kri), "
-    "so the four vowel-mark methods are undefined here. The other 30 are "
+    "so the four vowel-mark methods are undefined here. The other methods are "
     "unaffected.")
 
 
@@ -2464,7 +2611,7 @@ def search_value_all_methods(
             where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
             branch_params += list(boundaries)
         # Per-branch, so the four vowel-mark branches drop incomplete units
-        # while the other 30 branches are untouched.
+        # while the other branches are untouched.
         if c in NIKUD_CIPHERS:
             where.append("nikud_partial = 0")
         unions.append(
@@ -3029,7 +3176,9 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      colel, vals, query_breakdown=None, query_val=None,
                      match_nikud_unreliable=False, english="",
                      english_is_full_verse=False, ksiv_unpointed=False,
-                     kri_display="") -> str:
+                     kri_display="", query_english="",
+                     query_english_is_full_verse=False,
+                     query_disputed_note="") -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -3116,6 +3265,22 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         _cons_row_label = ("Consonants (not counted by this method)"
                            if active_method in ("HaNekudot", "MiluiNekudot")
                            else "Consonants searched")
+        # The query's own translation. Escaped for the same reason the match's
+        # is: corpus text must never inject tags. Attribution is NOT emitted
+        # here — see the document-level notice.
+        if query_english:
+            _q_en_label = ("English — full verse" if query_english_is_full_verse
+                           else "English")
+            _q_en_block = (f'<p class="en-label">{e(_q_en_label)}</p>'
+                           f'<div class="en">{e(query_english)}</div>')
+        else:
+            _q_en_block = ""
+        # A disputed-verse note about the QUERY belongs with the query. The
+        # matched unit's note is rendered by its own caller; this one has no
+        # other home, and a total that includes a disputed verse must say so
+        # in the document, not only on screen.
+        _q_disp = (f'<p class="fn">{e(query_disputed_note)}</p>'
+                   if query_disputed_note else "")
         sec1 = f"""
 <div class="sec">
   <div class="sec-title">{_sec1_title}</div>
@@ -3126,6 +3291,8 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
     <tr><td class="kl">Colel (±1)</td><td class="kv-val">{colel_txt}</td></tr>
   </table>
+  {_q_en_block}
+  {_q_disp}
 </div>"""
     else:
         sec1 = ""
@@ -3136,12 +3303,14 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     # text and must never be able to inject tags into the export.
     if english:
         # Edition name omitted here for the same reason as on screen: the
-        # attribution line rendered immediately below carries it.
+        # attribution carries it. NOTE: the attribution is deliberately NOT
+        # emitted here — it is rendered once at document level below, because
+        # an export can now carry TWO translations (query + match) and the
+        # CC-BY-NC notice must appear exactly once, not per block.
         _en_label = ("English — full verse" if english_is_full_verse
                      else "English")
         en_block = (f'<p class="en-label">{e(_en_label)}</p>'
-                    f'<div class="en">{e(english)}</div>'
-                    f'<p class="fn">{e(ENGLISH_ATTRIBUTION)}</p>')
+                    f'<div class="en">{e(english)}</div>')
     else:
         en_block = ""
     # Ksiv/Kri line, escaped: unlike hl_verse (markup we generated) this is
@@ -3350,6 +3519,14 @@ table.bd tr{break-inside:avoid;page-break-inside:avoid}
   body{padding:0}
 }"""
 
+    # CC-BY-NC attribution, rendered exactly ONCE per document. It used to sit
+    # inside the match's `if english:` block; now that an export can carry two
+    # translations (query and match), emitting it per block would print the
+    # licence notice twice. Attribution is a condition of the licence, so it
+    # renders whenever either translation is present.
+    _en_attrib = (f'<p class="fn">{e(ENGLISH_ATTRIBUTION)}</p>'
+                  if (english or query_english) else "")
+
     return f"""<!DOCTYPE html>
 <html lang="he">
 <head><meta charset="UTF-8">
@@ -3358,7 +3535,7 @@ table.bd tr{break-inside:avoid;page-break-inside:avoid}
 <style>{css}</style></head>
 <body>
 <div class="ph"><span><strong>Tanach Gematria Engine</strong></span><span>{today}</span></div>
-{sec1}{sec1_warn}{sec1b}{sec2}{sec3}
+{sec1}{sec1_warn}{sec1b}{sec2}{sec3}{_en_attrib}
 <div class="pf">Generated by Tanach Gematria Search &amp; Structural Pattern Engine</div>
 <script>
 window.onload=function(){{
@@ -3443,6 +3620,26 @@ def run_selftest() -> None:
         _nm = compose_number_name(_mv)
         _sum = sum(_inv[_p.strip()] for _p in _nm.split(" ו") if _p.strip() in _inv)
         assert _sum == _mv, (_ltr, _mv, _nm, _sum)
+    # Reference parser: English, yeshivish, Hebrew; arabic and Hebrew numerals.
+    assert parse_verse_ref("Genesis 1:1") == ("Genesis", 1, 1)
+    assert parse_verse_ref("gen 1.1") == ("Genesis", 1, 1)
+    assert parse_verse_ref("Bereishis 1 1") == ("Genesis", 1, 1)
+    assert parse_verse_ref("בראשית א:א") == ("Genesis", 1, 1)
+    assert parse_verse_ref("II Kings 2:1") == ("II Kings", 2, 1)
+    assert parse_verse_ref("2 Kings 2:1") == ("II Kings", 2, 1)
+    assert parse_verse_ref("מלכים ב ב:א") == ("II Kings", 2, 1)
+    assert parse_verse_ref("Tehillim 119:1") == ("Psalms", 119, 1)
+    # טו/טז are spelled to avoid a divine name; their values still sum right.
+    assert parse_verse_ref("שמות טו:א") == ("Exodus", 15, 1)
+    assert parse_verse_ref("Song of Songs 1:1") == ("Song of Songs", 1, 1)
+    # Non-references must return None, not raise — Tab 2's filter falls back
+    # to a book-substring match on None.
+    for _bad in ("", "   ", "Genesis", "not a ref", "Zzz 1:1", "Genesis 0:1"):
+        assert parse_verse_ref(_bad) is None, _bad
+    # Every alias must name a real book, and every canonical book name must
+    # parse back to itself — otherwise a book becomes unreachable by typing.
+    for _b in set(_BOOK_ALIASES.values()):
+        assert parse_verse_ref(f"{_b} 1:1") == (_b, 1, 1), _b
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -4041,7 +4238,8 @@ def run_app() -> None:
 
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
                             active_method=None, query_info=None, colel=False,
-                            span_range=None, track=None, end_ref=None):
+                            span_range=None, track=None, end_ref=None,
+                            query_ref=None):
         import streamlit.components.v1 as _components
         if boundary not in DETAIL_BOUNDARIES:
             return
@@ -4128,6 +4326,17 @@ def run_app() -> None:
                      for c, s, _ in (cross_run or [(chapter, verse, None)])}
         for _note in sorted(n for n in _disputed if n):
             st.info(_note)
+        # The same check for the QUERY verse. The loop above is keyed on the
+        # MATCHED unit, so a disputed verse used as the search term had no
+        # note anywhere — on screen or in the export — until a verse picker
+        # made Joshua 21:36-37 directly selectable. Skipped when query and
+        # match are the same verse, which the loop above already covered.
+        if query_ref:
+            _q_note = disputed_verse_note(*query_ref)
+            if _q_note and (str(query_ref[0]), int(query_ref[1]), int(query_ref[2])) \
+                    != (str(book), int(chapter), int(verse)):
+                st.info(f"Search query ({query_ref[0]} {query_ref[1]}:"
+                        f"{query_ref[2]}) — {_q_note}")
         sub_unit = boundary in ("Word", "ZakefPhrase", "TiphchaPhrase",
                                 "FirstHalf", "SecondHalf", "WordSpan")
         # Ksiv/Kri divergence is shown INLINE on the single cantillated line —
@@ -4307,14 +4516,31 @@ def run_app() -> None:
             english_text = "\n\n".join(_parts)
         else:
             english_text = verse_english(book, chapter, verse)
+        # The QUERY's translation, when the query is itself a verse reference
+        # (verse mode, and Tab 2's selected unit). `query_ref` is
+        # (book, chapter, verse); the query may be a sub-unit of it, in which
+        # case the English still covers the whole verse — there is no
+        # word-level alignment — and is labelled as such.
+        query_english_text = ""
+        if query_ref:
+            _qb, _qc, _qv = query_ref
+            query_english_text = verse_english(_qb, _qc, _qv)
         show_english = False
-        if english_text:
+        if english_text or query_english_text:
             show_english = st.checkbox(
                 "Show English translation", key=_show_en_key, value=False,
                 help=_tip("Koren Jerusalem Bible (© Koren Publishers "
                           "Jerusalem, CC BY-NC). Shown for the full verse, and "
                           "included in the print-out / download while ticked."))
-            if show_english:
+            # Query side first, mirroring the document order (query, then
+            # match). Only when the query is a different verse from the match:
+            # otherwise this would print the same translation twice.
+            if show_english and query_english_text and \
+                    (str(_qb), int(_qc), int(_qv)) != (str(book), int(chapter), int(verse)):
+                _q_lbl = (query_info or {}).get("label") or "Search query"
+                st.markdown(f"**English — {_q_lbl} ({_qb} {_qc}:{_qv}):**")
+                st.text(query_english_text)
+            if show_english and english_text:
                 # No edition name in the heading — the attribution caption
                 # directly below already names it, and repeating it here just
                 # crowded the line. "full verse" stays: it is not attribution,
@@ -4328,6 +4554,9 @@ def run_app() -> None:
                 # as formatting (the markdown-injection class of bug fixed in
                 # 4702cd8), so the text goes through st.text, not markdown.
                 st.text(english_text)
+            # One attribution for the panel, however many translations are
+            # shown — same reasoning as the export's document-level notice.
+            if show_english:
                 st.caption(ENGLISH_ATTRIBUTION_SHORT)
         # ── Print / Export ───────────────────────────────────────────────────
         # The print-out used to show only how the *matched* text arrives at its
@@ -4356,6 +4585,21 @@ def run_app() -> None:
             # shows rather than always carrying the translation.
             english=(english_text if show_english else ""),
             english_is_full_verse=sub_unit,
+            # Query side of the same pair. Mirrors the panel: carried only
+            # while the box is ticked, and only when the query is a different
+            # verse from the match (otherwise the document would repeat one
+            # translation under two headings).
+            query_english=(query_english_text if (show_english and query_ref and
+                           (str(query_ref[0]), int(query_ref[1]), int(query_ref[2]))
+                           != (str(book), int(chapter), int(verse))) else ""),
+            query_english_is_full_verse=True,
+            # A disputed-verse note about the QUERY had no render site at all —
+            # neither on screen nor in the export — because the existing note
+            # is keyed on the matched unit. Joshua 21:36-37 become directly
+            # selectable once a verse picker exists, so a total that includes
+            # them must say so in the document.
+            query_disputed_note=(disputed_verse_note(*query_ref)
+                                 if query_ref else ""),
             # Same reasoning as match_nikud_unreliable: a caveat about a value
             # being wrong has to travel with the document, not stay on screen.
             ksiv_unpointed=ksiv_unpointed,
@@ -5386,12 +5630,33 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             show = hide_uniform_track(show)
             if "Track" in show.columns:
                 show["Track"] = show["Track"].map(lambda t: TRACK_LABELS.get(t, t))
-            # Parsha holds the book name for every row, so this filters by book
-            # either way — labelled honestly rather than implying parsha search.
-            q = st.text_input("Filter (book contains)", "")
+            # The filter used to be a book-name substring only, so reaching a
+            # specific verse meant typing the book and then scrolling a
+            # 23,206-row canvas table — there was no chapter or verse filter at
+            # all. It now runs through parse_verse_ref first, so a full
+            # reference jumps straight to the verse while a bare book name
+            # still behaves exactly as before. Same parser as Tab 1's verse
+            # mode: one implementation, two call sites.
+            q = st.text_input(
+                "Filter (reference or book)", "",
+                placeholder="e.g. Genesis 1:1, בראשית א:א, or just Genesis",
+                help=_tip("A full reference jumps to that verse. A book name "
+                          "on its own filters to that book."))
             if q:
-                mask = show["Book"].str.contains(q, case=False, na=False)
-                show = show[mask]
+                _ref = parse_verse_ref(q)
+                if _ref:
+                    _rb, _rc, _rv = _ref
+                    mask = ((show["Book"] == _rb)
+                            & (show["Chapter"] == _rc)
+                            & (show["Verse"] == _rv))
+                    if not mask.any():
+                        st.info(f"{_rb} {_rc}:{_rv} has no "
+                                f"{T2_BOUNDARY_LABELS.get(kind, BOUNDARY_LABELS.get(kind, kind))} "
+                                "unit. Showing the whole book instead.")
+                        mask = show["Book"] == _rb
+                    show = show[mask]
+                else:
+                    show = show[show["Book"].str.contains(q, case=False, na=False)]
             st.caption("Click any gematria value cell to find every unit in the corpus "
                        f"that shares that number, across the {N_CIPHERS} methods.")
             t2_col_config = {
@@ -5464,7 +5729,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 st.warning(
                     f"**{cipher_pick}** is unavailable here: this unit "
                     "contains a Ksiv word printed without nikud, so its total "
-                    "is incomplete. The other 30 methods work.")
+                    "is incomplete. The other methods work.")
 
             if sel_rows and not _t2_blocked:
                 cell_val = int(row2[cipher_pick])
@@ -5570,7 +5835,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 rm["Book"], rm["Chapter"], rm["Verse"],
                                 rm["Boundary"], matched_text=rm.get("Text"),
                                 active_method=str(rm.get("Method", "")),
-                                query_info=_t2_query)
+                                query_info=_t2_query,
+                                # The selected unit IS a verse reference, so the
+                                # panel and export can now show both sides'
+                                # translation. Previously only the match's
+                                # English travelled, so an export of "these two
+                                # units share a value" carried one side of it.
+                                query_ref=(row2["Book"], int(row2["Chapter"]),
+                                           int(row2["Verse"])))
 
     # ===================== TAB 3: ECHOES & ANOMALIES =====================
     # Guarded for app view (tab3 is None there). The two-space `with` keeps
