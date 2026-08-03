@@ -10,7 +10,7 @@ pinned: false
 Multi-method Hebrew gematria search engine, structural pattern database, and
 statistical dashboard over the Tanach.
 
-**34 gematria methods**, in families: direct-value, substitution (temurah),
+**35 gematria methods**, in families: direct-value, substitution (temurah),
 name-expansion (Milui / Neelam / Emtzaiyot, ± Maleh spellings), positional,
 vowel-mark (nikud), combined, and sequential/kolel. Each is listed in the app's
 Guide with the earliest source known for it.
@@ -66,6 +66,46 @@ masculine spellings (עשרה, חמשה, שלשים) reproduce them. Online calc
 generally use the feminine/modern forms (עשר, ארבע, שלושים) and therefore differ
 from this app on **13 of the 22 letters**. That is deliberate: the primary source
 is preferred over the popular table. Values here will not match those tools.
+
+**Mispar HaMispari HaGadol (שער ל׳ §9) is partly reconstructed.** The rule is
+not in doubt — name each letter's *milui* total rather than its standard value
+— and the Remak's worked example reproduces exactly: yud's milui יוד = 20, and
+עשרים = 620 = כתר. That example is the only checksum the method has, and it is
+pinned in `run_selftest`.
+
+The difficulty is that he spells only that one number, and it is not a
+compound. 15 of the 22 milui totals *are* compounds (alef 111, bet 412 …), so
+their orthography is set here by `compose_number_name` rather than by him.
+Three decisions, and what each rests on:
+
+| Decision | Choice | Basis |
+|---|---|---|
+| Constituent order | hundreds first | Idiom only — gematria is a sum, so order **cannot change any value** |
+| Joining | conjunctive vav (מאה ועשרים) | Dominant biblical form; 27 corpus attestations |
+| Eleven | אחד עשר | The living Rabbinic form; עשתי עשר is a frozen archaism of priestly/architectural contexts |
+
+Only the latter two move a total, and each by a few points. Everything else
+carries over from the §8 `NUMBER_NAMES` table, which his two worked totals fix.
+
+An argument that this method could *not* be responsibly reconstructed was
+examined and rejected. Its headline claim — that constituent order was one of
+four fatal unknowns — is worth nothing, because addition commutes
+(מאה ואחד עשר and אחד עשר ומאה are both 635). Its second claim, that only one
+of 22 letters had determinable orthography, ignored that §8 and §9 draw on the
+same number-naming convention, one already shipped.
+
+**The honest objection is about scope, not spelling:** the Remak brings §9 on a
+single letter as a remez, not as a cipher for summing running text. Using it
+that way extends his rule further than he took it, and the Guide says so on the
+method's own row. Precedent for shipping a reconstruction is `ImMiluiNekudot`,
+which likewise declares no single classical source.
+
+**Hundreds break the masculine rule, deliberately.** `NUMBER_NAMES` follows the
+Remak's anchors for 1–90 (masculine: עשרה, חמשה) but biblical idiom for the
+hundreds (feminine: שלש מאות, never שלשה מאות — Hebrew number-gender is
+inverted, and מאות is feminine). Two rules in one table, differing by 5 points
+per hundreds row. He is silent on 300/400, so neither is his ruling; this is
+recorded so it is not mistaken for an oversight and "corrected".
 
 **Mispar Mityashev is not offered.** No classical source could be found for the
 method under that name: מספר מיושב appears nowhere in Pardes Rimonim's Sha'ar

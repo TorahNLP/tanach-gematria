@@ -457,20 +457,82 @@ def g_kolel_otiyot(s: str) -> int:
     return g_absolute(s) + n
 
 
-# Hebrew number-names, in the spellings Cordovero uses in Pardes Rimonim Gate 30.
+# Hebrew number-names, in the spellings the Remak uses in Pardes Rimonim Gate 30.
 # His own worked values fix the orthography and are the reason this table is
 # masculine/classical rather than the feminine/modern forms (עשר, ארבע, שלושים)
 # that online calculators use: he states yud -> עשרה = 575 (תקע"ה) and
 # heh -> חמשה = 353 (שנ"ג), and only these spellings reproduce those totals.
 # Following him means values here differ from those calculators on 13 of 22
 # letters — a deliberate choice of the primary source over the popular table.
+#
+# ⚠️ The hundreds rows deliberately break the masculine rule the units follow.
+# Hebrew number-gender is inverted, and with the feminine noun מאות the attested
+# form is שלש מאות / ארבע מאות, never שלשה מאות. So this table follows the
+# Remak's own anchors for 1-90 and biblical idiom for the hundreds, where he is
+# silent — two rules, and the difference is 5 points per hundreds row. Recorded
+# rather than left looking like an oversight; do not "fix" it to שלשה מאות.
+# (Written spaced rather than closed: a space contributes nothing to a total,
+# so שלש מאות and שלשמאות are numerically identical.)
 NUMBER_NAMES: Dict[int, str] = {
     1: "אחד", 2: "שנים", 3: "שלשה", 4: "ארבעה", 5: "חמשה",
     6: "ששה", 7: "שבעה", 8: "שמונה", 9: "תשעה", 10: "עשרה",
     20: "עשרים", 30: "שלשים", 40: "ארבעים", 50: "חמשים",
     60: "ששים", 70: "שבעים", 80: "שמונים", 90: "תשעים",
-    100: "מאה", 200: "מאתים", 300: "שלשמאות", 400: "ארבעמאות",
+    100: "מאה", 200: "מאתים", 300: "שלש מאות", 400: "ארבע מאות",
+    500: "חמש מאות",
 }
+
+# Teens, built as unit + עשר. The masculine-form עשר here agrees both with the
+# Remak's units rule and with the corpus (שנים עשר, שמנה עשר are the attested
+# forms), so unlike the hundreds there is no conflict between the two guides.
+TEEN_NAMES: Dict[int, str] = {
+    11: "אחד עשר", 12: "שנים עשר", 13: "שלשה עשר", 14: "ארבעה עשר",
+    15: "חמשה עשר", 16: "ששה עשר", 17: "שבעה עשר", 18: "שמונה עשר",
+    19: "תשעה עשר",
+}
+
+
+def compose_number_name(n: int) -> str:
+    """Spell an arbitrary number 1..999 as a Hebrew number-word phrase.
+
+    Used by Mispar HaMispari HaGadol (Gate 30 §9), where the number to be named
+    is a letter's MILUI total and is therefore usually a compound (alef 111,
+    bet 412 …) rather than one of the 22 single-letter values §8 needs.
+
+    Composition rules, and why each is what it is:
+      * hundreds first, then remainder — the order is idiom only, since gematria
+        is a sum and addition commutes, so this cannot change any value;
+      * the parts are joined by a conjunctive vav (מאה ועשרים), the dominant
+        biblical form (מאה ועשרים Gen 6:3, מאה ועשר Gen 50:22, 27 attestations);
+      * 11-19 use the אחד עשר series rather than the frozen archaism עשתי עשר,
+        which is confined to priestly/architectural contexts and is not the
+        living Rabbinic form.
+
+    The vav and the choice of eleven-form are the only genuinely open decisions
+    here; both are worth a few points and neither is fixed by the source. See
+    the note above g_mispari_hagadol.
+    """
+    if n <= 0:
+        return ""
+    parts: List[str] = []
+    hundreds = (n // 100) * 100
+    if hundreds:
+        if hundreds not in NUMBER_NAMES:
+            return ""          # >= 600: not reachable from any milui total
+        parts.append(NUMBER_NAMES[hundreds])
+    rest = n % 100
+    if 11 <= rest <= 19:
+        parts.append(TEEN_NAMES[rest])
+    else:
+        tens, units = (rest // 10) * 10, rest % 10
+        if tens:
+            parts.append(NUMBER_NAMES[tens])
+        if units:
+            parts.append(NUMBER_NAMES[units])
+    if not parts:
+        return ""
+    # Conjunctive vav on every part after the first: מאה ועשרים ואחד.
+    return parts[0] + "".join(" ו" + p for p in parts[1:])
 
 
 def _number_name_value(n: int) -> int:
@@ -489,29 +551,33 @@ def g_mispari(s: str) -> int:
                for c in s)
 
 
-# NOT YET IMPLEMENTED — Pardes Rimonim Gate 30 §9, "מספריי הגדול".
-# The Remak's example decodes cleanly ("יו\"ד במילואו עשרים, ועשרים בגימט' כתר":
-# yud's milui יוד = 20, and עשרים = 620 = כתר, which verifies), so the rule is
-# not in doubt: take each letter's MILUI total, then name THAT number.
-#
-# Approved as a future 35th method (2026-07-29). Deferred, not rejected.
-#
-# An earlier version of this comment claimed only 4 of 22 letters yield a value.
-# That was wrong — every integer is nameable, and heh's milui is 6. The real
-# difficulty is narrower: 15 of the 22 milui totals are COMPOUND numbers
-# (alef 111, bet 412, …) and the Remak never spells a compound, so his
-# orthography for them is not directly fixed. What IS fixed carries over from
-# §8's NUMBER_NAMES table above (masculine units, defective plene, 100=מאה,
-# 200=מאתים, and 300/400 written closed as שלשמאות/ארבעמאות — itself his
-# convention for a multi-part number). Constituent order is irrelevant here
-# because gematria is a sum and addition commutes. That leaves the conjunctive
-# vav (worth 6) and אחד עשר vs עשתי עשר as the genuinely open choices.
-#
-# The remaining objection is about scope, not spelling: the Remak demonstrates
-# §9 on a single letter as an exegetical observation, not as a cipher for
-# summing running text, so implementing it extends his rule further than he
-# took it. If shipped it should state its reconstruction convention explicitly,
-# the way ImMiluiNekudot already declares it has no single classical source.
+def g_mispari_hagadol(s: str) -> int:
+    """Mispar HaMispari HaGadol - name each letter's MILUI total.
+
+    Pardes Rimonim, Gate 30 §9 ("ט מספריי הגדול"): "יו\"ד במילואו עשרים,
+    ועשרים בגימט' כתר" — yud's milui (יוד) is 20, and עשרים is 620, which is
+    כתר. Distinct from §8 Mispar HaMispari, which names the letter's STANDARD
+    value; this one names its milui total.
+
+    The Remak's example is reproduced exactly by this implementation
+    (yud -> 20 -> עשרים -> 620 = כתר), and it is the only checksum the method
+    has: he spells one number, and it is not a compound.
+
+    PARTLY RECONSTRUCTED, and deliberately so. 15 of the 22 milui totals are
+    compounds (alef 111, bet 412 …) which he never spells, so their orthography
+    is set by `compose_number_name` rather than by him. What carries over from
+    him is the §8 NUMBER_NAMES table; what does not is the joining convention
+    (conjunctive vav) and the eleven-form (אחד עשר). Both are argued at
+    `compose_number_name`. Precedent for shipping a reconstruction is
+    ImMiluiNekudot, which likewise declares no single classical source.
+
+    A note on scope, since it is the honest objection to this method: the Remak
+    demonstrates §9 on ONE letter as an exegetical observation, not as a cipher
+    for summing running text. Using it that way extends his rule further than he
+    took it. The Guide says so on the method's own row.
+    """
+    return sum(g_absolute(compose_number_name(MILUI_VALS.get(_normalize_final(c), 0)))
+               for c in s)
 
 
 def g_reverse_ordinal(s: str) -> int:
@@ -579,6 +645,7 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Gadol":            g_gadol,             # Mispar Gadol (finals 500-900)
     "KatanMispari":     g_katan_mispari,     # Mispar Katan Mispari (digital root)
     "Mispari":          g_mispari,           # Mispar HaMispari (name each letter's value)
+    "MispariHaGadol":   g_mispari_hagadol,   # Gate 30 §9 (name each letter's milui total)
     # ── Ordinal / positional ciphers ─────────────────────────────────────────
     "Siduri":           g_siduri,            # Mispar Siduri (ordinal 1-22)
     "ReverseOrdinal":   g_reverse_ordinal,   # Reverse ordinal: Tav=1 … Alef=22
@@ -678,6 +745,16 @@ COLEL_EXEMPT: frozenset = frozenset({
 # hyperscale squared totals that break Pearson correlation and always show 0% balance.
 _HEATMAP_EXCLUDE: frozenset = frozenset({"KatanMispari", "HaMerubahKlali"})
 
+# Method counts are DERIVED, never written as literals. Two distinct numbers
+# are in play and a find-and-replace on one silently corrupts the other:
+#   N_CIPHERS         — the headline "N methods" figure used across the UI.
+#   N_HEATMAP_CIPHERS — the correlation/balance heatmaps only, which drop
+#                       _HEATMAP_EXCLUDE. Whether a new cipher belongs in that
+#                       set is a judgement call per method, so this must stay
+#                       derived from the frozenset rather than hardcoded.
+N_CIPHERS: int = len(CIPHERS)
+N_HEATMAP_CIPHERS: int = len(CIPHERS) - len(_HEATMAP_EXCLUDE)
+
 # Display labels for cipher selector widgets. Internal names stay as short
 # CIPHER_NAMES keys (Python dicts, SQL columns); these labels are used only
 # in interactive selectors via format_func, never as DB column names.
@@ -714,6 +791,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Boneeh":          "Bone'eh — מספר בונה",
     "HaAchor":         "HaAchor — מספר האחור",
     "Mispari":         "Mispari — מספר המספריי",
+    "MispariHaGadol":  "Mispari HaGadol — מספריי הגדול",
     "KololEhad":       "Kolel (Word) — כולל",
     "KololOtiyot":     "Kolel (Letters) — כולל אותיות",
 }
@@ -753,6 +831,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
     "HaAchor":         "Each Standard value × its ordinal position within the word; position resets per word. Pardes Rimonim Sha'ar 30.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum those words' values. י=10→עשרה=575, ה=5→חמשה=353.",
+    "MispariHaGadol":  "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620. Compound numbers are spelled by a stated convention, not by the Remak.",
     "KololEhad":       "Standard total + 1 (the word counted as one collective unit).",
     "KololOtiyot":     "Standard total + number of letters in the unit (one per letter). Also called Mispar Musafi.",
 }
@@ -2424,8 +2503,8 @@ def span_search(
     cross_verse: bool = False,
 ) -> pd.DataFrame:
     """Find every contiguous multi-word span (2..max_span words) whose `cipher`
-    value equals `target` (or target±1 if colel).  Works for all 34 ciphers
-    because every cipher composes additively across words.
+    value equals `target` (or target±1 if colel).  Works for every cipher
+    because they all compose additively across words.
 
     Returns a DataFrame with columns: Book, Ch, Vs, Track, Words, <cipher>,
     plus half-open word offsets `_w0`/`_w1` (0-indexed, `_w1` exclusive) for the
@@ -2928,6 +3007,15 @@ def cipher_breakdown(cipher: str, consonants: str,
         elif cipher == "AchasBeta":
             sw = ACHAS_BETA_MAP.get(base, base)
             result.append((f"{ch}→{sw}", STANDARD.get(_normalize_final(sw), 0)))
+        elif cipher == "Mispari":
+            # Name the letter's STANDARD value: י → "עשרה" → 575.
+            name = NUMBER_NAMES.get(v_std, "")
+            result.append((f"{ch}={v_std}→{name}", g_absolute(name)))
+        elif cipher == "MispariHaGadol":
+            # Name the letter's MILUI total: י → יוד=20 → "עשרים" → 620.
+            mv = MILUI_VALS.get(base, 0)
+            name = compose_number_name(mv)
+            result.append((f"{ch}={mv}→{name}", g_absolute(name)))
         else:
             result.append((ch, 0))
     return result
@@ -3341,6 +3429,20 @@ def run_selftest() -> None:
     assert g_haachor(two_words) == 1819,      g_haachor(two_words)     # אמת:1281 + שלום:538
     assert g_mityashev(two_words) == 2827,    g_mityashev(two_words)   # אמת:1323 + שלום:1504
     assert g_boneeh(two_words) == 1825,       g_boneeh(two_words)      # אמת:483 + שלום:1342
+    # Gate 30 §9 — the Remak's own worked example is the ONLY checksum this
+    # method has, so pin it: yud's milui יוד = 20, and עשרים = 620 = כתר.
+    assert MILUI_VALS["י"] == 20,             MILUI_VALS["י"]
+    assert compose_number_name(20) == "עשרים", compose_number_name(20)
+    assert g_mispari_hagadol("י") == 620,     g_mispari_hagadol("י")
+    assert g_absolute("כתר") == 620,          g_absolute("כתר")
+    # Composition invariant: every composed name must denote the number it
+    # was built from, so a spelling slip cannot pass silently.
+    _inv = {v: k for k, v in NUMBER_NAMES.items()}
+    _inv.update({v: k for k, v in TEEN_NAMES.items()})
+    for _ltr, _mv in MILUI_VALS.items():
+        _nm = compose_number_name(_mv)
+        _sum = sum(_inv[_p.strip()] for _p in _nm.split(" ו") if _p.strip() in _inv)
+        assert _sum == _mv, (_ltr, _mv, _nm, _sum)
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -4317,7 +4419,7 @@ def run_app() -> None:
         st.markdown(
             "Search the Tanach by gematria. Enter a Hebrew word, name, or "
             "phrase to find every word, phrase, or verse that shares its "
-            "value under any of 34 methods."
+            f"value under any of {N_CIPHERS} methods."
             + ("" if app_view else
                " The other tabs browse the text by structure, surface "
                "recurring patterns, and chart the corpus statistically.")
@@ -4346,7 +4448,7 @@ def run_app() -> None:
                     "Browse the entire Tanach by structural unit: Chapter (פרק Perek), "
                     "book (ספר Sefer), open paragraph (Pesucha פ), "
                     "closed paragraph (Setuma ס), or individual Verse (פסוק). "
-                    "Every row shows gematria totals under the 34 methods for that block."
+                    f"Every row shows gematria totals under the {N_CIPHERS} methods for that block."
                     "Click a row to open the verse detail panel."
                 )
 
@@ -4368,7 +4470,7 @@ def run_app() -> None:
                 st.markdown("**4 · Macro Statistical Dashboard**")
                 st.markdown(
                     "High-level statistics across the full corpus: highest and lowest values by structure, "
-                    "value-distribution histograms, a 32-method correlation heatmap, a per-book fingerprint "
+                    f"value-distribution histograms, a {N_HEATMAP_CIPHERS}-method correlation heatmap, a per-book fingerprint "
                     "chart, and integer ranges with no verse representation. All charts are interactive — "
                     "hover, zoom, and download. A **cross-method half-verse balance heatmap** at the "
                     "bottom shows, for every method pair, the fraction of verses whose first half "
@@ -4384,9 +4486,9 @@ def run_app() -> None:
             "Talmudic or later."
         )
 
-        with st.expander("The 34 gematria methods"):
+        with st.expander(f"The {N_CIPHERS} gematria methods"):
             st.caption(
-                "These 34 are the methods implemented here, not a complete "
+                f"These {N_CIPHERS} are the methods implemented here, not a complete "
                 "catalogue — the tradition contains many more, and further "
                 "variants can be formed by combining them. Each is listed with "
                 "the earliest source known for it.")
@@ -4520,6 +4622,10 @@ def run_app() -> None:
                  "Hebrew": "מספר המספריי (Mispar HaMispari)",
                  "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13. Follows the Remak's own masculine spellings.",
                  "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §8 — the Remak (1548)."},
+                {"Method": "MispariHaGadol",
+                 "Hebrew": "מספריי הגדול (Mispar HaMispari HaGadol)",
+                 "Rule": "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620. Partly reconstructed: the Remak spells only this one number, so compound totals (א→111→מאה ואחד עשר) follow a stated convention — hundreds first, joined by a vav, with אחד עשר for eleven.",
+                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §9 — the Remak (1548): 'יו\"ד במילואו עשרים, ועשרים בגימט' כתר'. He brings it on a single letter as a remez, not as a method for adding up whole words."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
@@ -4977,7 +5083,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # for. Keying on _c_cons gives each distinct search its own toggle,
                 # defaulting to off, the way a fresh search should.
                 if not st.checkbox("Compute cross-method matrix", key=f"xm_run_{_c_cons}",
-                                   help="Scans the corpus under all 34 methods to build a 34x34 count matrix. Takes a few seconds, so it is off by default and a plain search does not pay for it."):
+                                   help=f"Scans the corpus under all {N_CIPHERS} methods to build a {N_CIPHERS}x{N_CIPHERS} count matrix. Takes a few seconds, so it is off by default and a plain search does not pay for it."):
                     st.caption("Off by default — this scan takes a few seconds. "
                                "Tick to run it; the result is then cached.")
                 else:
@@ -5287,7 +5393,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 mask = show["Book"].str.contains(q, case=False, na=False)
                 show = show[mask]
             st.caption("Click any gematria value cell to find every unit in the corpus "
-                       "that shares that number, across the 34 methods.")
+                       f"that shares that number, across the {N_CIPHERS} methods.")
             t2_col_config = {
                 "Book":    st.column_config.TextColumn("Book", width="medium"),
                 "Chapter": st.column_config.NumberColumn("Chapter", width="small"),
@@ -5316,7 +5422,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Pick a gematria method, then select a row above. The bottom "
                      "panel lists every corpus unit sharing that row's value under "
-                     "any of the 34 methods.")
+                     f"any of the {N_CIPHERS} methods.")
 
             sel_rows = event2.selection.rows
             _sel_partial = False
@@ -5342,7 +5448,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         else int(row2[c]))
                     for c in t2_ciphers if c in row2.index
                 }
-                st.markdown("**Selected unit — values across the 34 methods:**"
+                st.markdown(f"**Selected unit — values across the {N_CIPHERS} methods:**"
                             if t2_ciphers is CIPHER_NAMES else
                             "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
