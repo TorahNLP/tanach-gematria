@@ -3290,8 +3290,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         # is: corpus text must never inject tags. Attribution is NOT emitted
         # here — see the document-level notice.
         if query_english:
-            _q_en_label = ("English — full verse" if query_english_is_full_verse
-                           else "English")
+            # This block sits inside the query section, whose title already
+            # names the unit, so it needs no reference of its own — but it must
+            # not read identically to the match's block further down.
+            _q_en_label = ("English — search query, full verse"
+                           if query_english_is_full_verse
+                           else "English — search query")
             _q_en_block = (f'<p class="en-label">{e(_q_en_label)}</p>'
                            f'<div class="en">{e(query_english)}</div>')
         else:
@@ -3328,8 +3332,11 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         # emitted here — it is rendered once at document level below, because
         # an export can now carry TWO translations (query + match) and the
         # CC-BY-NC notice must appear exactly once, not per block.
-        _en_label = ("English — full verse" if english_is_full_verse
-                     else "English")
+        # Say "match" only when a query translation is also in the document;
+        # on its own the Source Text section title is enough.
+        _m_word = "English — match" if query_english else "English"
+        _en_label = (f"{_m_word}, full verse" if english_is_full_verse
+                     else _m_word)
         en_block = (f'<p class="en-label">{e(_en_label)}</p>'
                     f'<div class="en">{e(english)}</div>')
     else:
@@ -4616,8 +4623,11 @@ def run_app() -> None:
             # otherwise this would print the same translation twice.
             if show_english and query_english_text and \
                     (str(_qb), int(_qc), int(_qv)) != (str(book), int(chapter), int(verse)):
-                _q_lbl = (query_info or {}).get("label") or "Search query"
-                st.markdown(f"**English — {_q_lbl} ({_qb} {_qc}:{_qv}):**")
+                # Name the verse once. `label` already reads "Selected Unit
+                # (Genesis 1:1)" when Tab 2 or verse mode sets it, so appending
+                # the reference again printed it twice.
+                st.markdown(
+                    f"**English — search query ({book_label(_qb)} {_qc}:{_qv}):**")
                 st.text(query_english_text)
             if show_english and english_text:
                 # No edition name in the heading — the attribution caption
@@ -4625,10 +4635,17 @@ def run_app() -> None:
                 # crowded the line. "full verse" stays: it is not attribution,
                 # it says the English covers the whole verse rather than the
                 # sub-unit being scored.
+                # Name the matched verse whenever a query translation is also
+                # on screen: two untitled "English:" blocks give the reader no
+                # way to tell which verse each belongs to. "full verse" stays
+                # for a sub-unit — it says the English covers the whole verse
+                # rather than the scored span.
+                _m_ref = (f" ({book_label(str(book))} {chapter}:{verse})"
+                          if query_english_text else "")
                 if sub_unit:
-                    st.markdown("**English — full verse:**")
+                    st.markdown(f"**English — match{_m_ref}, full verse:**")
                 else:
-                    st.markdown("**English:**")
+                    st.markdown(f"**English — match{_m_ref}:**")
                 # st.markdown would interpret stray _ * [ ] in the translation
                 # as formatting (the markdown-injection class of bug fixed in
                 # 4702cd8), so the text goes through st.text, not markdown.
