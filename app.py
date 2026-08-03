@@ -5219,31 +5219,38 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # Browse sits directly under the reference box and ABOVE the colel
             # toggle: it is part of choosing what to search, whereas colel is a
             # property of the search itself.
-            if not app_view:
-                with st.expander("Browse for a reference"):
-                    _ridx = cached_ref_index(conn, corpus_key)
-                    bc1, bc2, bc3 = st.columns(3)
-                    with bc1:
-                        # Canonical Tanach order, not alphabetical — a reader
-                        # looks for Shemos after Bereishis, not after Ruth.
-                        _b_opts = [b for b in BOOK_ORDER if b in _ridx]
-                        _b_sel = st.selectbox("Book", _b_opts,
-                                              format_func=book_label,
-                                              key="t1_vs_book")
-                    with bc2:
-                        _c_sel = st.selectbox("Chapter",
-                                              sorted(_ridx.get(_b_sel, {})),
-                                              key="t1_vs_ch")
-                    with bc3:
-                        _v_sel = st.selectbox(
-                            "Verse", _ridx.get(_b_sel, {}).get(_c_sel, []),
-                            key="t1_vs_v")
-                    if st.button("Use this reference", key="t1_vs_use"):
-                        # The canonical name goes in the box: parse_verse_ref
-                        # resolves both spellings, and this keeps the committed
-                        # value aligned with the stored `book` column.
-                        st.session_state["t1_vs_ref"] = f"{_b_sel} {_c_sel}:{_v_sel}"
-                        st.rerun()
+            #
+            # Shown in BOTH views. It was app-view-gated at first, on the
+            # theory that three dropdowns are wrong for a phone — but that
+            # simply removed the only non-typing way in, and reads as the box
+            # having vanished. On a narrow screen the columns stack, which is
+            # fine; expanded by default so it is visible rather than a thin
+            # strip a reader has to know to open.
+            with st.expander("Browse for a reference", expanded=not _vs_ref):
+                _ridx = cached_ref_index(conn, corpus_key)
+                bc1, bc2, bc3 = st.columns(3)
+                with bc1:
+                    # Canonical Tanach order, not alphabetical — a reader
+                    # looks for Shemos after Bereishis, not after Ruth.
+                    _b_opts = [b for b in BOOK_ORDER if b in _ridx]
+                    _b_sel = st.selectbox("Book", _b_opts,
+                                          format_func=book_label,
+                                          key="t1_vs_book")
+                with bc2:
+                    _c_sel = st.selectbox("Chapter",
+                                          sorted(_ridx.get(_b_sel, {})),
+                                          key="t1_vs_ch")
+                with bc3:
+                    _v_sel = st.selectbox(
+                        "Verse", _ridx.get(_b_sel, {}).get(_c_sel, []),
+                        key="t1_vs_v")
+                if st.button("Use this reference", key="t1_vs_use",
+                             width="stretch"):
+                    # The canonical name goes in the box: parse_verse_ref
+                    # resolves both spellings, and this keeps the committed
+                    # value aligned with the stored `book` column.
+                    st.session_state["t1_vs_ref"] = f"{_b_sel} {_c_sel}:{_v_sel}"
+                    st.rerun()
             colel = st.toggle("כולל (±1)", value=False, key="t1_vs_colel",
                               help=_tip("Rule of the Colel: also match "
                                         "Value−1 and Value+1."))
