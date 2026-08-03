@@ -4318,8 +4318,7 @@ def run_app() -> None:
             "Search the Tanach by gematria. Enter a Hebrew word, name, or "
             "phrase to find every word, phrase, or verse that shares its "
             "value under any of 34 methods."
-            + (" Classical (Talmud-attested) methods are listed first."
-               if app_view else
+            + ("" if app_view else
                " The other tabs browse the text by structure, surface "
                "recurring patterns, and chart the corpus statistically.")
         )
@@ -4334,6 +4333,9 @@ def run_app() -> None:
                 "highlighted and a letter-by-letter breakdown.\n\n"
                 "Toggle **כולל (±1)** on to also match values one above or "
                 "below.\n\n"
+                "**🔍 All word-span matches** finds runs of consecutive words "
+                "whose combined value matches, optionally carrying across a "
+                "verse boundary.\n\n"
                 "**🔀 Cross-method coincidences** compares every value of your "
                 "input against every method, highlighting rare matches."
             )
@@ -4392,140 +4394,140 @@ def run_app() -> None:
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
                  "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
-                 "Earliest Source": "29th hermeneutical rule of the Baraita of R. Eliezer ben Yose ha-Gelili (c. 200 CE). BT Sanhedrin 38a; BT Nedarim 32a (318 servants = אֱלִיעֶזֶר). The term 'gematriot' appears in Mishnah Avot 3:18."},
+                 "Source": "The 29th of the ל\"ב middos of R' Eliezer ben Yose ha-Gelili (c. 200 CE). סנהדרין ל\"ח ע\"א; נדרים ל\"ב ע\"א (Avraham's 318 men = אֱלִיעֶזֶר). The term גימטריאות appears in אבות ג׳:י״ח."},
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
-                 "Earliest Source": "Medieval. No Talmudic source for this specific reduction. Formalized in Hasidei Ashkenaz tradition (12th–13th c.), appearing in works such as Sefer Gematriot (attr. R. Yehuda he-Hasid, d. 1217)."},
+                 "Source": "No source in Chazal for this particular reduction. Formulated among the חסידי אשכנז (12th–13th c.), and found in ספר גימטריאות (attributed to R' Yehuda haChassid, d. 1217)."},
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Standard, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
-                 "Earliest Source": "27-letter sequence including finals described in Sefer Yetzirah 2:2 (3rd–6th c. CE). Consolidated and systematized in Siftei Yeshanim (R. Shabbethai Bass, 17th c.)."},
+                 "Source": "The 27-letter sequence including the sofios is in ספר יצירה ב׳:ב׳. Set out systematically in שפתי ישנים (R' Shabsai Bass, 17th c.)."},
                 {"Method": "KatanMispari",
                  "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
                  "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
-                 "Earliest Source": "Cataloged by early Renaissance Jewish scholars. Treated in Pardes Rimonim (Gate 30)."},
+                 "Source": "Brought in פרדס רימונים (שער ל׳)."},
                 {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
                  "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
-                 "Earliest Source": "Formally categorized as a gematria method in Pardes Rimonim (Sha'ar HaGematria, Gate 30) by R. Moshe Cordovero, the Remak (1548). Ordinal counting is implicit in earlier Talmudic letter-position discussions (e.g. BT Shabbat 104a)."},
+                 "Source": "Set down as a method in פרדס רימונים (שער הגימטריאות, שער ל׳) by R' Moshe Cordovero, the Remak (1548). Counting by letter-position is already implicit in Chazal — see שבת ק״ד ע״א."},
                 {"Method": "ReverseOrdinal",
                  "Hebrew": "מספר אחור סידורי (Reverse Ordinal)",
                  "Rule": "Reverse alphabetical index: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri.",
-                 "Earliest Source": "Chassidei Ashkenaz (12th–13th c.); referenced in Sefer Raziel HaMalach."},
+                 "Source": "חסידי אשכנז (12th–13th c.); brought in ספר רזיאל המלאך."},
                 {"Method": "Ribua",
                  "Hebrew": "מספר מרובע / פרטי (Mispar Meruba Prati)",
                  "Rule": "Square each individual letter's Standard value, then sum all squares (Σ vᵢ² — per letter, not the total squared).",
-                 "Earliest Source": "Mainstreamed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.) in his Torah commentary. Also documented in Pardes Rimonim (Gate 30)."},
+                 "Source": "Used widely by the בעל הטורים (R' Yaakov ben Asher, 14th c.) in his peirush on the Torah. Also in פרדס רימונים (שער ל׳)."},
                 {"Method": "HaMerubahKlali",
                  "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
                  "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua, which squares per letter. "
                          "Searching it alone returns the same matches as Standard; its use is in cross-method comparison.",
-                 "Earliest Source": "Pardes Rimonim (the Remak, Sha'ar 30)."},
+                 "Source": "פרדס רימונים (the Remak, שער ל׳)."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
                  "Rule": "Cumulative prefix sum of Standard values: each letter's value = Σ Standard values from א up to and including it. א=1, ב=3, ג=6, ד=10 … ת=1495.",
-                 "Earliest Source": "Mapped in Pardes Rimonim (Gate 30, Ch. 8) by the Remak (1548)."},
+                 "Source": "Laid out in פרדס רימונים (שער ל׳, פרק ח׳) by the Remak (1548)."},
                 {"Method": "Milui",
                  "Hebrew": "מילוי / מספר שמי (Mispar Milui)",
                  "Rule": "Spell each letter's full name as a Hebrew word, then sum Standard values of all spelling letters. א=אלף=111, ב=בית=412, ח=חית=418 …",
-                 "Earliest Source": "Deployed in the Zoharic Sifra diTzni'uta (Book of Concealment). Pardes Rimonim, Gate 30 (the Remak, 1548)."},
+                 "Source": "Used in the Zoharic ספרא דצניעותא. פרדס רימונים, שער ל׳ (the Remak, 1548)."},
                 {"Method": "Neelam",
                  "Hebrew": "נעלם (Mispar Neelam — Hidden)",
                  "Rule": "Like Milui, but drop the first letter of each spelling — only the hidden remainder counts. א→לף=110, ח→ית=410 …",
-                 "Earliest Source": "Pardes Rimonim (Sha'ar HaGematria, Gate 30, the Remak, 1548)."},
+                 "Source": "פרדס רימונים (שער הגימטריאות, שער ל׳, the Remak, 1548)."},
                 {"Method": "Emtzaiyot",
                  "Hebrew": "אמצעיות (Emtzaiyot — Middle Letters)",
                  "Rule": "Standard value of the second letter of each letter's Milui name. Uses the 2-letter (Lurianic) spellings: אלף→ל=30, בית→י=10. ה (הא) and פ (פא) have two-letter names, so the second letter is also the last — for these the value matches Ofanim.",
-                 "Earliest Source": "Lurianic letter-name tradition; referenced in Sefer Raziel HaMalach."},
+                 "Source": "The Arizal's letter-name spellings; brought in ספר רזיאל המלאך."},
                 {"Method": "Ofanim",
                  "Hebrew": "אופנים (Ofanim — Wheels)",
                  "Rule": "Replace each letter with the final letter of its Milui name spelling, take Standard value.",
-                 "Earliest Source": "Sefer Raziel HaMalach."},
+                 "Source": "ספר רזיאל המלאך."},
                 {"Method": "HaNekudot",
                  "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
                  "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh/Shuruk=10, Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30. Taamim and shin/sin dot excluded.",
-                 "Earliest Source": "Conceptual roots in Tikunei HaZohar (Tikun 5 and 70, late 13th c.), which analyses vowel shapes as Yod (dot) and Vav (line). The explicit mathematical gematria system belongs to R. Isaac Luria (Arizal, 16th c.), recorded by R. Chaim Vital in Sha'ar HaKavanot and Etz Chaim (Sha'ar TaNTA — Ta'amim, Nekudot, Tagin, Otiot)."},
+                 "Source": "Roots in תיקוני הזהר (תיקון ה׳ and ע׳, late 13th c.), which learns out the shapes of the nekudos as yud (dot) and vav (line). The cheshbon itself is from the Arizal (R' Yitzchak Luria, 16th c.), recorded by R' Chaim Vital in שער הכוונות and עץ חיים (שער תנת\"א — טעמים, נקודות, תגין, אותיות)."},
                 {"Method": "ImHaNekudot",
                  "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
                  "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines consonant totals with vowel-mark geometric values in a single sum.",
-                 "Earliest Source": "Pardes Rimonim (the Remak, 1548), Sha'ar HaGematriot (Gate 30), Chapter 8."},
+                 "Source": "פרדס רימונים (the Remak, 1548), שער הגימטריאות (שער ל׳), פרק ח׳."},
                 {"Method": "MiluiNekudot",
                  "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
                  "Rule": "Standard gematria of the Hebrew NAME of each vowel mark, using Gikatilla's spellings. שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307.",
-                 "Earliest Source": "R. Yosef Gikatilla, Ginnat Egoz (1274). In the section on the mystery of the nekudot, Gikatilla computes Standard gematria of each vowel mark's spelled-out name (פתח=488, קמץ=230, צרי=300, שבא=303 …) ."},
+                 "Source": "R' Yosef Gikatilla, גנת אגוז (1274), in the section on the sod of the nekudos, where he brings the gematria of each nekuda's spelled-out name (פתח=488, קמץ=230, צרי=300, שבא=303 …)."},
                 {"Method": "ImMiluiNekudot",
                  "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
                  "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
-                 "Earliest Source": "Extension combining Gikatilla's Milui HaNekudot system (Ginnat Egoz, 1274) with the Remak's Im HaNekudot framework (Pardes Rimonim, 1548). No single classical source specifies this exact combination."},
+                 "Source": "Combines R' Yosef Gikatilla's מילוי הנקודות (גנת אגוז, 1274) with the Remak's עם הנקודות (פרדס רימונים, 1548). No single source gives this exact combination."},
                 {"Method": "MiluiMaleh",
                  "Hebrew": "מילוי מלא (Milui Maleh — Full Filling)",
                  "Rule": "Like Milui, but uses the Maleh (מלא) 3-letter spellings for כ and מ: כ=כאף=101, מ=מאם=81. All other letter spellings are identical to standard Milui.",
-                 "Earliest Source": "The Maleh/Chaser spelling distinction parallels the scribal tradition of כתיב מלא (full spelling) vs. כתיב חסר (deficient spelling). Various Lurianic and Sephardic sources employ the 3-letter forms; cf. Sha'ar HaKavanot and related Ari texts."},
+                 "Source": "The maleh/chaser distinction follows the scribal tradition of כתיב מלא and כתיב חסר. The 3-letter forms are used in various Lurianic and Sephardic sources; cf. שער הכוונות and related kisvei haAri."},
                 {"Method": "NeelAmMaleh",
                  "Hebrew": "נעלם מלא (Neelam Maleh — Full Hidden)",
                  "Rule": "Like Neelam, but with Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Reveals an additional Alef hidden inside each of these letters.",
-                 "Earliest Source": "Parallel to Milui Maleh; the Maleh spelling tradition applied to the Neelam (hidden remainder) system."},
+                 "Source": "Parallel to מילוי מלא; the maleh spellings applied to the נעלם (hidden remainder)."},
                 {"Method": "EmtzaiyotMaleh",
                  "Hebrew": "אמצעיות מלא (Emtzaiyot Maleh — Full Middle)",
                  "Rule": "Like Emtzaiyot, but with Maleh 3-letter spellings. Both כ (כאף) and מ (מאם) now yield א=1 as their inner letter, fully distinct from their Ofanim value. אלף→ל=30, בית→י=10, כאף→א=1, מאם→א=1.",
-                 "Earliest Source": "Maleh spelling tradition applied to the Emtzaiyot system; follows from the same Pardes Rimonim framework."},
+                 "Source": "The maleh spellings applied to אמצעיות; follows the same פרדס רימונים framework."},
                 {"Method": "Atbash",
                  "Hebrew": "אתב\"ש (At-Bash)",
                  "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Standard values of the swapped letters.",
-                 "Earliest Source": "'Sheshach' (שֵׁשַׁךְ) in Jeremiah 25:26 and 51:41 is Babel (בָּבֶל) by Atbash. Recognized explicitly in BT Sanhedrin 22b. Classified as a temurah system in Sefer Yetzirah ch. 2."},
+                 "Source": "שֵׁשַׁךְ in ירמיהו כ״ה:כ״ו and נ״א:מ״א is בָּבֶל by atbash. Stated explicitly in סנהדרין כ״ב ע״ב. Counted among the temuros in ספר יצירה פרק ב׳."},
                 {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
                  "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
-                 "Earliest Source": "Explicitly detailed in Yalkut Shimoni (Yisro, Remez 271). Classical temurah in Sefer Yetzirah ch. 2 (3rd–6th c. CE)."},
+                 "Source": "Spelled out in ילקוט שמעוני (יתרו, רמז רע\"א). A classical temura in ספר יצירה פרק ב׳ (3rd–6th c. CE)."},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
-                 "Earliest Source": "Outlined as a structural matrix in Sefer Raziel HaMalach. Part of the temurah permutation tradition in Sefer Yetzirah ch. 2 (3rd–6th c. CE)."},
+                 "Source": "Set out as a grid in ספר רזיאל המלאך. Part of the temura tradition of ספר יצירה פרק ב׳ (3rd–6th c. CE)."},
                 {"Method": "Atbach",
                  "Hebrew": "אטב\"ח (At-Bach)",
                  "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
-                 "Earliest Source": "Attributed to Rabbi Chiya (late 2nd/early 3rd c. CE). The phrase 'in the Atbah of Rabbi Chiya' (בְּאַטְבַּ״ח שֶׁל רַבִּי חִיָּיא) appears explicitly in BT Sukkah 52b. Also classified in the Baraita of 32 Hermeneutical Rules of R. Eliezer ben Yose ha-Gelili."},
+                 "Source": "From R' Chiya (late 2nd/early 3rd c. CE). The phrase בְּאַטְבַּ\"ח שֶׁל רַבִּי חִיָּיא appears in סוכה נ״ב ע״ב. Also counted in the ל\"ב middos of R' Eliezer ben Yose ha-Gelili."},
                 {"Method": "Avgad",
                  "Hebrew": "אבג\"ד (Av-Gad / Abgad)",
                  "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of the shifted letters. Also known as Mispar Ha'Ahari (next-letter value).",
-                 "Earliest Source": "Codified in Ta'am Zekenim (R. Eliezer Ashkenazi). Cyclic letter-shifting tradition rooted in Sefer Yetzirah (3rd–6th c. CE). R. Abraham Abulafia (13th c.) employs the next-letter method in his prophetic Kabbalah texts."},
+                 "Source": "Brought in טעם זקנים (R' Eliezer Ashkenazi). The cyclic letter-shift goes back to ספר יצירה (3rd–6th c. CE). R' Avraham Abulafia (13th c.) uses the next-letter method in his sefarim."},
                 {"Method": "Agdat",
                  "Hebrew": "אגד\"ת (Ag-Dat)",
                  "Rule": "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of the shifted letters.",
-                 "Earliest Source": "Pardes Rimonim, Gate 22 (the Remak, 1548)."},
+                 "Source": "פרדס רימונים, שער כ״ב (the Remak, 1548)."},
                 {"Method": "ReverseAvgad",
                  "Hebrew": "אבג\"ד הפוך (Reverse Avgad)",
                  "Rule": "−1 cyclic shift: Bet→Alef, Gimel→Bet … Alef wraps to Tav. Opposite of Avgad.",
-                 "Earliest Source": "R. Eliezer Ashkenazi, Ta'am Zekenim."},
+                 "Source": "R' Eliezer Ashkenazi, טעם זקנים."},
                 {"Method": "AyakBachar",
                  "Hebrew": "אי\"ק בכ\"ר (Ayak Bachar)",
                  "Rule": "3×9 cyclic rotation across units/tens/hundreds columns: א→י→ק→א, ב→כ→ר→ב … ט→צ→ץ→ט.",
-                 "Earliest Source": "Tikunei HaZohar (Tikkun 21)."},
+                 "Source": "תיקוני הזהר (תיקון כ״א)."},
                 {"Method": "AchasBeta",
                  "Hebrew": "אח\"ס בט\"ע (Achas Beta)",
                  "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
-                 "Earliest Source": "Pardes Rimonim (the Remak, Sha'ar 30)."},
+                 "Source": "פרדס רימונים (the Remak, שער ל׳)."},
                 {"Method": "Boneeh",
                  "Hebrew": "מספר בונה (Mispar Bone'eh — Building)",
                  "Rule": "Cumulative prefix sums per word: letter 1 alone, then 1+2, then 1+2+3 … Resets at each word boundary.",
-                 "Earliest Source": "The stacking/accumulation method has classical roots in Chasidei Ashkenaz (12th–13th c.), cited in Zohar II 270a, and catalogued in Pardes Rimonim (Gate 30, Ch. 8) by the Remak. The classical label is Mispar HaAchorayim (מספר האחוריים) or Mispar HaAkhor. The name 'Bone'eh' (Building) is a modern label not found in classical sources."},
+                 "Source": "The accumulation method goes back to the חסידי אשכנז (12th–13th c.), is brought in זהר ח\"ב ר״ע ע״א, and is catalogued in פרדס רימונים (שער ל׳, פרק ח׳) by the Remak. The classical name is מספר האחוריים. 'Bone'eh' is a modern label, not found in the sources."},
                 {"Method": "HaAchor",
                  "Hebrew": "מספר האחור (Mispar HaAchor)",
                  "Rule": "Each letter × its ordinal position within the word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
-                 "Earliest Source": "Pardes Rimonim (the Remak, Sha'ar 30, Ch. 8)."},
+                 "Source": "פרדס רימונים (the Remak, שער ל׳, פרק ח׳)."},
                 {"Method": "Mispari",
                  "Hebrew": "מספר המספריי (Mispar HaMispari)",
                  "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13. Follows the Remak's own masculine spellings.",
-                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §8 — the Remak (1548)."},
+                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §8 — the Remak (1548)."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
-                 "Earliest Source": "Ba'al HaTurim (R. Jacob ben Asher, 14th c.). Defined in Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §4 as the second clause of Mispar Musafi — 'או המלה עצמה', or the word itself."},
+                 "Source": "בעל הטורים (R' Yaakov ben Asher, 14th c.). Defined in פרדס רימונים, שער הגימטריאות (שער ל׳) §4 as the second half of מספר מוספי — 'או המלה עצמה', or the word itself."},
                 {"Method": "KololOtiyot",
                  "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
                  "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
-                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §4: 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה' — the Remak (1548) defines Mispar Musafi as adding the word's letters to its value, or else the word itself. The first clause is this method; the second is Kolel (Word)."}
+                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §4: 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה' — the Remak (1548) defines מספר מוספי as adding the word's letters to its value, or else the word itself. The first half is this method; the second is כולל (Word)."}
             ]))
 
         with st.expander("Boundary types"):
@@ -4547,10 +4549,9 @@ def run_app() -> None:
         # flags the few verses that actually differ — see HANDOFF.)
         if app_view:
             st.info(
-                "**Reading text:** this app searches the **Ksiv (כְּתִיב)** — the "
-                "consonantal text as written — only. Kri (קְרֵי) readings and "
-                "Masoretic textual variants are not included in app results. "
-                "The full site covers them.")
+                "**Reading text:** searches the **Ksiv (כְּתִיב)** — the "
+                "consonantal text as written. Kri (קְרֵי) readings and textual "
+                "variants are not included.")
         # Guarded with a two-space-indented `with` so the ~40-line body keeps its
         # original indentation — same trick the tab guards use.
         if not app_view:
