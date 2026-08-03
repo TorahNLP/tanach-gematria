@@ -282,11 +282,47 @@ duplicated, not shared — **factor it into one helper** as part of this work.
 3. **Whole-verse query** with the word-button selector, including B1, B4, B6.
 4. **Phrase units, word range, cascading-select fallback** (site-only) last.
 
-### Still open for Joshua
+### Decided by Joshua (2026-08-03)
 
-1. **Kri track (B6):** when a picked verse has a Kri reading, should the site
-   default to Ksiv with a selector, or ask explicitly?
-2. **Method scope:** default the verse mode to Standard only, or all 35? Median
-   is 17 matches on Standard but ~595 across all methods — the latter is a
-   browse, not a lookup.
-3. **Tab 2 filter change:** in scope for this work, or a separate change?
+**No track selector at all.** Instead: if the **selected unit** contains a
+Ksiv/Kri divergence, the four vowel-mark methods are simply **unavailable** for
+that query, with a short note saying why. This is better than a track chooser —
+it asks the reader nothing, and it matches the existing corpus-side rule rather
+than inventing a second mechanism. Supersedes B6.
+
+⚠️ **Judge the flag on the SELECTED UNIT's own row, never the parent verse's.**
+This is the trap Joshua called out, and it is real: **922 clean halves and
+15,856 clean words sit inside verses that are flagged at verse level.** Reading
+the verse's flag would wrongly bar ~16,000 valid units from the vowel-mark
+methods.
+
+The engine already stores it this way — `nikud_partial` is set per unit at build
+time, judged on that unit's own cantillated text (HANDOFF: "Judged on each
+unit's **own** cantillated text, never the parent verse's"). So the query-side
+gate is a lookup of the chosen unit's row, not a recomputation:
+
+```sql
+SELECT nikud_partial FROM units
+WHERE book=? AND chapter=? AND verse=? AND boundary_type=? AND variant_track=?
+```
+
+For a **word range / WordSpan** there is no stored row, so reuse the prefix-sum
+approach `span_search` already uses: the span is flagged if any word it covers
+is flagged. Do **not** re-derive with `has_unpointed_word` at the query site —
+HANDOFF's standing rule is that the thirteen query paths must reuse the column
+so they cannot drift.
+
+**Method default: Standard**, selected by default. (Median 17 matches, vs ~595
+across all 35 — the latter is a browse, not a lookup.)
+
+### Still open
+
+**Tab 2 filter change** — in scope, or separate? What it means: Tab 2's only
+filter today is `st.text_input("Filter (book contains)")` (`app.py:5391`), a
+substring match on the book name. To reach Genesis 1:1 you type "Genesis" and
+then scroll a 23,206-row canvas table, because there is no chapter or verse
+filter. The proposal is to feed that same box through the new
+`parse_verse_ref`, so typing `Genesis 1:1` (or `בראשית א:א`) jumps straight to
+the verse while a bare book name still filters as it does now. One parser, two
+call sites — and it removes the "which tab do I use?" overlap by making Tab 2
+genuinely a browser and Tab 1 the lookup.

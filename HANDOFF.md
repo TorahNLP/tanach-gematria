@@ -300,6 +300,37 @@ functions with zero errors under `-W error::UserWarning`.
 threads. Do not put a bare DB connection, cursor, or other stateful client in
 it.**
 
+### It happened again — exit 139 on 2026-08-03 (`343f311`, reverted in `2b7b710`)
+
+The verse-reference search mode took production down the same way, and the
+lesson is narrower than the rule above: **`ThreadLocalConnection` protects you
+only where it is actually used per thread. Calling `raw_conn(conn).execute(...)`
+directly in the SCRIPT BODY does not.**
+
+The new mode ran two ad-hoc queries at Tab-1 script level — "which boundary
+types does this verse have", "which sub-units" — so they re-executed on **every
+rerun of every session**, unwrapped and uncached. Local testing never caught it
+because a single user never overlaps; the Space segfaulted (exit 139) within
+minutes of real traffic. This is the same failure the section above documents,
+reintroduced by copying the *syntax* of the one existing `raw_conn` call site
+(inside a nested function that fires on demand) without noticing **where** it
+was safe to run.
+
+**Do this instead:** put the query in a `@st.cache_data` function taking the
+connection as `_conn` (Streamlit then skips hashing it) with `corpus_key` for
+identity — exactly how `search_phrase`, `span_search` and `boundary_population`
+already do it. A verse's available units are a pure function of the reference,
+so they cache perfectly.
+
+**Two diagnostic notes for next time:**
+- `runtime.stage` said `RUNNING` while the app was already dying. **Check
+  `runtime.errorMessage` from the API**, not just the stage — it carries the
+  exit code. Failed page loads were misread as the documented cold-start
+  pattern for several minutes because the stage looked healthy.
+- Without an HF token in the session you cannot fetch `/logs/run`, but
+  `errorMessage` on the plain `/api/spaces/...` endpoint needs no auth and
+  carried the exit code and the tail of stdout.
+
 ---
 
 ## Performance: expander bodies run while collapsed (`fe6fb2f`)
