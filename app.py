@@ -853,6 +853,23 @@ BOOK_ORDER: List[str] = [
 ]
 
 
+# Display labels for the numbered books. "Kings I" reads the way this audience
+# says it; "I Kings" is the academic convention. DISPLAY ONLY — `book` is a
+# stored DB value and every query, sub_id and join uses the canonical form, so
+# renaming it would need a full rebuild. Anything user-facing should go through
+# book_label(); anything touching the DB must not.
+BOOK_DISPLAY_NAMES: Dict[str, str] = {
+    "I Samuel": "Samuel I", "II Samuel": "Samuel II",
+    "I Kings": "Kings I", "II Kings": "Kings II",
+    "I Chronicles": "Chronicles I", "II Chronicles": "Chronicles II",
+}
+
+
+def book_label(book: str) -> str:
+    """User-facing name for a book. Canonical DB name unless remapped above."""
+    return BOOK_DISPLAY_NAMES.get(book, book)
+
+
 def _book_rank_sql(column: str = "Book") -> str:
     """SQL CASE expression ranking `column` by canonical Tanach order.
 
@@ -1807,6 +1824,10 @@ def _norm_book_key(s: str) -> str:
     t = s.strip().lower()
     # Leading roman numerals -> digits, before punctuation is stripped.
     t = re.sub(r"^(i{1,3})[\s.]+", lambda mo: str(len(mo.group(1))) + " ", t)
+    # TRAILING roman numerals too: "Kings II" is how this audience writes it
+    # (and what BOOK_DISPLAY_NAMES shows), so it must parse as readily as
+    # "II Kings".
+    t = re.sub(r"[\s.]+(i{1,3})$", lambda mo: " " + str(len(mo.group(1))), t)
     # Trailing Hebrew alef/bet marker ("מלכים ב") -> digit.
     t = re.sub(r"[\s]*א$", " 1", t)
     t = re.sub(r"[\s]*ב$", " 2", t)
@@ -3640,6 +3661,13 @@ def run_selftest() -> None:
     # parse back to itself — otherwise a book becomes unreachable by typing.
     for _b in set(_BOOK_ALIASES.values()):
         assert parse_verse_ref(f"{_b} 1:1") == (_b, 1, 1), _b
+    # The DISPLAY spelling must parse too: the UI shows "Kings II", so a reader
+    # copying what they see has to get the same verse as "II Kings".
+    assert parse_verse_ref("Kings II 2:1") == ("II Kings", 2, 1)
+    assert parse_verse_ref("Samuel I 1:1") == ("I Samuel", 1, 1)
+    for _b, _lbl in BOOK_DISPLAY_NAMES.items():
+        assert parse_verse_ref(f"{_lbl} 1:1") == (_b, 1, 1), _lbl
+        assert _b in BOOK_ORDER, _b
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -5177,29 +5205,30 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # raw_conn(conn).execute() in this branch segfaulted the Space
             # (exit 139, reverted in 2b7b710).
             _vs_ref = None
-            vr1, vr2 = st.columns([3, 2])
-            with vr1:
-                _vs_raw = st.text_input(
-                    "Verse reference", key="t1_vs_ref",
-                    placeholder="e.g. Genesis 1:1, בראשית א:א, Bereishis 1:1",
-                    help=_tip("English, yeshivish or Hebrew book names. "
-                              "Chapter and verse may be digits or Hebrew "
-                              "letters."))
-                if _vs_raw.strip():
-                    _vs_ref = parse_verse_ref(_vs_raw)
-                    if _vs_ref is None:
-                        st.warning("Could not read that reference. Try "
-                                   "'Genesis 1:1' or 'בראשית א:א'.")
-            with vr2:
-                colel = st.toggle("כולל (±1)", value=False, key="t1_vs_colel",
-                                  help=_tip("Rule of the Colel: also match "
-                                            "Value−1 and Value+1."))
+            _vs_raw = st.text_input(
+                "Verse reference", key="t1_vs_ref",
+                placeholder="e.g. Genesis 1:1, בראשית א:א, Bereishis 1:1",
+                help=_tip("English, yeshivish or Hebrew book names. "
+                          "Chapter and verse may be digits or Hebrew "
+                          "letters."))
+            if _vs_raw.strip():
+                _vs_ref = parse_verse_ref(_vs_raw)
+                if _vs_ref is None:
+                    st.warning("Could not read that reference. Try "
+                               "'Genesis 1:1' or 'בראשית א:א'.")
+            # Browse sits directly under the reference box and ABOVE the colel
+            # toggle: it is part of choosing what to search, whereas colel is a
+            # property of the search itself.
             if not app_view:
                 with st.expander("Browse for a reference"):
                     _ridx = cached_ref_index(conn, corpus_key)
                     bc1, bc2, bc3 = st.columns(3)
                     with bc1:
-                        _b_sel = st.selectbox("Book", sorted(_ridx),
+                        # Canonical Tanach order, not alphabetical — a reader
+                        # looks for Shemos after Bereishis, not after Ruth.
+                        _b_opts = [b for b in BOOK_ORDER if b in _ridx]
+                        _b_sel = st.selectbox("Book", _b_opts,
+                                              format_func=book_label,
                                               key="t1_vs_book")
                     with bc2:
                         _c_sel = st.selectbox("Chapter",
@@ -5210,14 +5239,20 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             "Verse", _ridx.get(_b_sel, {}).get(_c_sel, []),
                             key="t1_vs_v")
                     if st.button("Use this reference", key="t1_vs_use"):
+                        # The canonical name goes in the box: parse_verse_ref
+                        # resolves both spellings, and this keeps the committed
+                        # value aligned with the stored `book` column.
                         st.session_state["t1_vs_ref"] = f"{_b_sel} {_c_sel}:{_v_sel}"
                         st.rerun()
+            colel = st.toggle("כולל (±1)", value=False, key="t1_vs_colel",
+                              help=_tip("Rule of the Colel: also match "
+                                        "Value−1 and Value+1."))
 
             if _vs_ref:
                 _vb, _vc, _vv = _vs_ref
                 _vobj = verse_index.get((_vb, _vc, _vv))
                 if _vobj is None:
-                    st.warning(f"{_vb} {_vc}:{_vv} is not in the loaded corpus.")
+                    st.warning(f"{book_label(_vb)} {_vc}:{_vv} is not in the loaded corpus.")
                 else:
                     _unit_opts = cached_verse_units(conn, corpus_key, _vb, _vc, _vv)
                     _unit = st.selectbox(
@@ -5270,7 +5305,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     if _p_raw else _p_cons)
                         import html as _h_esc
                         st.markdown(
-                            f"**{_vb} {_vc}:{_vv}** · "
+                            f"**{book_label(_vb)} {_vc}:{_vv}** · "
                             f"_{BOUNDARY_LABELS.get(_unit, _unit)}_")
                         st.markdown(
                             f"<div dir='rtl' style='font-size:1.15rem'>"
@@ -5284,7 +5319,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             st.session_state["t1_committed"] = {
                                 "cons": _p_cons, "raw": _p_raw or _p_cons,
                                 "wcons": _p_w or _p_cons,
-                                "label": f"Selected Unit ({_vb} {_vc}:{_vv})",
+                                "label": f"Selected Unit ({book_label(_vb)} {_vc}:{_vv})",
                                 "ref": (_vb, _vc, _vv),
                                 "nikud_partial": bool(_p_partial),
                             }
