@@ -3268,12 +3268,6 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     if query_info:
         raw  = e(query_info.get("raw", ""))
         cons = e(query_info.get("cons", ""))
-        # "also" matters: colel widens the search to value−1/value+1 IN
-        # ADDITION to the exact value (SQL BETWEEN), it does not replace it.
-        colel_txt = ("Applied — exact value, and ±1"
-                     if colel and active_method not in COLEL_EXEMPT
-                     else "On, but not applied to this method"
-                     if colel else "Not applied")
         # The query's own value, not the matched unit's — under colel they can
         # differ by 1, and labelling the match's value as "Value" under
         # "Search Query" conflated the two.
@@ -3319,7 +3313,6 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     <tr><td class="kl">{_cons_row_label}</td><td class="kv-val rtl">{cons}</td></tr>
     <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
     <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
-    <tr><td class="kl">Colel (±1)</td><td class="kv-val">{colel_txt}</td></tr>
   </table>
   {_q_en_block}
   {_q_disp}
@@ -3356,21 +3349,22 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      f'Values follow the Ksiv.</p>')
     else:
         kri_block = ""
-    # Colel note. The "Colel (±1)" row lives in sec1, which only renders when
-    # there IS a query_info — so a Gematria-value-mode print, or Tab 2's
-    # no-match path, said nothing about colel even with it switched on. A ±1
-    # match printed with no such note reads as an exact equality, which is
-    # precisely the misleading case. This sits in Source Text, which always
-    # renders, and appears only when colel is on (and does something: the
-    # exempt methods stay exact).
+    # Colel is mentioned ONLY when it actually affected this calculation.
+    # There used to be a "Colel (±1): Not applied" row in the query section,
+    # which put a line about colel on every print-out including the ones where
+    # it did nothing. Joshua's rule: mention it when the calculation uses it,
+    # otherwise keep it out of the document entirely.
+    #
+    # So: nothing when colel is off, and nothing when it is on but exempt for
+    # this method (KololEhad/KololOtiyot/KatanMispari/HaMerubahKlali/HaNekudot
+    # match exactly regardless). The note earns its place only in the case it
+    # explains — where a printed match can differ from the searched value by 1
+    # and would otherwise read as an arithmetic error.
     if colel and active_method not in COLEL_EXEMPT:
         colel_note = ('<p class="fn"><strong>כולל (±1) applied.</strong> '
                       'Matches include values one above and one below the '
                       'target as well as the exact value, so a match here may '
                       'differ from the searched value by 1.</p>')
-    elif colel:
-        colel_note = ('<p class="fn">כולל (±1) was on, but is not applied to '
-                      f'{e(str(active_method))} — its matches are exact.</p>')
     else:
         colel_note = ""
     sec2 = f"""
