@@ -831,7 +831,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
     "HaAchor":         "Each Standard value × its ordinal position within the word; position resets per word. Pardes Rimonim Sha'ar 30.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum those words' values. י=10→עשרה=575, ה=5→חמשה=353.",
-    "MispariHaGadol":  "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620. Compound numbers are spelled by a stated convention, not by the Remak.",
+    "MispariHaGadol":  "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620, א→אלף=111→מאה ואחד עשר.",
     "KololEhad":       "Standard total + 1 (the word counted as one collective unit).",
     "KololOtiyot":     "Standard total + number of letters in the unit (one per letter). Also called Mispar Musafi.",
 }
@@ -4624,8 +4624,8 @@ def run_app() -> None:
                  "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §8 — the Remak (1548)."},
                 {"Method": "MispariHaGadol",
                  "Hebrew": "מספריי הגדול (Mispar HaMispari HaGadol)",
-                 "Rule": "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620. Partly reconstructed: the Remak spells only this one number, so compound totals (א→111→מאה ואחד עשר) follow a stated convention — hundreds first, joined by a vav, with אחד עשר for eleven.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §9 — the Remak (1548): 'יו\"ד במילואו עשרים, ועשרים בגימט' כתר'. He brings it on a single letter as a remez, not as a method for adding up whole words."},
+                 "Rule": "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620; א→אלף=111→מאה ואחד עשר.",
+                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §9 — the Remak (1548): 'יו\"ד במילואו עשרים, ועשרים בגימט' כתר'. He brings it on a single letter as a remez, not as a method for adding up whole words. Partly reconstructed: that is the only number he spells, and it is not a compound, so compound totals here follow a stated convention — hundreds first, joined by a vav, with אחד עשר for eleven."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
@@ -5438,7 +5438,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 _sel_partial = bool(
                     df.loc[show.index[sel_rows[0]]].get("nikud_partial", 0))
 
-                # Show this row's values across the 34 methods. A unit carrying
+                # Show this row's values across every method. A unit carrying
                 # an unpointed Ksiv word shows "—" for the four vowel-mark
                 # methods rather than dropping the columns: same convention Tab
                 # 1 uses for a query typed without nikud, so the table keeps its
