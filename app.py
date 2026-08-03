@@ -4989,8 +4989,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
       with tab1:
         if not app_view:
             st.subheader("Phrase & Name Matcher")
-        mode = st.radio("Search by",
-                        ["Hebrew text", "Gematria value", "Verse reference"],
+        mode = st.radio("Search by", ["Hebrew text", "Gematria value"],
                         horizontal=True, key="t1_mode")
 
         if mode == "Hebrew text":
@@ -5113,145 +5112,6 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # The button is always enabled now, so an empty submit is
                     # possible and should say why nothing happened.
                     st.warning("Enter a Hebrew phrase or name to search.")
-        elif mode == "Verse reference":
-            # Free text is the PRIMARY input: this audience knows references
-            # cold and types "בראשית א:א" faster than it works three
-            # dropdowns. The cascading selects are the fallback, site-only,
-            # and deliberately absent on a phone.
-            #
-            # NOTE the selects must NOT go inside an st.form: widgets in a form
-            # do not report until submit, so the chapter list could never
-            # narrow to the book just chosen.
-            _vs_ref = None
-            vr1, vr2 = st.columns([3, 2])
-            with vr1:
-                _vs_raw = st.text_input(
-                    "Verse reference", key="t1_vs_ref",
-                    placeholder="e.g. Genesis 1:1, בראשית א:א, Bereishis 1:1",
-                    help=_tip("English, yeshivish or Hebrew book names. "
-                              "Chapter and verse may be digits or Hebrew "
-                              "letters."))
-                if _vs_raw.strip():
-                    _vs_ref = parse_verse_ref(_vs_raw)
-                    if _vs_ref is None:
-                        st.warning("Could not read that reference. Try "
-                                   "'Genesis 1:1' or 'בראשית א:א'.")
-            with vr2:
-                colel = st.toggle("כולל (±1)", value=False, key="t1_vs_colel",
-                                  help=_tip("Rule of the Colel: also match "
-                                            "Value−1 and Value+1."))
-            if not app_view:
-                with st.expander("Browse for a reference"):
-                    _bk_list = sorted({k for k in verse_index})
-                    _books = sorted({b for b, _, _ in _bk_list})
-                    bc1, bc2, bc3 = st.columns(3)
-                    with bc1:
-                        _b_sel = st.selectbox("Book", _books, key="t1_vs_book")
-                    with bc2:
-                        _chs = sorted({c for b, c, _ in _bk_list if b == _b_sel})
-                        _c_sel = st.selectbox("Chapter", _chs, key="t1_vs_ch")
-                    with bc3:
-                        _vss = sorted({v for b, c, v in _bk_list
-                                       if b == _b_sel and c == _c_sel})
-                        _v_sel = st.selectbox("Verse", _vss, key="t1_vs_v")
-                    if st.button("Use this reference", key="t1_vs_use"):
-                        st.session_state["t1_vs_ref"] = f"{_b_sel} {_c_sel}:{_v_sel}"
-                        st.rerun()
-
-            if _vs_ref:
-                _vb, _vc, _vv = _vs_ref
-                _vobj = verse_index.get((_vb, _vc, _vv))
-                if _vobj is None:
-                    st.warning(f"{_vb} {_vc}:{_vv} is not in the loaded corpus.")
-                else:
-                    # Which sub-units this verse actually HAS. Built from the
-                    # DB rather than a fixed list: 1,731 verses have no atnach
-                    # and therefore no SecondHalf, so a hardcoded menu would
-                    # offer units that do not exist.
-                    _avail = [r[0] for r in raw_conn(conn).execute(
-                        "SELECT DISTINCT boundary_type FROM units "
-                        "WHERE book=? AND chapter=? AND verse=? "
-                        "AND variant_track='Ksiv'", (_vb, _vc, _vv))]
-                    _unit_opts = [u for u in ("Verse", "FirstHalf", "SecondHalf",
-                                              "TiphchaPhrase", "ZakefPhrase",
-                                              "Word") if u in _avail]
-                    _unit = st.selectbox(
-                        "Search which unit?", _unit_opts,
-                        format_func=lambda u: BOUNDARY_LABELS.get(u, u),
-                        key="t1_vs_unit",
-                        help=_tip("The whole verse, or a part of it. Word and "
-                                  "phrase units generally have more matches."))
-                    # For sub-units there may be several rows (many words, many
-                    # phrases); let the reader pick which.
-                    _rows = raw_conn(conn).execute(
-                        "SELECT sub_id, consonants, text_display, nikud_partial "
-                        "FROM units WHERE book=? AND chapter=? AND verse=? "
-                        "AND boundary_type=? AND variant_track='Ksiv' "
-                        "ORDER BY sub_id", (_vb, _vc, _vv, _unit)).fetchall()
-                    _pick = None
-                    if len(_rows) == 1:
-                        _pick = _rows[0]
-                    elif _rows:
-                        _labels = {r[0]: (r[2] or r[1]) for r in _rows}
-                        _sid = st.selectbox(
-                            "Which one?", [r[0] for r in _rows],
-                            format_func=lambda s: _labels.get(s, s),
-                            key="t1_vs_sub")
-                        _pick = next((r for r in _rows if r[0] == _sid), None)
-                    if _pick:
-                        _p_cons, _p_disp, _p_partial = _pick[1], _pick[2], _pick[3]
-                        # ⚠️ QUERY-SIDE nikud gate. Every other nikud_partial
-                        # check in this file is a corpus-side SQL predicate;
-                        # without this the query itself could be scored on a
-                        # knowably-short vowel total and then searched, which
-                        # would return real-looking matches for a value that
-                        # should not exist.
-                        #
-                        # Read the flag from the SELECTED UNIT's own row, never
-                        # the parent verse's: 922 clean halves and 15,856 clean
-                        # words sit inside verses flagged at verse level, and
-                        # judging by the verse would bar all of them.
-                        if _p_partial:
-                            st.info(
-                                "This unit contains a Ksiv word the source "
-                                "prints without nikud, so the four vowel-mark "
-                                "methods are undefined here and are not "
-                                "offered. The other methods are unaffected.")
-                        # Recover the pointed text. For a whole verse we know
-                        # it outright; for a sub-unit it must be located inside
-                        # the verse, exactly as Tab 2 does.
-                        if _unit == "Verse":
-                            _p_raw = _vobj.text
-                            _p_w = " ".join(tokenize_words(_vobj.text))
-                        elif _unit == "FirstHalf":
-                            _p_raw = locate_vocalized(_vobj.text, _p_cons)
-                            _p_w = split_halves_word_cons(_vobj.text)[0]
-                        elif _unit == "SecondHalf":
-                            _p_raw = locate_vocalized(_vobj.text, _p_cons)
-                            _p_w = split_halves_word_cons(_vobj.text)[1]
-                        else:
-                            _p_raw = locate_vocalized(_vobj.text, _p_cons)
-                            _p_w = (" ".join(tokenize_words(_p_raw))
-                                    if _p_raw else _p_cons)
-                        st.markdown(
-                            f"**{_vb} {_vc}:{_vv}** · _{BOUNDARY_LABELS.get(_unit, _unit)}_")
-                        import html as _h_esc
-                        st.markdown(
-                            f"<div dir='rtl' style='font-size:1.15rem'>"
-                            f"{_h_esc.escape(_p_disp or _p_cons)}</div>",
-                            unsafe_allow_html=True)
-                        _vs_note = disputed_verse_note(_vb, _vc, _vv)
-                        if _vs_note:
-                            st.info(_vs_note)
-                        if st.button("🔍 Search this unit", type="primary",
-                                     key="t1_vs_go", width="stretch"):
-                            st.session_state["t1_committed"] = {
-                                "cons": _p_cons, "raw": _p_raw or _p_cons,
-                                "wcons": _p_w or _p_cons,
-                                "label": f"Selected Unit ({_vb} {_vc}:{_vv})",
-                                "ref": (_vb, _vc, _vv),
-                                "nikud_partial": bool(_p_partial),
-                            }
         else:
             nc1, nc2 = st.columns([3, 2])
             with nc1:
@@ -5308,24 +5168,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         # Gematria-value mode searches every method by design, so it has none.
         _t1_opts = APP_CIPHER_ORDER if app_view else CIPHER_NAMES
         active_ciphers = [CIPHER_NAMES[0]]
-        if mode in ("Hebrew text", "Verse reference"):
-            # ⚠️ Query-side nikud gate. When the committed unit is flagged
-            # nikud_partial its vowel total is knowably short, so the four
-            # vowel-mark methods are removed from the picker outright rather
-            # than offered and then quietly wrong. This is the query-side twin
-            # of nikud_partial_clause, which only ever filtered the corpus.
-            _q_partial = bool((st.session_state.get("t1_committed") or {})
-                              .get("nikud_partial"))
-            _picker_opts = ([c for c in _t1_opts if c not in NIKUD_CIPHERS]
-                            if _q_partial else _t1_opts)
-            _default = [c for c in (st.session_state.get("t1_ciphers")
-                                    or [_picker_opts[0]])
-                        if c in _picker_opts] or [_picker_opts[0]]
+        if mode == "Hebrew text":
             ciphers_sel = st.multiselect(
-                "Show matches for method(s)", _picker_opts, default=_default,
-                key=("t1_ciphers_np" if _q_partial else "t1_ciphers"),
+                "Show matches for method(s)", _t1_opts, default=[_t1_opts[0]],
+                key="t1_ciphers",
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
-            active_ciphers = ciphers_sel or [_picker_opts[0]]
+            active_ciphers = ciphers_sel or [CIPHER_NAMES[0]]
 
         # Perek/Sefer rows are stored under the "Aggregate" track (a DB tag,
         # not a reading tradition). Auto-include it when those boundaries are selected.
@@ -5448,11 +5296,6 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 row["Book"], row["Chapter"], row["Verse"], row["Boundary"],
                                 matched_text=row.get("Text"), active_method=cipher,
                                 query_info=st.session_state.get("t1_committed"),
-                                # Verse mode commits a "ref" alongside the
-                                # query text, so both sides' translation and
-                                # the query-side disputed note can render.
-                                query_ref=(st.session_state.get("t1_committed")
-                                           or {}).get("ref"),
                                 colel=colel)
 
             # Moved down from just under the results heading: it is reference
@@ -5631,11 +5474,6 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                         # still "this word equals that text",
                                         # so the print-out needs both halves.
                                         query_info=st.session_state.get("t1_committed"),
-                                # Verse mode commits a "ref" alongside the
-                                # query text, so both sides' translation and
-                                # the query-side disputed note can render.
-                                query_ref=(st.session_state.get("t1_committed")
-                                           or {}).get("ref"),
                                         colel=colel,
                                     )
 
@@ -5745,11 +5583,6 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                     # export showed only half of "these two
                                     # are equal".
                                     query_info=st.session_state.get("t1_committed"),
-                                # Verse mode commits a "ref" alongside the
-                                # query text, so both sides' translation and
-                                # the query-side disputed note can render.
-                                query_ref=(st.session_state.get("t1_committed")
-                                           or {}).get("ref"),
                                     end_ref=((int(sr["_end_ch"]), int(sr["_end_vs"]))
                                              if sr.get("_cross") else None))
         else:
