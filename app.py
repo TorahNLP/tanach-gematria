@@ -5245,6 +5245,16 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # raw_conn(conn).execute() in this branch segfaulted the Space
             # (exit 139, reverted in 2b7b710).
             _vs_ref = None
+            # ⚠️ "Use this reference" cannot assign to t1_vs_ref: Streamlit
+            # raises StreamlitAPIException if a session-state key is written
+            # after its widget has been instantiated, and the text input above
+            # owns that key. The button therefore writes a SEPARATE durable
+            # key, which seeds the widget's `value` on the following rerun.
+            # (Same class of problem as the on-screen keyboard's buffer, which
+            # is why that one keeps _KBD_BUF distinct from the widget key.)
+            _vs_seed = st.session_state.pop("t1_vs_seed", None)
+            if _vs_seed is not None:
+                st.session_state["t1_vs_ref"] = _vs_seed
             _vs_raw = st.text_input(
                 "Verse reference", key="t1_vs_ref",
                 placeholder="e.g. Genesis 1:1, בראשית א:א, Bereishis 1:1",
@@ -5286,10 +5296,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         key="t1_vs_v")
                 if st.button("Use this reference", key="t1_vs_use",
                              width="stretch"):
+                    # Writes the SEED key, not the widget key — see above.
                     # The canonical name goes in the box: parse_verse_ref
                     # resolves both spellings, and this keeps the committed
                     # value aligned with the stored `book` column.
-                    st.session_state["t1_vs_ref"] = f"{_b_sel} {_c_sel}:{_v_sel}"
+                    st.session_state["t1_vs_seed"] = f"{_b_sel} {_c_sel}:{_v_sel}"
                     st.rerun()
             colel = st.toggle("כולל (±1)", value=False, key="t1_vs_colel",
                               help=_tip("Rule of the Colel: also match "
