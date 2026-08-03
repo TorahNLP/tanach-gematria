@@ -489,16 +489,29 @@ def g_mispari(s: str) -> int:
                for c in s)
 
 
-# NOT IMPLEMENTED — Pardes Rimonim Gate 30 §9, "מספריי הגדול".
-# Cordovero's example decodes cleanly ("יו\"ד במילואו עשרים, ועשרים בגימט' כתר":
+# NOT YET IMPLEMENTED — Pardes Rimonim Gate 30 §9, "מספריי הגדול".
+# The Remak's example decodes cleanly ("יו\"ד במילואו עשרים, ועשרים בגימט' כתר":
 # yud's milui יוד = 20, and עשרים = 620 = כתר, which verifies), so the rule is
-# not in doubt: take each letter's MILUI total, then name THAT number. It is
-# omitted because it does not survive generalisation to running text. Only 4 of
-# 22 letters have a milui total that is a named Hebrew number (ה, י, כ, מ); the
-# other 18 contribute nothing, so 68% of Genesis 1:1 would vanish. Cordovero
-# demonstrates it on a single letter as an exegetical observation, not as a
-# cipher for summing words, and shipping it as a searchable method would
-# present near-silence as a total. See the Guide's note on Gate 30.
+# not in doubt: take each letter's MILUI total, then name THAT number.
+#
+# Approved as a future 35th method (2026-07-29). Deferred, not rejected.
+#
+# An earlier version of this comment claimed only 4 of 22 letters yield a value.
+# That was wrong — every integer is nameable, and heh's milui is 6. The real
+# difficulty is narrower: 15 of the 22 milui totals are COMPOUND numbers
+# (alef 111, bet 412, …) and the Remak never spells a compound, so his
+# orthography for them is not directly fixed. What IS fixed carries over from
+# §8's NUMBER_NAMES table above (masculine units, defective plene, 100=מאה,
+# 200=מאתים, and 300/400 written closed as שלשמאות/ארבעמאות — itself his
+# convention for a multi-part number). Constituent order is irrelevant here
+# because gematria is a sum and addition commutes. That leaves the conjunctive
+# vav (worth 6) and אחד עשר vs עשתי עשר as the genuinely open choices.
+#
+# The remaining objection is about scope, not spelling: the Remak demonstrates
+# §9 on a single letter as an exegetical observation, not as a cipher for
+# summing running text, so implementing it extends his rule further than he
+# took it. If shipped it should state its reconstruction convention explicitly,
+# the way ImMiluiNekudot already declares it has no single classical source.
 
 
 def g_reverse_ordinal(s: str) -> int:
@@ -723,7 +736,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
     "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh=10. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30. Consonants and taamim contribute 0.",
     "ImHaNekudot":      "Standard gematria of the consonants plus HaNekudot of the vowel marks: letters + vowel-mark geometric values combined.",
-    "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark (Gikatilla spellings). שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307. Returns 0 for consonant-only text.",
+    "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark (Gikatilla spellings). שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307.",
     "ImMiluiNekudot":   "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines letter totals with the spelled-out vowel marks.",
     "MiluiMaleh":       "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
     "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
@@ -4302,69 +4315,27 @@ def run_app() -> None:
         st.title("Guide & Sources" if app_view else
                  "Tanach Gematria Search & Structural Pattern Engine")
         st.markdown(
-            "A multi-method Hebrew gematria engine over the complete Masoretic text — "
-            "23,206 cantillated verses sourced from Sefaria. "
-            + ("Search for names, words, and phrases across 34 gematria "
-               "methods — the classical (Talmud-attested) methods are listed "
-               "first. Structural browsing, pattern scanning, and the "
-               "statistical dashboard live on the full site."
+            "Search the Tanach by gematria. Enter a Hebrew word, name, or "
+            "phrase to find every word, phrase, or verse that shares its "
+            "value under any of 34 methods."
+            + (" Classical (Talmud-attested) methods are listed first."
                if app_view else
-               "Search for phrases and names, explore structural patterns, and analyse the "
-               "statistical fingerprint of the Tanach across 34 gematria methods.")
+               " The other tabs browse the text by structure, surface "
+               "recurring patterns, and chart the corpus statistically.")
         )
-        # Texts and licences, stated explicitly. "Sourced from Sefaria" named
-        # only the aggregator, not the underlying edition or its terms — and
-        # the bundled translation is CC-BY-NC, whose attribution requirement is
-        # a licence condition rather than a courtesy, so it has to be visible
-        # somewhere durable rather than only in the detail panel that shows it.
-        with st.expander("Texts & licences"):
-            st.markdown(
-                "**Hebrew** (all calculations) — *Tanach with Ta'amei "
-                "Hamikra*, from [tanach.us](http://www.tanach.us/Tanach.xml) "
-                "via [Sefaria](https://www.sefaria.org). Public Domain.\n\n"
-                "**English** (display only) — *The Koren Jerusalem Bible*, "
-                "© Koren Publishers Jerusalem, via Sefaria. "
-                "[CC BY-NC 4.0]"
-                "(https://creativecommons.org/licenses/by-nc/4.0/). "
-                "Joshua 21:36–37, which it omits, are from the "
-                "public-domain JPS 1917.\n\n"
-                "Translations are shown for the whole verse — they are "
-                "sense-for-sense, with no word-level alignment to the Hebrew.\n\n"
-                "This application is licensed CC BY-NC 4.0."
-            )
-        st.divider()
-
         with st.expander("How to use this app", expanded=True):
-            st.caption(
-                "📖 **Guide & Sources** (this page) — Start here. "
-                "Explains the 34 gematria methods with earliest Talmudic or medieval sources,"
-                "reading tracks, boundary types, and the Rule of the Colel. "
-                "Also contains the full Masoretic variant registry."
-                if app_view else
-                "📖 **Guide & Sources** (this tab) — Start here. "
-                "Explains the 34 gematria methods with earliest Talmudic or medieval sources,"
-                "reading tracks, boundary types, and the Rule of the Colel. "
-                "Also contains the full Masoretic variant registry."
-            )
-
             st.markdown("**Gematria Search**" if app_view else
                         "**1 · Phrase & Name Matcher**")
             st.markdown(
-                "Type any Hebrew word, name, or phrase. The engine strips vowel marks and "
-                "cantillation down to the 22 consonants and computes values "
-                + ("across 34 methods simultaneously — classical "
-                   "(Talmud-attested) methods appear first in the method list. "
-                   if app_view else
-                   "across 34 methods simultaneously. ")
-                + "Select a method to see every matching structural unit in the "
-                "Tanach — word, half-verse, verse, paragraph, or chapter. Click any result row "
-                "to open the full cantillated verse with the matched portion highlighted and a "
-                "letter-by-letter breakdown for the chosen method. "
-                "Toggle **כולל (±1)** to also match values one above or below — "
-                "a standard leniency in traditional gematria practice. "
-                "Open **🔀 Cross-method coincidences** below the results to see a matrix "
-                "showing how every cipher value of your input matches every corpus method — "
-                "rare coincidences are highlighted, and you can drill into any pair."
+                "Type any Hebrew word, name, or phrase to see its value under "
+                "each method.\n\n"
+                "Select a method to see every matching unit in the Tanach. "
+                "Click a result to open the full verse with the match "
+                "highlighted and a letter-by-letter breakdown.\n\n"
+                "Toggle **כולל (±1)** on to also match values one above or "
+                "below.\n\n"
+                "**🔀 Cross-method coincidences** compares every value of your "
+                "input against every method, highlighting rare matches."
             )
 
             if not app_view:
@@ -4406,24 +4377,17 @@ def run_app() -> None:
         st.divider()
         st.subheader("📖 Reference material")
         st.caption(
-            "All method rules are exact (verified against the engine code). "
-            "Historical attributions are traditional and noted where uncertain."
+            "Method rules describe exactly what the engine computes. "
+            "Attributions give the earliest known source for each method, "
+            "Talmudic or later."
         )
 
-        with st.expander("The 34 gematria methods", expanded=True):
+        with st.expander("The 34 gematria methods"):
             st.caption(
                 "These 34 are the methods implemented here, not a complete "
                 "catalogue — the tradition contains many more, and further "
                 "variants can be formed by combining them. Each is listed with "
                 "the earliest source known for it.")
-            st.info(
-                "**Mispar HaMispari** uses Cordovero's spellings (עשרה, חמשה), "
-                "which his own worked totals fix. Calculators using the modern "
-                "forms (עשר, חמש) differ on 13 of 22 letters.\n\n"
-                "*Misparei HaGadol* (Gate 30 §9) is not implemented — only 4 of "
-                "22 letters yield a value, so most of a verse would count as "
-                "nothing. *Mispar Mityashev* was dropped: no classical source "
-                "found.")
             st.table(pd.DataFrame([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
@@ -4444,7 +4408,7 @@ def run_app() -> None:
                 {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
                  "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
-                 "Earliest Source": "Formally categorized as a gematria method in Pardes Rimonim (Sha'ar HaGematria, Gate 30) by R. Moshe Cordovero (1548). Ordinal counting is implicit in earlier Talmudic letter-position discussions (e.g. BT Shabbat 104a)."},
+                 "Earliest Source": "Formally categorized as a gematria method in Pardes Rimonim (Sha'ar HaGematria, Gate 30) by R. Moshe Cordovero, the Remak (1548). Ordinal counting is implicit in earlier Talmudic letter-position discussions (e.g. BT Shabbat 104a)."},
                 {"Method": "ReverseOrdinal",
                  "Hebrew": "מספר אחור סידורי (Reverse Ordinal)",
                  "Rule": "Reverse alphabetical index: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri.",
@@ -4455,47 +4419,45 @@ def run_app() -> None:
                  "Earliest Source": "Mainstreamed by the Ba'al HaTurim (R. Jacob ben Asher, 14th c.) in his Torah commentary. Also documented in Pardes Rimonim (Gate 30)."},
                 {"Method": "HaMerubahKlali",
                  "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
-                 "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua which squares per letter. "
-                         "Note: squaring is order-preserving, so two texts share a HaMerubah HaKlali value if and only if "
-                         "they share a Standard value — searching it alone returns exactly the Standard results. Its value "
-                         "is in cross-method comparison (e.g. one text's total squared against another's Standard).",
-                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30)."},
+                 "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua, which squares per letter. "
+                         "Searching it alone returns the same matches as Standard; its use is in cross-method comparison.",
+                 "Earliest Source": "Pardes Rimonim (the Remak, Sha'ar 30)."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
                  "Rule": "Cumulative prefix sum of Standard values: each letter's value = Σ Standard values from א up to and including it. א=1, ב=3, ג=6, ד=10 … ת=1495.",
-                 "Earliest Source": "Mapped in Pardes Rimonim (Gate 30, Ch. 8) by R. Moshe Cordovero (1548)."},
+                 "Earliest Source": "Mapped in Pardes Rimonim (Gate 30, Ch. 8) by the Remak (1548)."},
                 {"Method": "Milui",
                  "Hebrew": "מילוי / מספר שמי (Mispar Milui)",
                  "Rule": "Spell each letter's full name as a Hebrew word, then sum Standard values of all spelling letters. א=אלף=111, ב=בית=412, ח=חית=418 …",
-                 "Earliest Source": "Deployed in the Zoharic Sifra diTzni'uta (Book of Concealment). Pardes Rimonim, Gate 30 (R. Moshe Cordovero, 1548)."},
+                 "Earliest Source": "Deployed in the Zoharic Sifra diTzni'uta (Book of Concealment). Pardes Rimonim, Gate 30 (the Remak, 1548)."},
                 {"Method": "Neelam",
                  "Hebrew": "נעלם (Mispar Neelam — Hidden)",
                  "Rule": "Like Milui, but drop the first letter of each spelling — only the hidden remainder counts. א→לף=110, ח→ית=410 …",
-                 "Earliest Source": "Pardes Rimonim (Sha'ar HaGematria, Gate 30, R. Moshe Cordovero, 1548)."},
+                 "Earliest Source": "Pardes Rimonim (Sha'ar HaGematria, Gate 30, the Remak, 1548)."},
                 {"Method": "Emtzaiyot",
                  "Hebrew": "אמצעיות (Emtzaiyot — Middle Letters)",
-                 "Rule": "Standard value of the second (inner) letter of each letter's Milui name spelling. Uses 2-letter (standard Lurianic) spellings: אלף→ל=30, בית→י=10, חית→י=10. For 2-letter names (כף, מם, הא, פא) the inner and terminal letters are the same.",
-                 "Earliest Source": "Pardes Rimonim (Sha'ar HaTziruf / Sha'ar 30, R. Moshe Cordovero, 1548). Referenced in Sefer Raziel HaMalach."},
+                 "Rule": "Standard value of the second letter of each letter's Milui name. Uses the 2-letter (Lurianic) spellings: אלף→ל=30, בית→י=10. ה (הא) and פ (פא) have two-letter names, so the second letter is also the last — for these the value matches Ofanim.",
+                 "Earliest Source": "Lurianic letter-name tradition; referenced in Sefer Raziel HaMalach."},
                 {"Method": "Ofanim",
                  "Hebrew": "אופנים (Ofanim — Wheels)",
                  "Rule": "Replace each letter with the final letter of its Milui name spelling, take Standard value.",
                  "Earliest Source": "Sefer Raziel HaMalach."},
                 {"Method": "HaNekudot",
                  "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
-                 "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh/Shuruk=10, Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30. Taamim and shin/sin dot excluded. Returns 0 for consonant-only text.",
+                 "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh/Shuruk=10, Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30. Taamim and shin/sin dot excluded.",
                  "Earliest Source": "Conceptual roots in Tikunei HaZohar (Tikun 5 and 70, late 13th c.), which analyses vowel shapes as Yod (dot) and Vav (line). The explicit mathematical gematria system belongs to R. Isaac Luria (Arizal, 16th c.), recorded by R. Chaim Vital in Sha'ar HaKavanot and Etz Chaim (Sha'ar TaNTA — Ta'amim, Nekudot, Tagin, Otiot)."},
                 {"Method": "ImHaNekudot",
                  "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
                  "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines consonant totals with vowel-mark geometric values in a single sum.",
-                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, 1548), Sha'ar HaGematriot (Gate 30), Chapter 8."},
+                 "Earliest Source": "Pardes Rimonim (the Remak, 1548), Sha'ar HaGematriot (Gate 30), Chapter 8."},
                 {"Method": "MiluiNekudot",
                  "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
-                 "Rule": "Standard gematria of the Hebrew NAME of each vowel mark, using Gikatilla's spellings. שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307. Returns 0 for consonant-only text.",
+                 "Rule": "Standard gematria of the Hebrew NAME of each vowel mark, using Gikatilla's spellings. שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307.",
                  "Earliest Source": "R. Yosef Gikatilla, Ginnat Egoz (1274). In the section on the mystery of the nekudot, Gikatilla computes Standard gematria of each vowel mark's spelled-out name (פתח=488, קמץ=230, צרי=300, שבא=303 …) ."},
                 {"Method": "ImMiluiNekudot",
                  "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
                  "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
-                 "Earliest Source": "Extension combining Gikatilla's Milui HaNekudot system (Ginnat Egoz, 1274) with Cordovero's Im HaNekudot framework (Pardes Rimonim, 1548). No single classical source specifies this exact combination."},
+                 "Earliest Source": "Extension combining Gikatilla's Milui HaNekudot system (Ginnat Egoz, 1274) with the Remak's Im HaNekudot framework (Pardes Rimonim, 1548). No single classical source specifies this exact combination."},
                 {"Method": "MiluiMaleh",
                  "Hebrew": "מילוי מלא (Milui Maleh — Full Filling)",
                  "Rule": "Like Milui, but uses the Maleh (מלא) 3-letter spellings for כ and מ: כ=כאף=101, מ=מאם=81. All other letter spellings are identical to standard Milui.",
@@ -4531,7 +4493,7 @@ def run_app() -> None:
                 {"Method": "Agdat",
                  "Hebrew": "אגד\"ת (Ag-Dat)",
                  "Rule": "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of the shifted letters.",
-                 "Earliest Source": "Pardes Rimonim, Gate 22 (R. Moshe Cordovero, 1548)."},
+                 "Earliest Source": "Pardes Rimonim, Gate 22 (the Remak, 1548)."},
                 {"Method": "ReverseAvgad",
                  "Hebrew": "אבג\"ד הפוך (Reverse Avgad)",
                  "Rule": "−1 cyclic shift: Bet→Alef, Gimel→Bet … Alef wraps to Tav. Opposite of Avgad.",
@@ -4543,19 +4505,19 @@ def run_app() -> None:
                 {"Method": "AchasBeta",
                  "Hebrew": "אח\"ס בט\"ע (Achas Beta)",
                  "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
-                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30)."},
+                 "Earliest Source": "Pardes Rimonim (the Remak, Sha'ar 30)."},
                 {"Method": "Boneeh",
                  "Hebrew": "מספר בונה (Mispar Bone'eh — Building)",
                  "Rule": "Cumulative prefix sums per word: letter 1 alone, then 1+2, then 1+2+3 … Resets at each word boundary.",
-                 "Earliest Source": "The stacking/accumulation method has classical roots in Chasidei Ashkenaz (12th–13th c.), cited in Zohar II 270a, and catalogued in Pardes Rimonim (Gate 30, Ch. 8) by R. Moshe Cordovero. The classical label is Mispar HaAchorayim (מספר האחוריים) or Mispar HaAkhor. The name 'Bone'eh' (Building) is a modern label not found in classical sources."},
+                 "Earliest Source": "The stacking/accumulation method has classical roots in Chasidei Ashkenaz (12th–13th c.), cited in Zohar II 270a, and catalogued in Pardes Rimonim (Gate 30, Ch. 8) by the Remak. The classical label is Mispar HaAchorayim (מספר האחוריים) or Mispar HaAkhor. The name 'Bone'eh' (Building) is a modern label not found in classical sources."},
                 {"Method": "HaAchor",
                  "Hebrew": "מספר האחור (Mispar HaAchor)",
                  "Rule": "Each letter × its ordinal position within the word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
-                 "Earliest Source": "Pardes Rimonim (R. Moshe Cordovero, Sha'ar 30, Ch. 8)."},
+                 "Earliest Source": "Pardes Rimonim (the Remak, Sha'ar 30, Ch. 8)."},
                 {"Method": "Mispari",
                  "Hebrew": "מספר המספריי (Mispar HaMispari)",
-                 "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13.",
-                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §8, R. Moshe Cordovero (1548): 'מספר המספריי ר\"ל י' עשרה, ועשרה עולה תקע\"ה. ה' חמשה, וחמשה עולה שנ\"ג' — yud is 'ten', and 'asarah' totals 575; heh is 'five', and 'chamishah' totals 353. NOTE ON SPELLING: this app follows Cordovero's own orthography, which his two worked totals fix precisely (עשרה, חמשה — masculine forms). Online calculators generally use the feminine/modern spellings (עשר, ארבע, שלושים), which yield different values for 13 of the 22 letters. The primary source is preferred here."},
+                 "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13. Follows the Remak's own masculine spellings.",
+                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §8 — the Remak (1548)."},
                 {"Method": "KololEhad",
                  "Hebrew": "כולל (Kolel — Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
@@ -4563,8 +4525,21 @@ def run_app() -> None:
                 {"Method": "KololOtiyot",
                  "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
                  "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
-                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §4: 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה' — R. Moshe Cordovero (1548) defines Mispar Musafi as adding the word's letters to its value, or else the word itself. The first clause is this method; the second is Kolel (Word)."}
+                 "Earliest Source": "Pardes Rimonim, Sha'ar HaGematriaot (Gate 30) §4: 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה' — the Remak (1548) defines Mispar Musafi as adding the word's letters to its value, or else the word itself. The first clause is this method; the second is Kolel (Word)."}
             ]))
+
+        with st.expander("Boundary types"):
+            st.dataframe(pd.DataFrame([
+                {"Boundary": "Word (תיבה)",      "Meaning": "Single word token, split on space and maqaf (־).",                                             "Why meaningful": "Smallest meaning-bearing unit; classic gematria target (name totals, first/last words)."},
+                {"Boundary": "Zakef phrase (זָקֵף)",   "Meaning": "Phrase ending at a zakef katon (֔), tipcha (֖) or atnach (֑).",                          "Why meaningful": "The finest cantillation phrase — the smallest unit the Masoretic accents mark off above a word."},
+                {"Boundary": "Tipcha phrase (טִפְחָא)", "Meaning": "Phrase ending at a tipcha (֖) or atnach (֑).",                                          "Why meaningful": "A sub-half phrase: coarser than a zakef phrase, finer than a half-verse."},
+                {"Boundary": "Half-verse (חצי פסוק)",  "Meaning": "The two halves of a verse, split at the Asnachta (֑).",                                  "Why meaningful": "The Asnachta is the verse's primary cantillation pause — its main syntactic division. Balance between the halves is a recognized gematria pattern."},
+                {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
+                {"Boundary": "Pesucha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
+                {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
+                {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
+                {"Boundary": "Sefer (ספר)",       "Meaning": "One book of the Tanach.",                                                                       "Why meaningful": "The largest aggregation level; totals across a whole book."},
+            ]), width="stretch", hide_index=True)
 
         # App view searches the Ksiv track only, so the reading-track material
         # would describe controls and results the app never shows. State the
@@ -4619,25 +4594,13 @@ These are separate references that share nearly identical text — two distinct 
 """)
             st.dataframe(pd.DataFrame(DOUBLET_PASSAGES), width="stretch", hide_index=True)
 
-        with st.expander("Boundary types"):
-            st.dataframe(pd.DataFrame([
-                {"Boundary": "Word (תיבה)",      "Meaning": "Single word token, split on space and maqaf (־).",                                             "Why meaningful": "Smallest meaning-bearing unit; classic gematria target (name totals, first/last words)."},
-                {"Boundary": "FirstHalf",         "Meaning": "From verse start to the Asnachta-bearing word (inclusive).",                                     "Why meaningful": "The Asnachta (֑) is the verse's primary cantillation pause — its main syntactic division."},
-                {"Boundary": "SecondHalf",        "Meaning": "From after the Asnachta to verse end.",                                                          "Why meaningful": "The second syntactic unit; internal balance between halves is a recognized gematria pattern."},
-                {"Boundary": "Verse (פסוק)",      "Meaning": "One Masoretic verse, ending at Sof Pasuq (׃).",                                               "Why meaningful": "The canonical citation and reading unit."},
-                {"Boundary": "Pesucha / Petucha (פ)", "Meaning": "'Open' paragraph — a full blank line to end of scroll column; a major thematic break.",     "Why meaningful": "A deliberate Masoretic division, larger than a verse. One of two authentic paragraph units."},
-                {"Boundary": "Setuma (ס)",        "Meaning": "'Closed' paragraph — a short gap mid-line; a minor thematic break.",                           "Why meaningful": "The finer Masoretic paragraph division. Both Petucha and Setuma predate chapter numbering."},
-                {"Boundary": "Perek (פרק)",       "Meaning": "Chapter boundary.",                                                                             "Why meaningful": "Introduced ~13th century CE (not a Masoretic unit). Convenient macro-aggregation for reference."},
-                {"Boundary": "Parsha (פרשה)",     "Meaning": "Weekly Torah reading portion.",                                                                 "Why meaningful": "The liturgical macro-unit for Torah reading; largest aggregation level."},
-            ]), width="stretch", hide_index=True)
-
         with st.expander("The Rule of the Colel (כּוֹלֵל)"):
             st.markdown("""
 The *Colel* (כּוֹלֵל, "the inclusive / the whole") permits adding or subtracting **1** to a gematria total — conventionally counting "the word itself" or "the number as a unit" as one extra. A match within ±1 of the target is treated as equivalent.
 
 This principle appears throughout Kabbalistic and Hasidic commentary and is invoked by various authorities (including the Vilna Gaon and Baal HaTurim–style annotations). Its precise origin is diffuse; present it as a traditional/widely-used principle rather than pinning it to a single text.
 
-**How the toggle works in this engine:** when enabled, `search_value` matches `target−1`, `target`, and `target+1` (SQL `BETWEEN`), and results are ordered by proximity (`ABS(cipher − value)`). The internal-balance detector likewise flags half-verses equal within ±1 as `colel±1`.
+**How the toggle works:** when enabled, a search matches values one above and one below the target.
 
 **Methods the toggle deliberately skips** (their matches stay exact even with כולל on):
 
@@ -4646,6 +4609,28 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 - **HaMerubahKlali** — the squared grand total is not an additive sum; "counting the word itself as one" has no coherent referent there, since (S+1)² ≠ S²+1.
 - **HaNekudot** — every vowel-mark value is even (dot = 10, line = 6), so every total is even and a ±1 (odd) target can never equal another HaNekudot value.
 """)
+
+        # Texts and licences. The bundled translation is CC-BY-NC, whose
+        # attribution requirement is a licence condition rather than a
+        # courtesy, so it has to be visible somewhere durable rather than only
+        # in the detail panel that shows it. Sits last: it is reference
+        # material, not an introduction.
+        st.divider()
+        with st.expander("Texts & licences"):
+            st.markdown(
+                "**Hebrew** (all calculations) — *Tanach with Ta'amei "
+                "Hamikra*, from [tanach.us](http://www.tanach.us/Tanach.xml) "
+                "via [Sefaria](https://www.sefaria.org). Public Domain.\n\n"
+                "**English** (display only) — *The Koren Jerusalem Bible*, "
+                "© Koren Publishers Jerusalem, via Sefaria. "
+                "[CC BY-NC 4.0]"
+                "(https://creativecommons.org/licenses/by-nc/4.0/). "
+                "Joshua 21:36–37, which it omits, are from the "
+                "public-domain JPS 1917.\n\n"
+                "Translations are shown for the whole verse — they are "
+                "sense-for-sense, with no word-level alignment to the Hebrew.\n\n"
+                "This application is licensed CC BY-NC 4.0."
+            )
 
     # ======================= TAB 1: PHRASE MATCHER =======================
     # Guarded: tab1 is None on the app-view guide page.

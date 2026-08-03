@@ -10,8 +10,10 @@ pinned: false
 Multi-method Hebrew gematria search engine, structural pattern database, and
 statistical dashboard over the Tanach.
 
-**12 gematria methods:** Absolute, Katan, Gadol, Atbash, Albam, Atbah, Avgad, Siduri,
-Ribua, Kidmi, Achbi, HaNikud (vowel-point dot count).
+**34 gematria methods**, in families: direct-value, substitution (temurah),
+name-expansion (Milui / Neelam / Emtzaiyot, ± Maleh spellings), positional,
+vowel-mark (nikud), combined, and sequential/kolel. Each is listed in the app's
+Guide with the earliest source known for it.
 
 **Full corpus:** 23,206 cantillated Masoretic verses, bundled.
 
@@ -53,6 +55,33 @@ See `BUILD.md` for architecture and build reference.
 This application is licensed under
 [CC BY-NC 4.0](https://creativecommons.org/licenses/by-nc/4.0/); see
 **Texts & licences** above for the licences of the bundled texts.
+
+## Notes on method selection and implementation
+
+Detail that belongs with the source rather than in the app's Guide.
+
+**Mispar HaMispari follows the Remak's own orthography.** Pardes Rimonim, Gate 30
+§8 gives two worked totals — yud → עשרה = 575 and heh → חמשה = 353 — and only the
+masculine spellings (עשרה, חמשה, שלשים) reproduce them. Online calculators
+generally use the feminine/modern forms (עשר, ארבע, שלושים) and therefore differ
+from this app on **13 of the 22 letters**. That is deliberate: the primary source
+is preferred over the popular table. Values here will not match those tools.
+
+**Mispar Mityashev is not offered.** No classical source could be found for the
+method under that name: מספר מיושב appears nowhere in Pardes Rimonim's Sha'ar
+HaGematriaot (Gate 30 or 22) and returns no hits across Sefaria's corpus. The
+function and its self-tests are retained in `app.py` so it can be reinstated in
+one line if a source turns up. Note that some sources use "mispar meyushav" to
+mean *Mispar Katan*, which is a different calculation.
+
+**The Colel (±1) toggle** matches `target−1`, `target` and `target+1` (SQL
+`BETWEEN`), ordering results by proximity (`ABS(cipher − value)`); the
+internal-balance detector likewise flags half-verses equal within ±1 as
+`colel±1`. Four methods are exempt and stay exact — `KololEhad`/`KololOtiyot`
+(the adjustment *is* the method), `KatanMispari` (a digital root has 9 values, so
+±1 spans a third of the space), `HaMerubahKlali` ((S+1)² ≠ S²+1) and `HaNekudot`
+(all mark values are even, so an odd target can never match). Enforced in
+`search_value`, `count_value`, `search_value_all_methods` and `_xm_count_matrix`.
 
 ## Developer documentation
 
