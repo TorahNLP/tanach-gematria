@@ -3266,8 +3266,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
 
     # ── Section 1: query ─────────────────────────────────────────────────────
     if query_info:
-        raw  = e(query_info.get("raw", ""))
-        cons = e(query_info.get("cons", ""))
+        # `cons` (the stripped consonant string) is deliberately NOT shown.
+        # It repeated the Text row above in a machine-readable form, and the
+        # match side had no equivalent — so the document asserted an asymmetry
+        # it could not justify. The letter-by-letter breakdown below already
+        # shows every letter that was counted, which is what a reader needs.
+        raw = e(query_info.get("raw", ""))
         # The query's own value, not the matched unit's — under colel they can
         # differ by 1, and labelling the match's value as "Value" under
         # "Search Query" conflated the two.
@@ -3278,13 +3282,6 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         _q_label = query_info.get("label") or ""
         _sec1_title = e(_q_label) if _q_label else "Search Query"
         _input_row_label = "Text" if _q_label else "Input"
-        # HaNekudot and MiluiNekudot score the vowel marks ALONE — the letters
-        # shown on this row take no part in the total, so calling them "searched"
-        # under those two methods is simply wrong. (ImHaNekudot/ImMiluiNekudot
-        # do add the letters, so their label is accurate.)
-        _cons_row_label = ("Consonants (not counted by this method)"
-                           if active_method in ("HaNekudot", "MiluiNekudot")
-                           else "Consonants searched")
         # The query's own translation. Escaped for the same reason the match's
         # is: corpus text must never inject tags. Attribution is NOT emitted
         # here — see the document-level notice.
@@ -3310,7 +3307,6 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
   <div class="sec-title">{_sec1_title}</div>
   <table class="kv">
     <tr><td class="kl">{_input_row_label}</td><td class="kv-val rtl">{raw}</td></tr>
-    <tr><td class="kl">{_cons_row_label}</td><td class="kv-val rtl">{cons}</td></tr>
     <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
     <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
   </table>
