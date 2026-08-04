@@ -3199,7 +3199,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      english_is_full_verse=False, ksiv_unpointed=False,
                      kri_display="", query_english="",
                      query_english_is_full_verse=False,
-                     query_disputed_note="") -> str:
+                     query_disputed_note="", query_method=None) -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -3244,6 +3244,12 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
 
     today   = _d.today().strftime("%Y-%m-%d")
     method  = e(CIPHER_DISPLAY_NAMES.get(active_method, active_method))
+    # A cross-method drill-down scores the query and the match under DIFFERENT
+    # methods, so each side must be labelled with its own. Falls back to the
+    # match's method, which is right for every other call site.
+    _qm_name = query_method or active_method
+    q_method = e(CIPHER_DISPLAY_NAMES.get(_qm_name, _qm_name))
+    _cross_method = bool(query_method) and query_method != active_method
     # None (not 0) when the caller withheld this method's value — a unit whose
     # vowel total is incomplete has its four NIKUD_CIPHERS keys removed from
     # `vals`, and defaulting to 0 here would print the very number the
@@ -3302,14 +3308,21 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         # in the document, not only on screen.
         _q_disp = (f'<p class="fn">{e(query_disputed_note)}</p>'
                    if query_disputed_note else "")
+        # State the two-method comparison outright. Without it the document
+        # shows one method here and a different one over the match, which reads
+        # as an inconsistency rather than the cross-method claim it is.
+        _cross_note = (f'<p class="fn">Cross-method comparison: the search '
+                       f'term is scored under {q_method}, and the matched text '
+                       f'under {method}.</p>') if _cross_method else ""
         sec1 = f"""
 <div class="sec">
   <div class="sec-title">{_sec1_title}</div>
   <table class="kv">
     <tr><td class="kl">{_input_row_label}</td><td class="kv-val rtl">{raw}</td></tr>
-    <tr><td class="kl">Method</td><td class="kv-val">{method}</td></tr>
+    <tr><td class="kl">Method</td><td class="kv-val">{q_method}</td></tr>
     <tr><td class="kl">Value</td><td class="kv-val big">{_val_shown}</td></tr>
   </table>
+  {_cross_note}
   {_q_en_block}
   {_q_disp}
 </div>"""
@@ -3465,7 +3478,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
         _bd_label = e((query_info or {}).get("label") or "") or "Your Word"
         sec1b = f"""
 <div class="sec">
-  <div class="sec-title">Calculation — {_bd_label} ({method})</div>
+  <div class="sec-title">Calculation — {_bd_label} ({q_method})</div>
   {_breakdown_table(query_breakdown)}
 </div>"""
     else:
@@ -4338,7 +4351,7 @@ def run_app() -> None:
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
                             active_method=None, query_info=None, colel=False,
                             span_range=None, track=None, end_ref=None,
-                            query_ref=None):
+                            query_ref=None, query_method=None):
         import streamlit.components.v1 as _components
         if boundary not in DETAIL_BOUNDARIES:
             return
@@ -4675,12 +4688,16 @@ def run_app() -> None:
         # are computed here, the same way the matched unit's already are above.
         query_breakdown = None
         query_val = None
-        if query_info and query_info.get("cons") and active_method in CIPHERS:
+        # The query is normally scored under the same method as the match, but a
+        # cross-method drill-down scores the two sides differently — see the
+        # query_method note at that call site.
+        _q_method = query_method or active_method
+        if query_info and query_info.get("cons") and _q_method in CIPHERS:
             _q_cons, _q_raw, _q_wcons = (query_info["cons"], query_info.get("raw", ""),
                                          query_info.get("wcons", ""))
             query_val = compute_all_ciphers(
-                _q_cons, _q_raw, word_consonants=_q_wcons).get(active_method)
-            query_breakdown = cipher_breakdown(active_method, _q_cons, _q_wcons,
+                _q_cons, _q_raw, word_consonants=_q_wcons).get(_q_method)
+            query_breakdown = cipher_breakdown(_q_method, _q_cons, _q_wcons,
                                                cantillated=_q_raw)
         _print_key   = f"do_print_{_uid}"
         _html_doc = build_print_html(
@@ -4709,6 +4726,9 @@ def run_app() -> None:
             # them must say so in the document.
             query_disputed_note=(disputed_verse_note(*query_ref)
                                  if query_ref else ""),
+            # Cross-method drill-down: the query's own method, so each side of
+            # the document is labelled and scored with the right one.
+            query_method=query_method,
             # Same reasoning as match_nikud_unreliable: a caveat about a value
             # being wrong has to travel with the document, not stay on screen.
             ksiv_unpointed=ksiv_unpointed,
@@ -5697,17 +5717,28 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         width="stretch",
                     )
                     st.markdown("**Drill into a pair/s**")
+                    st.caption(
+                        "The two sides use different methods: A scores **your "
+                        "search term**, B scores the **corpus units** looked up "
+                        "with that value.")
                     dc1, dc2 = st.columns(2)
                     with dc1:
                         drill_a = st.selectbox(
-                            "Method A", CIPHER_NAMES, key="xm_drill_a",
-                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
+                            "Method A — your search term", CIPHER_NAMES,
+                            key="xm_drill_a",
+                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
+                            help=_tip("Which method scores the word you "
+                                      "searched. Its value is what gets looked "
+                                      "up in the corpus.")
                         )
                     with dc2:
                         drill_b_list = st.multiselect(
-                            "Method B (one or more)", CIPHER_NAMES,
+                            "Method B — corpus results (one or more)",
+                            CIPHER_NAMES,
                             default=[CIPHER_NAMES[0]], key="xm_drill_b",
-                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c)
+                            format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
+                            help=_tip("Which method the corpus units are scored "
+                                      "under when matching that value.")
                         )
                     drill_val = a_vals[drill_a]
                     for drill_b in (drill_b_list or [CIPHER_NAMES[0]]):
@@ -5745,6 +5776,17 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                         rd["Book"], rd["Chapter"], rd["Verse"],
                                         rd["Boundary"], matched_text=rd.get("Text"),
                                         active_method=drill_b,
+                                        # ⚠️ A cross-method drill-down has TWO
+                                        # methods: drill_a scores the search
+                                        # term, drill_b scores the corpus unit.
+                                        # Without query_method the export scored
+                                        # the query with drill_b too, printing a
+                                        # query total that matched nothing — e.g.
+                                        # Atbash(name)=2344 above an Atbash
+                                        # verse total of 1036, presented as an
+                                        # equality. The real claim was
+                                        # Standard(name)=1036 == Atbash(verse).
+                                        query_method=drill_a,
                                         # Same searched word as the main results
                                         # list — a cross-method drill-down is
                                         # still "this word equals that text",
