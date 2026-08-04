@@ -1131,6 +1131,41 @@ def mark_word_span(cantillated: str, i0: int, i1: int) -> str:
 VARIANT_TRACKS = frozenset({"Kri", "TextVariant"})
 
 
+def drop_self_match(df, query_unit, method: str):
+    """Remove the searched unit from its own results — the trivial match.
+
+    A unit's value always equals its own value, under every method, so a
+    verse-reference search returned the searched verse among its "matches" for
+    all 23,206 verses. That row carries no information.
+
+    `query_unit` is (book, chapter, verse, boundary) or None. Suppressed ONLY
+    when the row is the same unit AND the comparison is same-method, because:
+
+      * a DIFFERENT method matching the same unit is a real finding (a verse
+        whose Atbash equals its own Standard is worth seeing), and
+      * a different boundary of the same verse is also real (a FirstHalf
+        matching its parent Verse is not trivially true).
+
+    Filtering happens on the frame the caller then both counts and renders, so
+    the heading and the table stay in step, and row indices still address the
+    frame the selection reads.
+    """
+    if df is None or df.empty or not query_unit:
+        return df
+    qb, qc, qv, qbound = query_unit
+    if qbound is None or method is None:
+        return df
+    # A Method column exists only on the all-methods frames; when it does, a
+    # row is trivial only if its own method is the query's.
+    if "Method" in df.columns:
+        same_method = df["Method"] == method
+    else:
+        same_method = True
+    mask = ((df["Book"] == qb) & (df["Chapter"] == qc)
+            & (df["Verse"] == qv) & (df["Boundary"] == qbound) & same_method)
+    return df[~mask] if mask.any() else df
+
+
 def drop_uniform_track(df, app_view: bool = False):
     """Drop the Track column unless these rows genuinely contain a variant.
 
@@ -5389,6 +5424,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 "wcons": _p_w or _p_cons,
                                 "label": f"Selected Unit ({book_label(_vb)} {_vc}:{_vv})",
                                 "ref": (_vb, _vc, _vv),
+                                # Full unit identity, boundary included, so the
+                                # searched unit can be dropped from its own
+                                # results. Set ONLY in verse mode: a typed
+                                # Hebrew query is a string, not a corpus
+                                # reference, so nothing there is self-matching.
+                                "unit": (_vb, _vc, _vv, _unit),
                                 "nikud_partial": bool(_p_partial),
                             }
         else:
@@ -5553,6 +5594,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 st.caption(CIPHER_BLURB.get(cipher, ""))
                 res = payload["results"][cipher]
                 tgt = vals[cipher]
+                # Verse mode only: drop the searched unit from its own results.
+                # Filtered BEFORE len(res) so the heading and the table agree,
+                # and before the dataframe is built so selection indices still
+                # address this frame (see the stale-index note below).
+                res = drop_self_match(res, _committed.get("unit"), cipher)
                 st.markdown(
                     f"#### {CIPHER_DISPLAY_NAMES.get(cipher, cipher)} = {tgt}"
                     + (f" (Colel window {tgt-1}–{tgt+1})" if colel else "")
@@ -5750,6 +5796,15 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         drill_res = search_value(
                             conn, drill_b, drill_val, colel, effective_tracks or None, bounds or None
                         )
+                        # Same-method drill (A == B) on a verse-mode query is a
+                        # plain same-method search, so the searched unit comes
+                        # back as a trivial hit. When A != B it is a real
+                        # finding — the unit's B value equalling its own A
+                        # value — so drop_self_match keeps it.
+                        drill_res = drop_self_match(
+                            drill_res,
+                            (st.session_state.get("t1_committed") or {}).get("unit"),
+                            drill_b if drill_a == drill_b else None)
                         if drill_res.empty:
                             st.info(f"No corpus unit matches {drill_a}/{drill_b} at the current filters.")
                         else:
@@ -6076,6 +6131,16 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 else:
                     _row_boundary = kind
                 match_df = search_value_all_methods(conn, cell_val)
+                # The selected unit always equals its own value, so it came
+                # back among its own matches. This frame carries a Method
+                # column, so only the row under the SAME method as the clicked
+                # cell is trivial — the same unit appearing under a different
+                # method is a real cross-method finding and stays.
+                match_df = drop_self_match(
+                    match_df,
+                    (row2["Book"], int(row2["Chapter"]), int(row2["Verse"]),
+                     _row_boundary),
+                    cipher_pick)
                 if match_df.empty:
                     st.info("No corpus unit has this exact value under any method.")
                     if _row_boundary in DETAIL_BOUNDARIES:
