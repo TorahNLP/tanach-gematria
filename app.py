@@ -5268,9 +5268,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # theory that three dropdowns are wrong for a phone — but that
             # simply removed the only non-typing way in, and reads as the box
             # having vanished. On a narrow screen the columns stack, which is
-            # fine; expanded by default so it is visible rather than a thin
-            # strip a reader has to know to open.
-            with st.expander("Browse for a reference", expanded=not _vs_ref):
+            # fine. Collapsed by default: typing the reference is the primary
+            # path, so browsing should not take up the screen unasked.
+            with st.expander("Browse for a reference"):
                 _ridx = cached_ref_index(conn, corpus_key)
                 bc1, bc2, bc3 = st.columns(3)
                 with bc1:
