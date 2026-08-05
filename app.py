@@ -264,6 +264,15 @@ NEKUDA_NAME_VALS: Dict[str, int] = {
     "ֹ": _spelling_val("חולם"),   # חולם  = 84
     "ֺ": _spelling_val("חולם"),   # Holam haser = same name
     "ֻ": _spelling_val("קובוץ"),  # קובוץ = 204
+    # The chatafim keep their BASE vowel's name, deliberately, and unlike the
+    # geometric method they are NOT sheva + base here. That asymmetry is the
+    # point: HaNekudot counts the marks on the page, so a chataf's sheva counts;
+    # this method names the vowel, and no source spells a chataf as two words.
+    # A "חטף פתח = 585" construction was proposed and retracted as unsourced —
+    # Ginnat Egoz uses single names throughout.
+    # OPEN: the Remak calls them שבא קמץ / שבא פתח / שבא סגול, sheva first, so
+    # there is an argument for naming them שבא rather than the base vowel. No
+    # source states either way, so the base-vowel reading is kept.
     "ֱ": _spelling_val("סגול"),   # Hataf Segol  → same name as Segol
     "ֲ": _spelling_val("פתח"),    # Hataf Patah  → same name as Patah
     "ֳ": _spelling_val("קמץ"),    # Hataf Kamatz → same name as Kamatz
@@ -271,7 +280,14 @@ NEKUDA_NAME_VALS: Dict[str, int] = {
 
 # The shuruk's own name, for Milui HaNekudot. U+05BC used to be named דגש here,
 # which scored a real vowel under a mark that is not one.
-SHURUK_NAME_VAL = _spelling_val("שורק")
+#
+# ⚠️ SPELLING IS A JUDGEMENT CALL, like חיריק above. Pardes Rimonim שער כ״ח uses
+# BOTH forms — שורק 24 times and the defective שרק 12 — and they differ by 6
+# (606 vs 600). The plene form is taken here as the commoner one in that gate,
+# but this is a choice, not a ruling; the Remak also calls it קבוץ שפתים, and
+# the Lurianic literature has מלאפום (197). Recorded so the number is not
+# mistaken for something a source fixes.
+SHURUK_NAME_VAL = _spelling_val("שורק")   # שורק = 606 (defective שרק = 600)
 
 
 def _katan_digit(value: int) -> int:
