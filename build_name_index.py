@@ -126,22 +126,30 @@ def main():
         stats['plene'] += 1
 
     # --- 1. curated wins outright -----------------------------------------
-    spec2 = importlib.util.spec_from_file_location(
-        'curated', os.path.join(REVIEW, 'curated_names.py'))
-    curated = importlib.util.module_from_spec(spec2)
-    spec2.loader.exec_module(curated)
-    for name, supplied in curated.CURATED.items():
-        index[name] = {
-            "options": [{"form": f, "count": 0, "variants": [f]}
-                        for f in supplied],
-            "source": "curated"}
-        stats['curated'] += 1
+    for module, attr, tag in (('curated_names.py', 'CURATED', 'curated'),
+                              ('curated_names_2.py', 'CURATED_2', 'curated2')):
+        path = os.path.join(REVIEW, module)
+        if not os.path.exists(path):
+            continue
+        s = importlib.util.spec_from_file_location(tag, path)
+        mod = importlib.util.module_from_spec(s)
+        s.loader.exec_module(mod)
+        for name, supplied in getattr(mod, attr).items():
+            index[name] = {
+                "options": [{"form": f, "count": 0, "variants": [f]}
+                            for f in supplied],
+                "source": tag}
+            stats[tag] += 1
 
     # --- validate before writing ------------------------------------------
     problems = 0
     for name, entry in index.items():
+        # Compare consonants on BOTH sides. A two-word key like "בת שבע" keeps
+        # its space, which strip_to_consonants drops from the form — comparing
+        # the stripped form against the raw key flags those wrongly.
+        want = app.strip_to_consonants(name)
         for opt in entry["options"]:
-            if app.strip_to_consonants(opt["form"]) != name and \
+            if app.strip_to_consonants(opt["form"]) != want and \
                     entry.get("source") != "tanach-plene":
                 print(f"  !! {name}: {opt['form']} has different consonants")
                 problems += 1
