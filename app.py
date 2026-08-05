@@ -245,56 +245,59 @@ NIKUD_VALS: Dict[str, int] = {
 DAGESH_OR_SHURUK = "ּ"
 SHURUK_VAL = 10          # "נקודה בתוך הו'" — one dot; the vav is a consonant
 
-# Gikatilla (Ginnat Egoz, 13th c.): Standard gematria of the Hebrew NAME of each vowel mark.
-# Used by Mispar Milui HaNekudot. Hataf forms use the same name as their base vowel —
-# unlike the geometric method, this one names the vowel rather than counting its marks,
-# and no source spells a chataf as two words ("חטף פתח"); Ginnat Egoz uses single names.
+# Standard gematria of the Hebrew NAME of each vowel mark, for Mispar Milui
+# HaNekudot. The METHOD is Gikatilla's (Ginnat Egoz, 1274); the SPELLINGS below
+# are the Remak's, because his are the ones that can actually be read: Ginnat
+# Egoz is not available to check, and the only "quote" ever offered for its
+# orthography turned out to be fabricated. Pardes Rimonim שער כ"ח is on Sefaria
+# and its usage is countable, so it is the verifiable baseline.
 #
-# ⚠️ No דגש entry, for the same reason it is absent from NIKUD_VALS: a dagesh is not a
-# nekuda, so it has no vowel-name to sum. The shuruk IS one, named שורק — see
-# SHURUK_NAME_VAL, kept out of this table because Unicode shares its codepoint.
+# Frequencies across שער כ"ח, which is why these spellings and not others:
+#   צירי 26x / צרי 3x  ·  חירק 16x / חיריק 0x  ·  חולם 19x / חלם 4x
+#   שורק 24x / שרק 12x  ·  סגול 23x  ·  שבא 13x  ·  קמץ 43x  ·  פתח 16x
+# ⚠️ No classical text PRINTS these sums (nobody writes "פתח = 488"); the
+# arithmetic is ours, applied to the Remak's spelling. Same footing as the
+# dot=10/line=6 sums in NIKUD_VALS.
+#
+# ⚠️ No דגש entry, for the same reason it is absent from NIKUD_VALS: a dagesh is
+# not a nekuda, so it has no vowel-name to sum. The shuruk IS one, named שורק —
+# see SHURUK_NAME_VAL, kept out of this table because Unicode shares its codepoint.
 NEKUDA_NAME_VALS: Dict[str, int] = {
-    # Spellings follow Gikatilla, Ginnat Egoz (1274): שבא (not שוא), צרי (not צירי)
-    "ְ": _spelling_val("שבא"),    # שבא   = 303  (Gikatilla's spelling of Sheva)
-    "ִ": _spelling_val("חיריק"),  # חיריק = 328
-    "ֵ": _spelling_val("צרי"),    # צרי   = 300  (Gikatilla's spelling of Tsere)
-    "ֶ": _spelling_val("סגול"),   # סגול  = 99
-    "ַ": _spelling_val("פתח"),    # פתח   = 488
-    "ָ": _spelling_val("קמץ"),    # קמץ   = 230  (variant קומץ=236 not used here)
-    "ֹ": _spelling_val("חולם"),   # חולם  = 84
-    "ֺ": _spelling_val("חולם"),   # Holam haser = same name
-    "ֻ": _spelling_val("קובוץ"),  # קובוץ = 204
-    # The chatafim keep their BASE vowel's name, and unlike the geometric method
-    # they are NOT sheva + base here. The asymmetry is deliberate: HaNekudot
-    # counts the marks on the page, so a chataf's sheva counts there; this
-    # method names the vowel.
+    # Each spelling carries its own count from שער כ"ח, so the basis for every
+    # number is visible at the line that sets it. "0x" means the gate never
+    # writes that form — see the two flagged below.
+    "\u05B0": _spelling_val("שבא"),    # שבא   = 303  (שבא 13x / שוא 2x)
+    "\u05B4": _spelling_val("חירק"),   # חירק  = 318  (חירק 16x / חיריק 0x)
+    "\u05B5": _spelling_val("צירי"),   # צירי  = 310  (צירי 26x / צרי 3x)
+    "\u05B6": _spelling_val("סגול"),   # סגול  = 99   (סגול 23x / סגל 0x)
+    "\u05B7": _spelling_val("פתח"),    # פתח   = 488  (פתח 16x, no variant)
+    "\u05B8": _spelling_val("קמץ"),    # קמץ   = 230  (קמץ 43x / קומץ 3x)
+    "\u05B9": _spelling_val("חולם"),   # חולם  = 84   (חולם 19x / חלם 4x)
+    "\u05BA": _spelling_val("חולם"),   # Holam haser — same name as holam
+    # ⚠️ KUBUTZ IS NOT THE REMAK'S SPELLING. שער כ"ח never writes קובוץ (0x);
+    # it has קבוץ once, and calls the mark קבוץ שפתים. But he treats it as a
+    # form of shuruk ("שורק של ג' נקודות"), so he never gives it a standalone
+    # name to copy. קובוץ is the conventional modern spelling, kept for
+    # recognisability. This is the one entry NOT grounded in his usage —
+    # קבוץ would be 198.
+    "\u05BB": _spelling_val("קובוץ"),  # קובוץ = 204  (קובוץ 0x / קבוץ 1x)
+    # The chatafim are SHEVA + BASE here, matching the geometric method.
     #
-    # SETTLED (2026-08-05): there is NO classical milui calculation for a chataf
-    # anywhere. Milui is performed only on the discrete primary vowel names
-    # (קמץ, פתח, צרי, סגול, שבא, חולם, חיריק, שורק, קובוץ). Divine-Name yichudim
-    # that compute vowel milui deliberately use primary vowels and never a
-    # chataf. So every multi-word expansion is an extrapolation with a different
-    # number attached — "חטף פתח" = 585, "שבא פתח" = 791 — and both were
-    # proposed and withdrawn as unsourced. The Remak's "שבא קמץ, שבא פתח, שבא
-    # סגול" is a description of how the mark is ASSEMBLED (שער כ״ח פרק א׳), not
-    # a string to be spelled out and summed.
+    # No classical text computes milui on a chataf at all — milui is only ever
+    # done on the discrete primary vowel names. But no classical text prints
+    # ANY of these sums either, so "unsourced" does not distinguish this case:
+    # the arithmetic in both nikud methods is a consistent rule applied to
+    # sourced spellings and shapes. Given that, naming a chataf for its base
+    # vowel alone would be the inconsistent choice — the geometric method counts
+    # the sheva's two dots, so the naming method names the sheva. The Remak's
+    # own "שבא קמץ, שבא פתח, שבא סגול" (שער כ"ח פרק א׳) is exactly that reading.
     #
-    # Using the base vowel's name is therefore the conservative reading: it adds
-    # no number that no source supports. Do not "improve" this into a compound.
-    "ֱ": _spelling_val("סגול"),   # Hataf Segol  → same name as Segol
-    "ֲ": _spelling_val("פתח"),    # Hataf Patah  → same name as Patah
-    "ֳ": _spelling_val("קמץ"),    # Hataf Kamatz → same name as Kamatz
+    # Changed 2026-08-05. Previously these were the bare base vowel (488/230/99).
+    "\u05B2": _spelling_val("שבא") + _spelling_val("פתח"),   # שבא+פתח  = 791
+    "\u05B3": _spelling_val("שבא") + _spelling_val("קמץ"),   # שבא+קמץ  = 533
+    "\u05B1": _spelling_val("שבא") + _spelling_val("סגול"),  # שבא+סגול = 402
 }
 
-# The shuruk's own name, for Milui HaNekudot. U+05BC used to be named דגש here,
-# which scored a real vowel under a mark that is not one.
-#
-# ⚠️ SPELLING IS A JUDGEMENT CALL, like חיריק above. Pardes Rimonim שער כ״ח uses
-# BOTH forms — שורק 24 times and the defective שרק 12 — and they differ by 6
-# (606 vs 600). The plene form is taken here as the commoner one in that gate,
-# but this is a choice, not a ruling; the Remak also calls it קבוץ שפתים, and
-# the Lurianic literature has מלאפום (197). Recorded so the number is not
-# mistaken for something a source fixes.
 SHURUK_NAME_VAL = _spelling_val("שורק")   # שורק = 606 (defective שרק = 600)
 
 
@@ -907,7 +910,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
     "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30, Shuruk=10. Chatafim add the sheva: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh is not a nekuda and scores 0. Consonants and taamim contribute 0.",
     "ImHaNekudot":      "Standard gematria of the consonants plus HaNekudot of the vowel marks: letters + vowel-mark geometric values combined.",
-    "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark (Gikatilla spellings). שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307.",
+    "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. Chatafim are named sheva + base: חטף פתח=791, חטף קמץ=533, חטף סגול=402.",
     "ImMiluiNekudot":   "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines letter totals with the spelled-out vowel marks.",
     "MiluiMaleh":       "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
     "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
@@ -3125,10 +3128,29 @@ def density_gaps(conn: sqlite3.Connection, cipher: str = "Standard",
 
 # Display names for the vowel marks, so a nikud breakdown can say which mark it
 # counted rather than printing a bare combining character.
+# Display names for the breakdown panel. Spellings match NEKUDA_NAME_VALS, which
+# follows the Remak's usage in שער כ"ח — otherwise a row would show one spelling
+# and score another. No דגש entry: it is not a nekuda and never gets a row.
+#
+# The chatafim carry their conventional name AND the string actually summed,
+# because those differ: the row is labelled "חטף פתח" but the value is שבא+פתח.
+# Showing only the conventional name would leave the number unexplained.
 NEKUDA_NAMES: Dict[str, str] = {
-    "ְ": "שבא", "ֱ": "חטף סגול", "ֲ": "חטף פתח", "ֳ": "חטף קמץ",
-    "ִ": "חיריק", "ֵ": "צרי", "ֶ": "סגול", "ַ": "פתח", "ָ": "קמץ",
-    "ֹ": "חולם", "ֺ": "חולם חסר", "ֻ": "קובוץ", "ּ": "דגש",
+    "ְ": "שבא",
+    "ֱ": "חטף סגול", "ֲ": "חטף פתח", "ֳ": "חטף קמץ",
+    "ִ": "חירק", "ֵ": "צירי", "ֶ": "סגול", "ַ": "פתח", "ָ": "קמץ",
+    "ֹ": "חולם", "ֺ": "חולם חסר", "ֻ": "קובוץ",
+}
+
+# What a chataf row is actually made of, appended to its name in the breakdown.
+# Both methods treat a chataf as sheva + base, but they combine DIFFERENT things
+# — the geometric one adds the marks (20+6), the milui one adds the names
+# (שבא+פתח) — so the parenthetical has to say which, or the row implies the
+# wrong arithmetic.
+CHATAF_PARTS: Dict[str, Tuple[str, str]] = {
+    "ֱ": ("שבא + סגול", "שבא סגול"),
+    "ֲ": ("שבא + פתח",  "שבא פתח"),
+    "ֳ": ("שבא + קמץ",  "שבא קמץ"),
 }
 
 # NIKUD_CIPHERS moved up beside CIPHER_NAMES — the search layer needs it there.
@@ -3193,6 +3215,11 @@ def nikud_breakdown(cipher: str, cantillated: str,
         val = table.get(ch)
         if val:
             name = NEKUDA_NAMES.get(ch, "")
+            parts = CHATAF_PARTS.get(ch)
+            if parts:
+                # Name first, then what was actually summed — the reader sees
+                # "חטף פתח (שבא + פתח)" beside 26, or "(שבא פתח)" beside 791.
+                name = f"{name} ({parts[1] if milui else parts[0]})"
             rows.append((f"◌{ch} {name}".strip(), val))
     return rows or None
 
@@ -3785,11 +3812,23 @@ def run_selftest() -> None:
     assert NIKUD_VALS["ֳ"] == NIKUD_VALS["ְ"] + NIKUD_VALS["ָ"] == 36
     assert NIKUD_VALS["ֱ"] == NIKUD_VALS["ְ"] + NIKUD_VALS["ֶ"] == 50
     # MiluiNekudot (Gikatilla spellings): בְּרֵאשִׁ֖ית —
-    #   sheva(שבא=303) + tsere(צרי=300) + hiriq(חיריק=328) = 931.
+    #   sheva(שבא=303) + tsere(צירי=310) + hiriq(חירק=318) = 931.
     # The dagesh contributes nothing here either: it has no vowel-name to sum.
     assert g_milui_nekudot("שלום") == 0, g_milui_nekudot("שלום")
     assert g_milui_nekudot("בְּרֵאשִׁ֖ית") == 931, g_milui_nekudot("בְּרֵאשִׁ֖ית")
     assert SHURUK_NAME_VAL == _spelling_val("שורק")
+    # Spellings follow the Remak's usage in שער כ"ח, the only vowel-name
+    # orthography that can actually be checked (Ginnat Egoz is unavailable).
+    # חיריק appears ZERO times in that gate; צירי outnumbers צרי 26 to 3.
+    assert NEKUDA_NAME_VALS["ִ"] == _spelling_val("חירק") == 318
+    assert NEKUDA_NAME_VALS["ֵ"] == _spelling_val("צירי") == 310
+    # Chatafim are sheva + base in BOTH nikud methods — the geometric one adds
+    # the marks, this one adds the names. Scoring a chataf as its bare base
+    # vowel here while counting its sheva there was the inconsistency.
+    for _hat, _base in (("ֲ", "ַ"), ("ֳ", "ָ"), ("ֱ", "ֶ")):
+        assert (NEKUDA_NAME_VALS[_hat]
+                == NEKUDA_NAME_VALS["ְ"] + NEKUDA_NAME_VALS[_base]), _hat
+    assert NEKUDA_NAME_VALS["ֲ"] == 791, NEKUDA_NAME_VALS["ֲ"]
     # All ciphers — spot-checks using אמת (א=1, מ=40, ת=400; Standard=441)
     emet = "אמת"
     assert g_agdat(emet) == 65,               g_agdat(emet)            # א→ג(3)+מ→ס(60)+ת→ב(2)
@@ -5085,8 +5124,8 @@ def run_app() -> None:
                  "Source": "פרדס רימונים (the Remak, 1548), שער הגימטריאות (שער ל׳), פרק ח׳."},
                 {"Method": "MiluiNekudot",
                  "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
-                 "Rule": "Standard gematria of the Hebrew NAME of each vowel mark, using Gikatilla's spellings. שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307.",
-                 "Source": "R' Yosef Gikatilla, גנת אגוז (1274), in the section on the sod of the nekudos, where he brings the gematria of each nekuda's spelled-out name (פתח=488, קמץ=230, צרי=300, שבא=303 …)."},
+                 "Rule": "Standard gematria of the Hebrew NAME of each vowel mark. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. The three chatafim are named as the Remak names them, a sheva together with their base vowel: חטף פתח=791, חטף קמץ=533, חטף סגול=402. The dagesh has no name to sum here — it is not one of the nekudot.",
+                 "Source": "The method is R' Yosef Gikatilla's, גנת אגוז (1274), in the section on the sod of the nekudos. The SPELLINGS here are the Remak's in פרדס רימונים שער כ״ח, because his are the ones that can be checked — גנת אגוז was not available, and no seforim print these sums as a table in any case, so the cheshbon is ours applied to his orthography."},
                 {"Method": "ImMiluiNekudot",
                  "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
                  "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
