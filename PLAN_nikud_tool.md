@@ -196,6 +196,58 @@ account for some; worth checking before hand-adding.
 
 ---
 
+## Tanach half — built and measured 2026-08-05
+
+Cross-referencing CBS against the corpus gives **729 name entries**, of which
+430 are unambiguous and 299 have more than one option after value-collapsing.
+
+### The chataf decision (Joshua, 2026-08-05): use the Tanach form
+
+**87 names carry a chataf in their Tanach vocalization** even though modern
+Hebrew would write them with a plain sheva or nothing. Follow Tanach — it is the
+authoritative form, and after the chataf fix those values differ:
+
+| name | Tanach form | HaNekudot | bearers |
+|---|---|---|---|
+| יעקב | יַעֲקֹב | 42 | 48,075 |
+| מרדכי | מָרְדֳּכַי | 78 | 25,417 |
+| נעמי | נָעֳמִי | 62 | 15,206 |
+| אביגיל | אֲבִיגַיִל | 52 | 19,873 |
+
+### ⚠️ Two problems found, neither fatal, both needing a decision
+
+**1. Frequency ranking can pick a CONSTRUCT form.** For עדי the corpus's most
+frequent form is עֲדֵי ("ornaments-of", 12x) while the name is עֲדִי (2x); הדר
+likewise gives הֲדַר ("splendour-of") over הָדָר. The right answer is in the
+option list, just not on top. Per-word editing covers this, but the auto-pick
+will sometimes be wrong in a way that looks authoritative.
+
+Note this is NOT a "false name match" problem in general — אור, שיר, גל are
+genuine modern names AND Tanach words, and the Tanach vocalization is right for
+both.
+
+⚠️ **A בן/בת-context filter was tried and REJECTED**: only 25% precision,
+because women's names rarely follow בן/בת and in "X בן Y" the name is X, not Y.
+It flagged רחל, שרה and אסתר as suspect. Keep it as a *displayed signal*
+("attested as a name in Tanach") if useful, never as a filter.
+
+**2. Modern plene spelling misses the Tanach defective form.** `אהרון`
+(22,073 bearers) finds nothing because the corpus writes `אהרן`. Dropping one
+mater lectionis recovers **332 names covering 710,272 bearers** — but the
+results cannot be accepted blindly:
+
+| correct | WRONG |
+|---|---|
+| אהרון → אַהֲרֹן | **שירה → שָׂרָה** (Shira is not Sarah) |
+| צפורה → צִפֹּרָה | **מאיה → מֵאָה** ("hundred") |
+| איילה → אַיָּלָה | **ליה → לָהּ** ("to her") |
+| שולמית → שְׁלֹמִית | **ליאור → לְאוֹר** ("to light") |
+| פנינה → פְּנִנָּה | **הילה → הֲלֹה** (nonsense) |
+
+So mater-dropping is a **candidate generator for human review**, not an
+automatic rule. Silently rendering Shira as Sarah would be a serious error in a
+tool people use for their children's names.
+
 ## Other sources checked
 
 **Shemos Gittin literature** — the halachic genre where name spelling is
