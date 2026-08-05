@@ -4302,6 +4302,19 @@ def run_app() -> None:
             "AND boundary_type=? AND variant_track='Ksiv' ORDER BY sub_id",
             (book, int(chapter), int(verse), boundary)).fetchall()
 
+    @st.cache_data(show_spinner=False, max_entries=2, ttl=3600)
+    def cached_name_index():
+        """The nikud tool's name lookup, built offline by build_name_index.py.
+
+        {bare consonants: {options: [{form, count, variants}], source}}.
+        Committed rather than built at runtime — it needs the corpus JSONL and
+        the review CSVs, and none of that belongs in a page load.
+        """
+        path = pathlib.Path(__file__).with_name("nikud_names.json")
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+
     @st.cache_data(show_spinner=False, max_entries=4, ttl=3600)
     def cached_ref_index(_conn, corpus_key):
         """{book: {chapter: [verses]}} for the cascading selects.
@@ -4953,14 +4966,16 @@ def run_app() -> None:
     # and their `with` blocks below are guarded, so their code never runs.
     if app_view:
         tab2 = tab3 = tab4 = None
-        if st.query_params.get("page") == "guide":
+        _page = st.query_params.get("page")
+        if _page in ("guide", "nikud"):
             tab1 = None
             if st.button("← Back to Gematria Search"):
                 st.query_params["page"] = "search"
                 st.rerun()
-            tab_guide = st.container()
+            tab_guide = st.container() if _page == "guide" else None
+            tab_nikud = st.container() if _page == "nikud" else None
         else:
-            tab_guide = None
+            tab_guide = tab_nikud = None
             _hd_l, _hd_r = st.columns([3, 1])
             with _hd_l:
                 st.title("Tanach Gematria Search")
@@ -4968,15 +4983,131 @@ def run_app() -> None:
                 if st.button("📖 Guide & Sources"):
                     st.query_params["page"] = "guide"
                     st.rerun()
+                if st.button("נִקּוּד Nikud tool"):
+                    st.query_params["page"] = "nikud"
+                    st.rerun()
             tab1 = st.container()
     else:
-        tab_guide, tab1, tab2, tab3, tab4 = st.tabs([
+        (tab_guide, tab1, tab2, tab3, tab4, tab_nikud) = st.tabs([
             "📖 Guide & Sources",
             "1 · Phrase & Name Matcher",
             "2 · Scriptural Structural Explorer",
             "3 · Textual Echoes & Anomalies",
             "4 · Macro Statistical Dashboard",
+            "נִקּוּד Nikud tool",
         ])
+
+    # ======================= NIKUD TOOL =================================
+    # Type a word or phrase, get it back vocalized, edit any word from its
+    # attested options, then copy it out or send it to the search.
+    #
+    # It is a TOOL rather than a search-box feature because the search box must
+    # resolve to ONE vocalization to compute a value, which forces a guess. Here
+    # the ambiguity is just information to show.
+    if tab_nikud is not None:
+      with tab_nikud:
+        st.title("Nikud tool")
+        st.markdown(
+            "Type a Hebrew word or phrase to add nikud. Each word can be "
+            "changed to any other attested vocalization — the four vowel-mark "
+            "methods score 0 on bare consonants, so a name needs pointing "
+            "before it can be searched under them.")
+
+        _nk_raw = st.text_input(
+            "Hebrew word or phrase", key="nk_input",
+            placeholder="e.g. חיה זעלדא בת אברהם מאיר",
+            help=_tip("Names are looked up in the Tanach corpus first, then a "
+                      "curated list. Words found nowhere are left bare and "
+                      "flagged."))
+
+        if _nk_raw.strip():
+            _names = cached_name_index()
+            _words = _nk_raw.split()
+            _chosen = []
+            _missing = []
+            for _wi, _w in enumerate(_words):
+                _bare = strip_to_consonants(_w)
+                _entry = _names.get(_bare)
+                if not _entry:
+                    _chosen.append(_w)
+                    if _bare:
+                        _missing.append(_w)
+                    continue
+                _opts = _entry["options"]
+                if len(_opts) == 1:
+                    _chosen.append(_opts[0]["form"])
+                    continue
+                # More than one attested vocalization: offer the choice rather
+                # than pick silently. Keyed on the word AND its position, so
+                # the same word twice in a phrase can differ.
+                _key = f"nk_pick_{_wi}_{_bare}"
+                _labels = {
+                    o["form"]: (f"{o['form']}"
+                                + (f"  ·  {o['count']}× in Tanach"
+                                   if o["count"] else "")
+                                + f"  ·  HaNekudot {g_hanekudot(o['form'])}")
+                    for o in _opts}
+                _pick = st.selectbox(
+                    f"{_w} — {len(_opts)} attested forms",
+                    [o["form"] for o in _opts],
+                    format_func=lambda f, _l=_labels: _l[f],
+                    key=_key)
+                _chosen.append(_pick)
+
+            _result = " ".join(_chosen)
+            st.markdown("**Result**")
+            st.code(_result, language=None)
+
+            if _missing:
+                st.info(
+                    "Not found, left unpointed: "
+                    + ", ".join(f"**{w}**" for w in _missing)
+                    + ". The four vowel-mark methods are undefined for these "
+                    "— the same rule the corpus applies to a Ksiv word printed "
+                    "without nikud.")
+
+            # Values, so the reader sees what the choice actually changes.
+            _res_cons = strip_to_consonants(_result)
+            if _res_cons:
+                _vals = compute_all_ciphers(_res_cons, _result,
+                                            word_consonants=_result)
+                _vc = st.columns(4)
+                for _i, _cm in enumerate(NIKUD_CIPHERS):
+                    with _vc[_i]:
+                        st.metric(CIPHER_DISPLAY_NAMES.get(_cm, _cm).split(" —")[0],
+                                  _vals[_cm])
+
+            if st.button("🔍 Send to gematria search", type="primary",
+                         width="stretch", key="nk_search"):
+                # Hand the vocalized text to Tab 1 exactly as a typed search
+                # would arrive, so every downstream path — results, detail
+                # panel, export — behaves identically.
+                st.session_state["t1_committed"] = {
+                    "cons": _res_cons,
+                    "raw": _result,
+                    "wcons": " ".join(tokenize_words(_result)) or _res_cons,
+                }
+                st.session_state["t1_mode"] = "Hebrew text"
+                st.session_state["nk_sent"] = _result
+                if app_view:
+                    # App view has real pages, so it can navigate outright.
+                    st.query_params["page"] = "search"
+                st.rerun()
+
+            if st.session_state.get("nk_sent"):
+                # ⚠️ On the SITE the tabs are st.tabs, which cannot be switched
+                # programmatically — the search is committed but the reader is
+                # still looking at this tab, so without this the button appears
+                # to do nothing. Say so explicitly rather than leave them
+                # guessing.
+                st.success(
+                    f"**{st.session_state['nk_sent']}** is loaded into the "
+                    "search — open **1 · Phrase & Name Matcher** to see the "
+                    "results."
+                    if not app_view else
+                    f"**{st.session_state['nk_sent']}** sent to the search.")
+
+            st.caption("Select the result text above to copy it.")
 
     # ===================== TAB GUIDE: GUIDE & SOURCES ==================
     # Guarded: tab_guide is None on the app-view search page.
