@@ -264,15 +264,23 @@ NEKUDA_NAME_VALS: Dict[str, int] = {
     "ֹ": _spelling_val("חולם"),   # חולם  = 84
     "ֺ": _spelling_val("חולם"),   # Holam haser = same name
     "ֻ": _spelling_val("קובוץ"),  # קובוץ = 204
-    # The chatafim keep their BASE vowel's name, deliberately, and unlike the
-    # geometric method they are NOT sheva + base here. That asymmetry is the
-    # point: HaNekudot counts the marks on the page, so a chataf's sheva counts;
-    # this method names the vowel, and no source spells a chataf as two words.
-    # A "חטף פתח = 585" construction was proposed and retracted as unsourced —
-    # Ginnat Egoz uses single names throughout.
-    # OPEN: the Remak calls them שבא קמץ / שבא פתח / שבא סגול, sheva first, so
-    # there is an argument for naming them שבא rather than the base vowel. No
-    # source states either way, so the base-vowel reading is kept.
+    # The chatafim keep their BASE vowel's name, and unlike the geometric method
+    # they are NOT sheva + base here. The asymmetry is deliberate: HaNekudot
+    # counts the marks on the page, so a chataf's sheva counts there; this
+    # method names the vowel.
+    #
+    # SETTLED (2026-08-05): there is NO classical milui calculation for a chataf
+    # anywhere. Milui is performed only on the discrete primary vowel names
+    # (קמץ, פתח, צרי, סגול, שבא, חולם, חיריק, שורק, קובוץ). Divine-Name yichudim
+    # that compute vowel milui deliberately use primary vowels and never a
+    # chataf. So every multi-word expansion is an extrapolation with a different
+    # number attached — "חטף פתח" = 585, "שבא פתח" = 791 — and both were
+    # proposed and withdrawn as unsourced. The Remak's "שבא קמץ, שבא פתח, שבא
+    # סגול" is a description of how the mark is ASSEMBLED (שער כ״ח פרק א׳), not
+    # a string to be spelled out and summed.
+    #
+    # Using the base vowel's name is therefore the conservative reading: it adds
+    # no number that no source supports. Do not "improve" this into a compound.
     "ֱ": _spelling_val("סגול"),   # Hataf Segol  → same name as Segol
     "ֲ": _spelling_val("פתח"),    # Hataf Patah  → same name as Patah
     "ֳ": _spelling_val("קמץ"),    # Hataf Kamatz → same name as Kamatz
