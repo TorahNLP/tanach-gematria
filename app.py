@@ -204,27 +204,55 @@ OFANIM_MAP: Dict[str, str] = {
 }
 
 # Nikud (vowel-mark) geometric values for Mispar HaNekudot.
-# Rule: each dot = 10, each line (stroke) = 6.
-# Dagesh/Shuruk included (one dot inside the letter = 10).
-# Shin/sin dot, meteg, and all taamim excluded (consonantal or accentual, not vowel marks).
+#
+# Rule: each dot = a yud = 10, each line = a vav = 6. The dot/line identity is
+# Tikunei Zohar Tikkun 70 ("נקודה איהי י', וקוא איהו ו'"); the COMPONENT COUNTS
+# below are the Ramak's own shape descriptions in Pardes Rimonim שער כ"ח ch.1,
+# quoted per row. The arithmetic itself (multiplying and summing) is printed in
+# no classical text — Chabadpedia calls it "השיטה הנפוצה", the common method,
+# and notes there are two. Do not credit the Arizal or the Ramak for the sums.
+#
+# ⚠️ THE DAGESH IS NOT HERE, DELIBERATELY. It scores nothing: Etz Chaim Sha'ar 5
+# says דגש ורפה "אינם לא טעמים ולא נקודות ולא תגין", and שער כ"ח — the Ramak's
+# whole gate on the nekudot — never mentions it. Only the SHURUK form of U+05BC
+# counts, and since Unicode gives shuruk and dagesh the same codepoint it cannot
+# live in this table at all; see is_shuruk() and SHURUK_VAL.
+#
+# Shin/sin dot, meteg and all taamim are likewise excluded as consonantal or
+# accentual rather than vowel marks.
 NIKUD_VALS: Dict[str, int] = {
-    "ְ": 20,  # Sheva — two dots (10+10)
-    "ֱ": 30,  # Hataf Segol — three dots (same geometry as Segol: 10+10+10)
-    "ֲ":  6,  # Hataf Patah — one line (same geometry as Patah)
-    "ֳ": 16,  # Hataf Kamatz — one line + one dot (same geometry as Kamatz: 6+10)
-    "ִ": 10,  # Hiriq — one dot
-    "ֵ": 20,  # Tsere — two dots (10+10)
-    "ֶ": 30,  # Segol — three dots (10+10+10)
-    "ַ":  6,  # Patah — one line
-    "ָ": 16,  # Kamatz — one line + one dot (6+10)
-    "ֹ": 10,  # Holam — one dot above
+    "ְ": 20,  # Sheva  — "ב' נקודות זו על גב זו"                = 2 dots
+    "ִ": 10,  # Hiriq  — "נקודה תחת האות"                        = 1 dot
+    "ֵ": 20,  # Tsere  — "שני נקודות זו בצד זו"                  = 2 dots
+    "ֶ": 30,  # Segol  — "שלש נקודות השתים זו בצד זו וא' תחתי'"  = 3 dots
+    "ַ":  6,  # Patah  — "קו משוכה מן הימין אל השמאל"            = 1 line
+    "ָ": 16,  # Kamatz — "קו מתוח מן הימין אל השמאל ונקודה תחתיה" = line + dot
+    "ֹ": 10,  # Holam  — "נקודה למעלה מן האות"                   = 1 dot
     "ֺ": 10,  # Holam haser for vav — one dot
-    "ֻ": 30,  # Kubutz — three diagonal dots (10+10+10)
-    "ּ": 10,  # Dagesh / Shuruk — one dot inside the letter
+    "ֻ": 30,  # Kubutz — "ג' נקודות זה תחת זה ... באלכסון"        = 3 dots
+    # The three compound vowels. The Ramak names them as sheva PLUS a base
+    # vowel — "וג' מורכבות, שבא קמץ, שבא פתח, שבא סגול, וקוראים אותו חטף קמץ
+    # חטף פתח חטף סגול" — so the tally is the sheva's two dots plus the base's
+    # own components. These used to be scored as the bare base vowel, i.e. as
+    # if the sheva on the page were not there, which contradicted both the
+    # source and this table's own dot-and-line rule.
+    "ֲ": 26,  # Hataf Patah  = sheva(20) + patah(6)
+    "ֳ": 36,  # Hataf Kamatz = sheva(20) + kamatz(16)
+    "ֱ": 50,  # Hataf Segol  = sheva(20) + segol(30)
 }
 
+# U+05BC is BOTH the shuruk dot and the dagesh — see is_shuruk() for the split.
+DAGESH_OR_SHURUK = "ּ"
+SHURUK_VAL = 10          # "נקודה בתוך הו'" — one dot; the vav is a consonant
+
 # Gikatilla (Ginnat Egoz, 13th c.): Standard gematria of the Hebrew NAME of each vowel mark.
-# Used by Mispar Milui HaNekudot. Hataf forms use the same name as their base vowel.
+# Used by Mispar Milui HaNekudot. Hataf forms use the same name as their base vowel —
+# unlike the geometric method, this one names the vowel rather than counting its marks,
+# and no source spells a chataf as two words ("חטף פתח"); Ginnat Egoz uses single names.
+#
+# ⚠️ No דגש entry, for the same reason it is absent from NIKUD_VALS: a dagesh is not a
+# nekuda, so it has no vowel-name to sum. The shuruk IS one, named שורק — see
+# SHURUK_NAME_VAL, kept out of this table because Unicode shares its codepoint.
 NEKUDA_NAME_VALS: Dict[str, int] = {
     # Spellings follow Gikatilla, Ginnat Egoz (1274): שבא (not שוא), צרי (not צירי)
     "ְ": _spelling_val("שבא"),    # שבא   = 303  (Gikatilla's spelling of Sheva)
@@ -236,11 +264,14 @@ NEKUDA_NAME_VALS: Dict[str, int] = {
     "ֹ": _spelling_val("חולם"),   # חולם  = 84
     "ֺ": _spelling_val("חולם"),   # Holam haser = same name
     "ֻ": _spelling_val("קובוץ"),  # קובוץ = 204
-    "ּ": _spelling_val("דגש"),    # דגש   = 307
     "ֱ": _spelling_val("סגול"),   # Hataf Segol  → same name as Segol
     "ֲ": _spelling_val("פתח"),    # Hataf Patah  → same name as Patah
     "ֳ": _spelling_val("קמץ"),    # Hataf Kamatz → same name as Kamatz
 }
+
+# The shuruk's own name, for Milui HaNekudot. U+05BC used to be named דגש here,
+# which scored a real vowel under a mark that is not one.
+SHURUK_NAME_VAL = _spelling_val("שורק")
 
 
 def _katan_digit(value: int) -> int:
@@ -336,20 +367,58 @@ def g_achbi(s: str) -> int:
     return _temurah_value(s, ACHBI_MAP)
 
 
+def is_shuruk(text: str, i: int) -> bool:
+    """True when text[i] (U+05BC) is a SHURUK rather than a dagesh.
+
+    Unicode gives the shuruk dot and the dagesh the same codepoint, so they can
+    only be told apart by position: a shuruk is the dot inside a vav that
+    carries no vowel of its own (וּ), while the same mark anywhere else — or on
+    a vav that does have a vowel — is a consonantal dagesh.
+
+    The distinction matters because the dagesh is NOT one of the nekudot and
+    scores nothing, whereas the shuruk is one of the nine and scores as its dot.
+    Pardes Rimonim שער כ"ח ch.1 describes the shuruk as "נקודה בתוך הו'" — a dot
+    inside the vav; the vav itself is a consonant and takes no part.
+    """
+    if i <= 0 or i >= len(text) or text[i] != DAGESH_OR_SHURUK:
+        return False
+    if text[i - 1] != "ו":
+        return False
+    nxt = text[i + 1] if i + 1 < len(text) else ""
+    return not ("ְ" <= nxt <= "ֻ")
+
+
 def g_hanekudot(text: str) -> int:
     """HaNekudot — geometric value of vowel marks (dot=10, line=6).
-    Operates on raw cantillated text; dagesh included; taamim excluded.
+
+    Operates on raw cantillated text; taamim excluded. The dagesh scores 0 (it
+    is not a nekuda — see NIKUD_VALS); a shuruk scores as its dot.
     Returns 0 for consonant-only text.
     """
-    return sum(NIKUD_VALS.get(ch, 0) for ch in text)
+    total = 0
+    for i, ch in enumerate(text):
+        if ch == DAGESH_OR_SHURUK:
+            total += SHURUK_VAL if is_shuruk(text, i) else 0
+        else:
+            total += NIKUD_VALS.get(ch, 0)
+    return total
 
 
 def g_milui_nekudot(text: str) -> int:
     """Milui HaNekudot (Gikatilla, Ginnat Egoz 13th c.) — sum of the Standard
     gematria of the Hebrew NAME of each vowel mark found in the text.
+
+    Same shuruk/dagesh split as g_hanekudot: a dagesh has no name to sum here
+    because it is not a nekuda, while a shuruk is named שורק.
     Returns 0 for consonant-only text.
     """
-    return sum(NEKUDA_NAME_VALS.get(ch, 0) for ch in text)
+    total = 0
+    for i, ch in enumerate(text):
+        if ch == DAGESH_OR_SHURUK:
+            total += SHURUK_NAME_VAL if is_shuruk(text, i) else 0
+        else:
+            total += NEKUDA_NAME_VALS.get(ch, 0)
+    return total
 
 
 def g_agdat(s: str) -> int:
@@ -812,7 +881,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
     "Emtzaiyot":       "Middle letter: Standard value of the second letter of each Milui name (2-letter spellings). אלף→ל=30, בית→י=10 …",
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
-    "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh=10. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30. Consonants and taamim contribute 0.",
+    "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30, Shuruk=10. Chatafim add the sheva: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh is not a nekuda and scores 0. Consonants and taamim contribute 0.",
     "ImHaNekudot":      "Standard gematria of the consonants plus HaNekudot of the vowel marks: letters + vowel-mark geometric values combined.",
     "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark (Gikatilla spellings). שבא=303, חיריק=328, צרי=300, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, דגש=307.",
     "ImMiluiNekudot":   "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines letter totals with the spelled-out vowel marks.",
@@ -3086,7 +3155,17 @@ def nikud_breakdown(cipher: str, cantillated: str,
             val = STANDARD.get(_normalize_final(ch), 0)
             if val:
                 rows.append((ch, val))
-    for ch in cantillated:
+    milui = cipher in ("MiluiNekudot", "ImMiluiNekudot")
+    for i, ch in enumerate(cantillated):
+        if ch == DAGESH_OR_SHURUK:
+            # U+05BC is a shuruk or a dagesh depending on position. A dagesh is
+            # not a nekuda and contributes nothing, so it must not appear as a
+            # row — a zero row would imply it was counted and came to nothing.
+            if not is_shuruk(cantillated, i):
+                continue
+            val = SHURUK_NAME_VAL if milui else SHURUK_VAL
+            rows.append((f"◌{ch} שורק", val))
+            continue
         val = table.get(ch)
         if val:
             name = NEKUDA_NAMES.get(ch, "")
@@ -3662,13 +3741,31 @@ def run_selftest() -> None:
     assert g_ribua("אב") == 5 and g_kidmi("ג") == 6
     assert g_katan("ר") == 2 and g_katan("י") == 1
     # HaNekudot: consonant-only → 0; cantillated בְּרֵאשִׁ֖ית:
-    #   dagesh(10) + sheva(20) + tsere(20) + hiriq(10) = 60 (taam excluded)
+    #   sheva(20) + tsere(20) + hiriq(10) = 50. The dagesh in the bet scores
+    #   NOTHING — it is not a nekuda (Etz Chaim Sha'ar 5) — and the taam is
+    #   excluded. This asserted 60 while the dagesh was counted.
     assert g_hanekudot("שלום") == 0, g_hanekudot("שלום")
-    assert g_hanekudot("בְּרֵאשִׁ֖ית") == 60, g_hanekudot("בְּרֵאשִׁ֖ית")
+    assert g_hanekudot("בְּרֵאשִׁ֖ית") == 50, g_hanekudot("בְּרֵאשִׁ֖ית")
     assert g_hanekudot(SAMPLE_CORPUS[0].text) > 0
-    # MiluiNekudot (Gikatilla spellings): בְּרֵאשִׁ֖ית — dagesh(דגש=307)+sheva(שבא=303)+tsere(צרי=300)+hiriq(חיריק=328) = 1238
+    # The shuruk/dagesh split: U+05BC is both, told apart by position. תֹהוּ is
+    # holam(10) + shuruk(10) = 20 — the shuruk COUNTS; בְּרֵאשִׁית above shows
+    # the dagesh does not. Pin both directions so neither can regress.
+    assert is_shuruk("תֹהוּ", "תֹהוּ".index(DAGESH_OR_SHURUK)) is True
+    assert is_shuruk("בָּרָא", "בָּרָא".index(DAGESH_OR_SHURUK)) is False
+    assert g_hanekudot("תֹהוּ") == 20, g_hanekudot("תֹהוּ")
+    # Chatafim are sheva + base, per the Ramak's own composition in Pardes
+    # Rimonim שער כ"ח ch.1 ("וג' מורכבות, שבא קמץ, שבא פתח, שבא סגול"):
+    #   hataf patah = 20+6 = 26, hataf kamatz = 20+16 = 36, hataf segol = 20+30 = 50.
+    # They used to score as the bare base vowel, i.e. as if the sheva were absent.
+    assert NIKUD_VALS["ֲ"] == NIKUD_VALS["ְ"] + NIKUD_VALS["ַ"] == 26
+    assert NIKUD_VALS["ֳ"] == NIKUD_VALS["ְ"] + NIKUD_VALS["ָ"] == 36
+    assert NIKUD_VALS["ֱ"] == NIKUD_VALS["ְ"] + NIKUD_VALS["ֶ"] == 50
+    # MiluiNekudot (Gikatilla spellings): בְּרֵאשִׁ֖ית —
+    #   sheva(שבא=303) + tsere(צרי=300) + hiriq(חיריק=328) = 931.
+    # The dagesh contributes nothing here either: it has no vowel-name to sum.
     assert g_milui_nekudot("שלום") == 0, g_milui_nekudot("שלום")
-    assert g_milui_nekudot("בְּרֵאשִׁ֖ית") == 1238, g_milui_nekudot("בְּרֵאשִׁ֖ית")
+    assert g_milui_nekudot("בְּרֵאשִׁ֖ית") == 931, g_milui_nekudot("בְּרֵאשִׁ֖ית")
+    assert SHURUK_NAME_VAL == _spelling_val("שורק")
     # All ciphers — spot-checks using אמת (א=1, מ=40, ת=400; Standard=441)
     emet = "אמת"
     assert g_agdat(emet) == 65,               g_agdat(emet)            # א→ג(3)+מ→ס(60)+ת→ב(2)
@@ -4956,8 +5053,8 @@ def run_app() -> None:
                  "Source": "ספר רזיאל המלאך."},
                 {"Method": "HaNekudot",
                  "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
-                 "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Dagesh/Shuruk=10, Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30. Taamim and shin/sin dot excluded.",
-                 "Source": "Roots in תיקוני הזהר (תיקון ה׳ and ע׳, late 13th c.), which learns out the shapes of the nekudos as yud (dot) and vav (line). The cheshbon itself is from the Arizal (R' Yitzchak Luria, 16th c.), recorded by R' Chaim Vital in שער הכוונות and עץ חיים (שער תנת\"א — טעמים, נקודות, תגין, אותיות)."},
+                 "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30, Shuruk=10 (the dot; the vav is a consonant). The three chatafim are a sheva plus their base vowel: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh scores 0 — it is not one of the nekudot. Taamim, meteg and the shin/sin dot are likewise excluded.",
+                 "Source": "תיקוני הזהר תיקון ע׳ gives the identity that a dot is a yud and a line is a vav (נקודה איהי י׳, וקוא איהו ו׳). The shape of each nekuda — how many dots and lines it has — is set out by the Remak in פרדס רימונים שער כ״ח (שער הנקודות) פרק א׳, who also names the three chatafim as שבא קמץ, שבא פתח, שבא סגול — a sheva together with a base vowel. Putting numbers to those shapes is a later convention rather than a cheshbon any of these seforim prints. עץ חיים שער ה׳ rules out the dagesh: דגש ורפה אינם לא טעמים ולא נקודות ולא תגין."},
                 {"Method": "ImHaNekudot",
                  "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
                  "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines consonant totals with vowel-mark geometric values in a single sum.",
