@@ -130,9 +130,45 @@ need to be per-letter, not per-word. Worth knowing before trusting that function
 to validate an imported list.
 
 **So the non-Tanach half remains a curation task**, not a scrape: someone must
-decide זעלדא is `זֶעלְדָא`. Options: hand-curate a starter set of the most common
-Yiddish names, or accept "not in Tanach → vowel-mark methods unavailable" for
-them (see below).
+decide זעלדא is `זֶעלְדָא`. But the NAME INVENTORY is solved — see below.
+
+### Name inventory: use the CBS list (verified 2026-08-05)
+
+`hebrew-names` wraps Israel CBS registration data and is the best inventory
+found. **Verified by downloading it**, not taken on trust:
+
+- **2,165 names**, male and female, in Hebrew script.
+- ⚠️ **UTF-16 encoded** — decode with `utf-16`, not utf-8, or you get mojibake.
+- Tab-separated: `name, count, pct, cumulative, rank`.
+- Raw files:
+  `raw.githubusercontent.com/alumag/hebrew-names/master/hebrew_names/dist.jew.{male,female}.first`
+
+**The frequency column is the useful part** — it gives a curation worklist in
+priority order rather than an undifferentiated pile.
+
+Coverage against Tanach:
+
+| | |
+|---|---|
+| CBS names found in Tanach (nikud free) | 729 (34%) |
+| not in Tanach (need vocalizing) | 1,435 (66%) |
+| **weighted by real-world frequency** | **64% of actual name-bearers covered by Tanach** |
+
+The 34%/64% gap is the point: the common names *are* the biblical ones, so
+Tanach alone answers most real lookups.
+
+⚠️ **First impression was wrong and is corrected here:** the top missing names
+look purely modern-secular (נועה, שירה, מאיה, עידו, טליה), which suggested CBS
+would not carry Yiddish names at all. It does — Israeli registration includes
+charedi families, so זעלדא, בריינדל, יענטא, טויבא, הענדל and בילא are all
+present. Harkavy has only גיטל of that set.
+
+**CBS vs Harkavy:** 2,165 vs 561, overlap 149, Harkavy-only 412. Harkavy is
+still worth keeping as a secondary inventory for older Yiddish forms CBS lacks,
+but CBS is the base list. Neither supplies usable nikud.
+
+Not in either: פייגא, פרומא, שפרינצא — spelling variants (פייגה, פרומה) may
+account for some; worth checking before hand-adding.
 
 ---
 
@@ -160,10 +196,30 @@ them (see below).
 
 ---
 
+## Other sources checked
+
+**Shemos Gittin literature** — the halachic genre where name spelling is
+legally decisive (גט פשוט, שם חדש, טיב גיטין, on HebrewBooks). Reported as the
+authority for *spelling*, but **unvocalized by convention**: shtaros and gittin
+are written without nikud, and the poskim argue over letter choice (silent
+alef, single vs double vav/yod) rather than vowel points. So it is the right
+source for how a name is SPELLED, and no help at all for how it is POINTED.
+Not pursued — CBS already gives the inventory.
+
+**No fully-vocalized Yiddish name list exists.** Independently reported and
+consistent with the Harkavy finding: standardized Yiddish uses matres lectionis
+(אַ, אָ, וי) rather than Tiberian nikud, so there was never a reason to produce
+one. This is why the non-Tanach half is curation and not a download.
+
+**Unverified, not pursued:** JewishGen Given Names DB (no bulk export),
+Wikidata SPARQL, Chabad.org names directory (scrape only). CBS made these
+unnecessary.
+
 ## Open questions
 
-1. **Name-list scope** — how many non-Tanach names for v1? A starter list for
-   Joshua to correct, or does he supply it?
+1. **Name-list scope** — how many non-Tanach names for v1? The CBS frequency
+   ranking makes this tractable: the top ~200 missing names would cover most
+   real use. A starter list for Joshua to correct, or does he supply it?
 2. **Multi-word names** — `בן ציון` as a single given name vs `בן` relational.
    Detect, or leave to per-word editing?
 3. **Should the tool show gematria values** beside each option? It has them
