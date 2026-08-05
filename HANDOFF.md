@@ -3,30 +3,36 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `03baee7` (Cut the on-screen notes down)
-**Last DB-affecting commit:** `a8f4b90` — rebuild `tanach.db` if you are older than this
-**Handoff date:** 2026-07-28
+**Last code commit:** `5da07eb` (Milui HaNekudot: chatafim are sheva + base)
+**Last data commit:** `ffa9cfb` (name-index review lists — no app code)
+**Last DB-affecting commit:** `5da07eb` — **rebuild `tanach.db` if you are older than this**
+**Handoff date:** 2026-08-05
 
-> ✅ **Everything in this document is pushed and verified live.**
+> ✅ **Everything in this document is pushed and verified live** on all four
+> targets unless explicitly marked otherwise.
 >
 > **This file lives on the `docs` branch and is never deployed** — see "Docs are
 > off the deploy path" below. Editing it costs nothing; it used to cost a
 > production restart.
 >
-> The header names the last **code** commit. The session log at the bottom is
-> authoritative.
+> ⚠️ **Read the concurrency section first.** The Space has gone down TWICE with
+> `RUNTIME_ERROR` exit 139 from a sqlite connection used across Streamlit
+> sessions — most recently on 2026-08-03, from verse mode. It is easy to
+> reintroduce and the fix pattern is documented there.
 >
-> ⚠️ **Read the concurrency section first.** The Space went down this session
-> (`RUNTIME_ERROR`, exit 139) because a sqlite connection was shared across
-> Streamlit sessions. That is easy to reintroduce.
+> ⚠️ **The 2026-08-05 session changed stored nikud values twice** (`75c768f`,
+> `5da07eb`). The dagesh no longer scores, and the chatafim are now sheva+base
+> in both nikud methods. **Rebuild `tanach.db`.** Read "Nikud: the sourced
+> basis" before touching any vowel-mark code.
 >
-> **Still open:** the variants-toggle redesign (not built, deferred) and
-> `TODO(site)` on the cleaned-consonants readout (deferred).
->
-> ⚠️ **2026-07-28 session was mostly a correctness overhaul of Ksiv/Kri.**
-> Read that section and the unpointed-Ksiv rule before touching any cipher,
-> search path or the corpus loader. Two stored-data changes since the last
-> handoff (`44ac11c`, `a8f4b90`) — **rebuild `tanach.db`**.
+> **Open, with plans written:**
+> - **Nikud tool** — `PLAN_nikud_tool.md`, this branch. Name lists generated
+>   and agent-reviewed; `name_review/REVIEW_ME.csv` on `main` is waiting for
+>   Joshua. Nothing built yet.
+> - **Verse-reference search** — `PLAN_verse_search.md`. Shipped, but items 4
+>   (word-range spans) and the cascading-select polish remain.
+> - Variants-toggle redesign, `TODO(site)` on cleaned-consonants — both still
+>   deferred.
 
 ---
 
@@ -360,6 +366,150 @@ the same server will make a "cold" run look instant. That produced a wrong
 measurement once.
 
 ---
+
+## Verse-reference search (`39a5742`, and the fixes after it)
+
+A third mode on Tab 1's radio: `Hebrew text` / `Gematria value` /
+**`Verse reference`**. Type a reference, pick which unit of the verse to search,
+and it commits like any other query. One implementation serves the site and app
+view.
+
+- **`parse_verse_ref`** accepts English, yeshivish and Hebrew book names,
+  arabic or Hebrew-letter numerals: `Genesis 1:1`, `Bereishis 1 1`,
+  `בראשית א:א`, `2 Kings 2:1`, `מלכים ב ב:א`, `Kings II 2:1`. Self-tested,
+  including that **all 39 canonical book names round-trip** — without that
+  assertion a book can silently become unreachable by typing.
+- **Tab 2's filter uses the same parser.** It was a book-substring match only,
+  so reaching one verse meant typing the book and scrolling 23,206 rows.
+- **`BOOK_DISPLAY_NAMES` / `book_label()`** show "Kings I" rather than
+  "I Kings". ⚠️ **Display only** — `book` is a stored DB value used by every
+  query, sub_id and join. Never route a DB call through it.
+- Free text is the primary input; the cascading Book/Chapter/Verse selects are
+  a collapsed fallback, shown in **both** views.
+
+⚠️ **The selects must NOT go inside an `st.form`** — widgets in a form do not
+report until submit, so the chapter list could never narrow to the book just
+chosen.
+
+⚠️ **The "Use this reference" button writes a SEPARATE key** (`t1_vs_seed`),
+not `t1_vs_ref`. Streamlit raises `StreamlitAPIException` if you assign to a
+session-state key after its widget exists, and the text input owns that key.
+The seed is popped at the top of the branch and used as the widget's value on
+the next rerun — the same shape as the keyboard's `_KBD_BUF`.
+
+### Query-side `nikud_partial` gate
+
+⚠️ Every other `nikud_partial` check in the file is a **corpus-side SQL
+predicate**; nothing checked the query. Picking one of the **1,107 flagged
+verses** under a vowel-mark method would have computed a knowably-short value —
+or, for the `Im*` pair, one identical to Standard — and then searched it,
+returning real-looking matches for a value that should not exist.
+
+The four vowel-mark methods are now **removed from the picker** when the
+committed unit is flagged. **Read the flag from the SELECTED UNIT's own row,
+never the parent verse's**: 922 clean halves and 15,856 clean words sit inside
+verses flagged at verse level.
+
+### Self-matching (`a6d0f72`)
+
+A unit always equals its own value, so a verse search returned the searched
+verse among its matches — all 23,206 verses, every method. Tab 2 had it too.
+`drop_self_match` removes a row only when it is the **same unit AND the same
+method**. Deliberately kept: the same unit under a *different* method (Genesis
+11:9 has Standard == Atbash), a different boundary of the same verse, and typed
+Hebrew searches, which pass no unit at all.
+
+## Two-sided translation and the cross-method export
+
+- `render_verse_detail` takes `query_ref`; `build_print_html` takes
+  `query_english`. An export of "these two units share a value" used to carry
+  only the matched unit's English.
+- ⚠️ **The CC-BY-NC attribution is rendered ONCE at document level.** It used to
+  sit inside the single `if english:` block; a second translation block would
+  have printed the licence notice twice.
+- ⚠️ **`query_method`** — a cross-method drill-down has TWO methods. Without it
+  the export scored the query with `drill_b` too, printing an Atbash total of
+  2344 for the name above an Atbash verse total of 1036 and calling them equal.
+  The drill-down pickers now say "Method A — your search term" and
+  "Method B — corpus results", which is the same confusion at root.
+- Colel is mentioned in a print-out **only when it actually applied** — not when
+  off, and not when on-but-exempt for the method.
+
+## ⚠️ Nikud: the sourced basis for every value (`75c768f`, `2b5e316`, `e333ea6`, `5da07eb`)
+
+**Read this before changing any vowel-mark value.** Two stored-data changes
+landed on 2026-08-05, and the reasoning behind every number is now traceable.
+Do not re-derive it — establishing it took a long adversarial research round in
+which the assisting AI fabricated **nine** Hebrew quotations or arithmetic
+claims. Only what is quoted below was verified against the actual text.
+
+### The dagesh scores 0
+
+`דגש ורפה` are **not nekudot**: Etz Chaim שער ה׳ says
+`"אינם לא טעמים ולא נקודות ולא תגין"`, and Pardes Rimonim **שער כ״ח** — the
+Remak's entire gate on the nekudot — never mentions דגש in any chapter. The
+canonical count is nine, and the ninth is **shuruk**, not dagesh.
+
+⚠️ **Shuruk and dagesh are the SAME codepoint (U+05BC)**, so this could not be
+a table entry. `is_shuruk()` splits them by position: U+05BC on a vav carrying
+no vowel of its own is a shuruk (scores 10, `"נקודה בתוך הו'"`); anywhere else
+it is a dagesh (scores 0). Verified on the corpus — תֹהוּ/וּבֵין/רוּחַ classify as
+shuruk, בְּרֵאשִׁית/בָּרָא/כִּי as dagesh. Affected **38.7% of pointed words**.
+
+A proposal to score shuruk as **16** (vav 6 + dot 10) was **rejected**: the vav
+is a consonant, and counting it would double-count. Its own proposer retracted
+it.
+
+### The chatafim are sheva + base, in BOTH methods
+
+The Remak names them himself in שער כ״ח פרק א׳:
+`"וג' מורכבות, שבא קמץ, שבא פתח, שבא סגול, וקוראים אותו חטף קמץ חטף פתח חטף סגול"`
+
+- geometric: 26 / 36 / 50 (was 6 / 16 / 30 — scored as the bare base vowel, as
+  if the sheva on the page were absent)
+- milui: 791 / 533 / 402 (was 488 / 230 / 99)
+
+⚠️ **The milui half was initially left alone and that was wrong.** Research
+established that no classical text computes milui on a chataf at all, and the
+first conclusion was "add no number no source supports". Joshua's objection
+settled it: *if we count the sheva's dots in one method, we should name the
+sheva in the other*. What makes that right is that **no source prints ANY of
+these sums** — nobody writes `פתח = 488` — so "unsourced" does not distinguish
+the cases. Both methods are one consistent rule applied to sourced spellings and
+shapes; exempting the chataf in one was the inconsistency.
+
+Rejected: `"חטף פתח" = 585`, which spells the grammatical descriptor חטף.
+
+### Where each value actually comes from
+
+| link in the chain | status |
+|---|---|
+| component counts (how many dots/lines per vowel) | **SOURCED** — Pardes Rimonim שער כ״ח פרק א׳ describes every shape; each is quoted at its line in `NIKUD_VALS` |
+| dot = yud = 10, line = vav = 6 | **SOURCED** — Tikunei Zohar תיקון ע׳, `נקודה איהי י', וקוא איהו ו'` (identity only) |
+| the multiplication and addition | **INFERENCE** — no classical text prints "kamatz = 16". Chabadpedia calls it `השיטה הנפוצה` and notes there are **two** methods |
+
+⚠️ **The Guide must not credit the Arizal or the Remak with the arithmetic.**
+It used to. שער כ״ח contains zero occurrences of גימטריא and no "16" anywhere —
+it is sefirotic symbolism, not calculation.
+
+### Milui spellings follow the Remak, not Gikatilla
+
+The *method* is Gikatilla's (Ginnat Egoz), but that text could not be obtained
+and the one quote offered for its orthography was fabricated. שער כ״ח is
+readable and countable, so it is the verifiable baseline. Frequencies in that
+gate, recorded at each line in `NEKUDA_NAME_VALS`:
+
+`שבא` 13x · `חירק` 16x (**חיריק 0x**) · `צירי` 26x (צרי 3x) · `סגול` 23x ·
+`פתח` 16x · `קמץ` 43x · `חולם` 19x · `שורק` 24x (שרק 12x)
+
+Two values moved: **chirik 328 → 318**, **tsere 300 → 310**.
+
+⚠️ `קובוץ` is the ONE spelling not grounded in his usage — שער כ״ח never writes
+it (`קבוץ` once; he calls the mark `קבוץ שפתים`, treating it as
+`"שורק של ג' נקודות"`). Modern spelling kept for recognisability; flagged in-code.
+
+Full detail, including what was retracted, is in Claude's memory note
+`tanakh-gematria-nikud-sourcing`.
 
 ## Vowel-mark (nikud) methods (`c389659`, `0008775`)
 
@@ -829,6 +979,47 @@ headings read "Selected Unit (Genesis 1:1)" rather than "Your Word".
 
 ---
 
+## The 35th method: Mispar HaMispari HaGadol (`bec3230`)
+
+⚠️ **Stored-data change.** Pardes Rimonim שער ל׳ §9 (`מספריי הגדול`): name each
+letter's **milui** total, rather than its standard value as §8 does. Internal
+name `MispariHaGadol`, displayed `Mispari HaGadol — מספריי הגדול`.
+
+The Remak's worked example reproduces exactly — yud's milui יוד = 20, and
+עשרים = 620 = כתר — and since it is the **only** checksum this method has,
+`run_selftest` pins it.
+
+**Partly reconstructed, and labelled as such in the Guide.** He spells only that
+one number and it is not a compound, but 15 of the 22 milui totals are.
+`compose_number_name()` supplies them under a stated convention: hundreds
+first, joined by a conjunctive vav, `אחד עשר` for eleven. Only the latter two
+affect a value — **constituent order cannot, because addition commutes**, which
+is what defeated the argument that this method was unreconstructible.
+
+A composition invariant in `run_selftest` asserts every generated name denotes
+the number it was built from.
+
+Not in `_HEATMAP_EXCLUDE`: 2,893 distinct values over 3,000 sample verses, so it
+neither saturates like `KatanMispari` nor breaks correlation like
+`HaMerubahKlali`.
+
+## ⚠️ Method counts are DERIVED — never write the literal
+
+`N_CIPHERS = len(CIPHERS)` and
+`N_HEATMAP_CIPHERS = len(CIPHERS) - len(_HEATMAP_EXCLUDE)`, interpolated into
+ten user-facing strings. **There are TWO counts and they move independently** —
+adding the 35th method took the headline to "35 gematria methods" and the
+heatmap text to "33-method correlation heatmap" with no manual edits.
+
+⚠️ The heatmap's smaller number is **correct, not stale**: `_HEATMAP_EXCLUDE`
+drops `KatanMispari` (9 distinct values, saturates) and `HaMerubahKlali`
+(hyperscale squared totals break Pearson). Joshua caught this being wrongly
+flagged as a bug. Whether a new cipher belongs in that set is a judgement call
+per method, so the second figure must stay derived from the frozenset.
+
+Remaining `34`/`32` literals in `app.py` are unrelated: an Achbi index, a Boneeh
+worked example, a verse reference.
+
 ## Method list: Mityashev out, Mispar HaMispari in (`a8f4b90`)
 
 ⚠️ **Stored-data change — rebuild `tanach.db`.** Count stays **34**.
@@ -902,12 +1093,17 @@ an old database self-heals instead of failing on first search.
 | Local `.venv` needs `plotly` | Installed 2026-07-19. Worth knowing why it matters: without it the Tab 4 import aborts the whole script run, so **every tab shows the traceback** and no site-view verification is possible. If a fresh venv shows errors on all tabs, check this first. |
 | ~~`use_container_width`~~ | Done (`8f7b636`): all 29 sites use `width="stretch"`. The removal date had already passed; only the 1.58.0 pin was keeping it alive, so an upgrade would have broken every table and chart at once. |
 | **First-load 500, fine on refresh** | **Reproduced 2026-07-19, and it is not app-side.** Right after a rebuild: request 1 hung 108s then returned HTTP 500 with a 3,038-byte body; request 2 returned 200 in 29ms. That body is HuggingFace's error page, not our 3,148-byte `index.html` — which is why no code of ours can intercept it. Causes: the Space is `cpu-basic` with a 48h sleep timer (cold wake ≈10s), and any rebuild restarts the container. Build is confirmed healthy: `builddb` ran 100.4s at image-build time, boot is ~10s, run logs clean. Only real mitigations are a keep-warm ping or a service worker; **Joshua declined the service worker** — it would install resident code on every visitor's device. |
+| ⚠️ **Stripping cantillation with a RANGE eats the nikud** | `[֑-ֽ]` looks like "the te'amim" but U+05B0–U+05BC are the NIKUD, so that range silently returns bare consonants and every vowel-mark measurement comes out zero. **This cost real time twice in one session.** Strip an explicit set: `range(0x0591,0x05B0)` plus `05BD 05BF 05C0 05C3 05C4 05C5 05C6`. |
+| ⚠️ **`tanach.db` holds NO pointed text** | `text_display` is bare consonants; the nikud lives only in `tanach_corpus.jsonl`. Anything needing vocalized text must index the JSONL, not the DB. The old auto-nikud plan assumed the DB had it. |
+| ⚠️ **Double-quoted SQL string literals** | `WHERE boundary_type="Verse"` is read by SQLite as an IDENTIFIER, not a string, and silently returns ZERO rows. It produced a wrong "0 verses lack a SecondHalf" measurement that was believed until a reviewer contradicted it. Always single-quote. |
+| ⚠️ **`has_unpointed_word` is per-word, not per-letter** | It asks whether a word carries ANY nikud — right for its original job (Sefaria prints Ksiv words entirely bare) but it passes partially-pointed words like Harkavy's `חַיה`. It cannot validate an imported vocalization list; `name_review/validate.py` does that per letter. |
 | Local `tanach.db` staleness | `tanach.db` is a **derived artifact** (gitignored, never regenerates on pull) holding boundary types, consonants, display text and all 34 cipher columns. Docker rebuilds it every build; **locally you must**. Two failure modes: a schema change crashes loudly (`no such column`), but a change to stored *values* fails **silently** — the app runs and serves stale data. After pulling anything that touches stored data: `rm tanach.db && python app.py builddb` (~100s). |
 | **A stale `tanach.db` now self-heals, but rebuild anyway** | Since `b08c1e4` `_build_connection` checks the `units` schema and rebuilds if a column this release queries is missing — that is what fixed Streamlit Cloud. It costs a one-time ~30s on first load, so locally still run `python app.py builddb` after pulling a ⚠️ commit. |
 | **Ksiv/Kri: never re-derive the flag at a query site** | `nikud_partial` is set once at build time precisely so the thirteen query paths cannot drift. Add new paths by reusing the column, not by recomputing `has_unpointed_word`. |
 | Transliteration search | Not built. |
 | On-screen Hebrew keyboard | Still commented out (`_KBD_KEY`). |
-| Auto-nikud for typed input | Deferred; design in Claude memory (corpus lookup first, tiny ONNX nakdan fallback). |
+| Auto-nikud for typed input | **Plan written** — `PLAN_nikud_tool.md`, this branch. A separate page: type a word or phrase, get it back vocalized, edit any word from its attested options, copy out or jump to search. Name lists generated and agent-reviewed; `name_review/REVIEW_ME.csv` on `main` holds the 87 rows awaiting Joshua. **842 names need no review.** Nothing built yet. |
+| Name sources | CBS list (2,165 names, ⚠️ **UTF-16**) is the inventory; 729 are in Tanach and get nikud free. ⚠️ **Harkavy 1925 was checked and REJECTED** — 30% letter coverage, only 1 of 561 names fully pointed, and שָׂרה carries nothing but a sin dot, which the engine excludes. Do not retry it. |
 | ~~Word-span click-through~~ | Confirmed working by the user on 2026-07-19. |
 | **`/code-review high` catches gating bugs verification alone misses** | The print/verse-box work (`ea0b5e2`) was fully browser-verified before push — every check passed — but the review still found two real correctness bugs (both confirmed by an independent verifier, fixed in `90b6c04`). The pattern: an `if not app_view:` gate is easy to write when simplifying a *display* line, easy to miss when one of the lines it's hiding is actually a *warning*, not decoration. Worth a review pass after any display-gating change, not just a browser check. |
 
@@ -988,6 +1184,39 @@ that gap but the app-view DOM differences that broke CSS tab hiding were only ev
 visible in production.
 
 ---
+
+## Session Log (2026-08-03 → 08-05, newest first)
+
+*All pushed and live on all four targets.* ⚠️ marks a commit that changed
+**stored data** and therefore required a `tanach.db` rebuild:
+
+- `ffa9cfb` Name-index review lists and validator (data only, no app code)
+- `5da07eb` ⚠️ **Milui: chatafim = sheva+base; spellings follow the Remak**
+- `e333ea6` Record that chataf milui has no classical basis at all
+- `2b5e316` Document the nikud spelling choices no source fixes
+- `75c768f` ⚠️ **Nikud: exclude the dagesh; chatafim = sheva+base**
+- `a6d0f72` Drop the searched unit from its own results
+- `86880e1` Fix cross-method print-out scoring the query with the wrong method
+- `be948a8` Print-out: drop the "Consonants searched" row
+- `77ca851` Collapse "Browse for a reference" by default
+- `40c8723` Print-out: mention colel only when the calculation used it
+- `00f5da2` Fix crash on "Use this reference" (session-state key)
+- `a360493` Print-out: always state whether colel was applied
+- `cf352f8` Fix the two-translation headings
+- `3e49859` Show "Browse for a reference" in app view
+- `930c5e3` Verse mode: browse above colel, canonical book order, "Kings I"
+- `39a5742` **Re-add verse-reference search, with DB reads cached**
+- `2b7b710` ⏪ **Revert of `343f311`** — production was down, exit 139
+- `343f311` ~~Add verse-reference search~~ (took the Space down; see concurrency)
+- `737272e` Move the reconstruction caveat into Source
+- `bec3230` ⚠️ **Add Mispar HaMispari HaGadol as a 35th method**
+- `ae52d84` Guide: Hebrew sources in a yeshivish register; span search
+- `7298a16` Rewrite Guide & Sources: reorder, cut verbosity, fix stale rows
+
+**Three bugs reached production in this stretch** (SIGSEGV, the heading
+duplication, the session-state crash), each because a component was verified to
+*render* rather than being driven through its actual path. The concurrency
+harness now exists; a click-through pass before pushing would catch the rest.
 
 ## Session Log (2026-07-28, newest first)
 
