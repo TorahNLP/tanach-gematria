@@ -5049,6 +5049,26 @@ def run_app() -> None:
             _words = _nk_raw.split()
             _chosen = []
             _missing = []
+
+            # ⚠️ In "X בן Y" / "X בת Y" the flanking words are PERSONAL NAMES,
+            # and without that signal the tool reads them as ordinary corpus
+            # words: אבא בן יצחק resolved אבא to אָבֹא, "I will come", because
+            # that is what the Tanach attests for those consonants. The
+            # relational word is the only cue that a name is meant, so it
+            # promotes name-sourced vocalizations for its neighbours.
+            #
+            # Only the two adjacent words are affected. "בן" elsewhere in a
+            # phrase means "son" in the ordinary sense and must not reorder
+            # anything.
+            _REL = {"בן", "בת", "ben", "bat", "bas"}
+            _name_pos = set()
+            for _i, _t in enumerate(_words):
+                if strip_to_consonants(_t) in _REL or _t.lower() in _REL:
+                    if _i:
+                        _name_pos.add(_i - 1)
+                    if _i + 1 < len(_words):
+                        _name_pos.add(_i + 1)
+
             for _wi, _w in enumerate(_words):
                 _bare = strip_to_consonants(_w)
                 _entry = _names.get(_bare)
@@ -5072,10 +5092,34 @@ def run_app() -> None:
                         _missing.append(_w)
                     continue
                 _opts = list(_entry["options"]) if _entry else []
+                _is_curated = bool(_entry) and str(
+                    _entry.get("source", "")).startswith("curated")
+                for _o in _opts:
+                    _o.setdefault("curated", _is_curated)
                 _opts += [{"form": f, "count": 0, "variants": [f],
                            "wiktionary": True} for f in _extra]
                 _opts += [{"form": f, "count": 0, "variants": [f],
                            "wiktionary": True, "bound": True} for f in _bound]
+
+                if _wi in _name_pos and len(_opts) > 1:
+                    # Next to בן/בת, prefer a form some source vouches for as a
+                    # NAME over one attested only as an ordinary corpus word.
+                    # Curated entries are name lists outright, so they lead; a
+                    # dictionary headword beats a bound phrase fragment.
+                    #
+                    # ⚠️ This does NOT reorder corpus forms among themselves.
+                    # The index records only frequency, with no name/not-name
+                    # flag, and none can be derived reliably — proximity to בן
+                    # in the corpus ranks כִּי and אֶחָד above every actual name.
+                    # So אבא בן יצחק still leads with the verb אָבֹא: the corpus
+                    # attests nothing else for those letters. The correct
+                    # אַבָּא is offered directly beneath it and the caption below
+                    # says so, which is honest about an ambiguity the data
+                    # cannot settle rather than guessing at it.
+                    _opts.sort(key=lambda o: (
+                        0 if o.get("curated") else
+                        1 if not o.get("wiktionary") else
+                        2 if not o.get("bound") else 3))
                 if len(_opts) == 1:
                     _chosen.append(_opts[0]["form"])
                     continue
@@ -5103,6 +5147,17 @@ def run_app() -> None:
             _result = " ".join(_chosen)
             st.markdown("**Result**")
             st.code(_result, language=None)
+
+            if _name_pos:
+                # The corpus records how often a spelling occurs, not whether
+                # it is a name, so a word like אבא leads with the verb the
+                # Tanach attests. Say so plainly — the right form is in the
+                # dropdown, and only the reader knows which is meant.
+                st.caption(
+                    "Read as a name: the words beside **בן**/**בת** prefer a "
+                    "name vocalization. Where the Tanach attests a word only "
+                    "as an ordinary word, that form still leads — check the "
+                    "dropdown if the name you mean is spelled the same.")
 
             _res_cons = strip_to_consonants(_result)
 
