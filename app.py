@@ -5015,7 +5015,7 @@ def run_app() -> None:
 
         _nk_raw = st.text_input(
             "Hebrew word or phrase", key="nk_input",
-            placeholder="e.g. חיה זעלדא בת אברהם מאיר",
+            placeholder="e.g. דוד בן ישי",
             help=_tip("Names are looked up in the Tanach corpus first, then a "
                       "curated list. Words found nowhere are left bare and "
                       "flagged."))
@@ -5058,17 +5058,22 @@ def run_app() -> None:
             st.markdown("**Result**")
             st.code(_result, language=None)
 
-            if _missing:
-                st.info(
-                    "Not found, left unpointed: "
-                    + ", ".join(f"**{w}**" for w in _missing)
-                    + ". The four vowel-mark methods are undefined for these "
-                    "— the same rule the corpus applies to a Ksiv word printed "
-                    "without nikud.")
-
-            # Values, so the reader sees what the choice actually changes.
             _res_cons = strip_to_consonants(_result)
-            if _res_cons:
+
+            if _missing:
+                st.warning(
+                    "Not vocalized: "
+                    + ", ".join(f"**{w}**" for w in _missing)
+                    + ". The four vowel-mark methods are **undefined** for this "
+                    "text, so no values are shown — the same rule the corpus "
+                    "applies to a Ksiv word printed without nikud. Fix or "
+                    "remove the word to see them.")
+            elif _res_cons:
+                # ⚠️ Values ONLY when every word was vocalized. With a word left
+                # bare the totals are computed over partly-pointed text and come
+                # out knowably SHORT — which is exactly the condition
+                # nikud_partial suppresses everywhere else in the app. Showing
+                # them would present an understated number as a real one.
                 _vals = compute_all_ciphers(_res_cons, _result,
                                             word_consonants=_result)
                 _vc = st.columns(4)
@@ -5077,7 +5082,13 @@ def run_app() -> None:
                         st.metric(CIPHER_DISPLAY_NAMES.get(_cm, _cm).split(" —")[0],
                                   _vals[_cm])
 
-            if st.button("🔍 Send to gematria search", type="primary",
+            # Still offered when a word is unvocalized: only the four vowel-mark
+            # methods are undefined, and the other 31 are unaffected by nikud.
+            # The label says which case you are in so the handoff is not silent
+            # about it.
+            _send_label = ("🔍 Send to gematria search" if not _missing else
+                           "🔍 Search anyway (vowel-mark methods excluded)")
+            if st.button(_send_label, type="primary",
                          width="stretch", key="nk_search"):
                 # Hand the vocalized text to Tab 1 exactly as a typed search
                 # would arrive, so every downstream path — results, detail
