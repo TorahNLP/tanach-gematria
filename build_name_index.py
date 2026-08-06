@@ -74,6 +74,13 @@ def collapse(counter):
     return out
 
 
+_plene_spec = importlib.util.spec_from_file_location(
+    'plene_as_typed', os.path.join(REVIEW, 'plene_as_typed.py'))
+_plene = importlib.util.module_from_spec(_plene_spec)
+_plene_spec.loader.exec_module(_plene)
+PLENE_AS_TYPED = _plene.PLENE_AS_TYPED
+PLENE_TANACH = _plene.PLENE_TANACH
+
 _PUNCT = re.compile(r"[’'׳״-]")
 
 
@@ -123,17 +130,22 @@ def main():
         index[name] = {"options": collapse(forms[name]), "source": "tanach"}
         stats['tanach_clean'] += 1
 
-    # --- 2. plene: modern spelling, Tanach original ------------------------
-    for row in load_csv('1_plene_candidates_agent.csv'):
-        if row['KEEP?'].strip().lower() != 'yes':
-            continue
-        name, tanach = row['name'], row['tanach_spelling']
-        if tanach not in forms:
-            continue
-        opts = collapse(forms[tanach])
-        suggested = (row.get('suggested') or '').strip()
-        if suggested:
-            opts.sort(key=lambda o: 0 if o["form"] == suggested else 1)
+    # --- 2. plene: modern spelling, pointed AS TYPED -----------------------
+    # ⚠️ These used to return the TANACH spelling: typing אהרון gave אַהֲרֹן,
+    # one letter fewer, which changes every cipher value. A nikud tool adds
+    # vowel marks; it must not hand back different letters — the same rule the
+    # imported name batches are held to, where 139 rows were rejected for
+    # exactly this. All 58 are now pointed on the letters the user types, with
+    # the added vav or yod carrying the vowel (אוֹסְנַת, not אָסְנַת).
+    #
+    # The Tanach form stays available as a second option, since for a name like
+    # מירב/מֵרַב it is genuinely the same name and worth offering — it is just
+    # no longer what you get without asking.
+    for name, pointed in PLENE_AS_TYPED.items():
+        opts = [{"form": pointed, "count": 0, "variants": [pointed]}]
+        tanach = PLENE_TANACH.get(name)
+        if tanach and tanach in forms:
+            opts += collapse(forms[tanach])
         index[name] = {"options": opts, "source": "tanach-plene",
                        "tanach_spelling": tanach}
         stats['plene'] += 1
@@ -170,9 +182,14 @@ def main():
         # מאי-לי carry them in the key AND the vocalized form, and stripping
         # only one side rejected four correctly-vocalized names as drift.
         want = _cmp_key(name)
-        for opt in entry["options"]:
-            if _cmp_key(opt["form"]) != want and \
-                    entry.get("source") != "tanach-plene":
+        for i, opt in enumerate(entry["options"]):
+            # ⚠️ The FIRST option must always spell what was typed — that is the
+            # form the tool hands back. Only a later option may differ, and only
+            # for plene names, where the Tanach spelling is offered deliberately
+            # as an alternative. Exempting the whole entry (as this check used
+            # to) is what let 58 names return the wrong letters by default.
+            if _cmp_key(opt["form"]) != want and not (
+                    i and entry.get("source") == "tanach-plene"):
                 print(f"  !! {name}: {opt['form']} has different consonants")
                 problems += 1
     if problems:
