@@ -128,7 +128,8 @@ def main():
     # --- 1. curated wins outright -----------------------------------------
     # Order matters: later batches overwrite earlier ones for the same name.
     # curated_names.py is Joshua-reviewed and must win, so it goes LAST.
-    for module, attr, tag in (('curated_names_3.py', 'CURATED_3', 'curated3'),
+    for module, attr, tag in (('curated_names_4.py', 'CURATED_4', 'curated4'),
+                              ('curated_names_3.py', 'CURATED_3', 'curated3'),
                               ('curated_names_2.py', 'CURATED_2', 'curated2'),
                               ('curated_names.py', 'CURATED', 'curated')):
         path = os.path.join(REVIEW, module)
