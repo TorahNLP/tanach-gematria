@@ -922,6 +922,20 @@ public-domain JPS 1917 via `FALLBACK_VERSION`/`FALLBACK_REFS` in
 `fetch_english.py`, which a refetch reproduces automatically. JPS 1917 brackets
 them; the brackets are stripped, since square brackets already mean Kri here.
 
+### Hebrew Wiktionary — `wiktionary_nikud.json` (CC-BY-SA, `6292dc3`)
+
+`build_wiktionary_nikud.py` extracts 18,519 vocalized entries from the
+he.wiktionary dump. **CC-BY-SA is share-alike, a stricter obligation than the
+Koren CC-BY-NC** — it is not yet surfaced anywhere in the UI. ⚠️ **Open
+question, not a settled decision:** whether a word→vocalization mapping is a
+copyrightable expression at all (arguably it is a fact, so arguably not), and
+therefore whether the share-alike term reaches the app. Joshua has not ruled on
+this. If it does apply, an attribution line is the minimum and the interaction
+with CC-BY-NC needs thought before any commercial use.
+
+Rebuilding needs only `python build_wiktionary_nikud.py`; the dump is fetched
+once and cached in the system temp dir.
+
 ---
 
 ## Joshua 21:36–37 are disputed — kept and flagged (`7f78f31`)
@@ -1096,6 +1110,8 @@ an old database self-heals instead of failing on first search.
 | ⚠️ **Stripping cantillation with a RANGE eats the nikud** | `[֑-ֽ]` looks like "the te'amim" but U+05B0–U+05BC are the NIKUD, so that range silently returns bare consonants and every vowel-mark measurement comes out zero. **This cost real time twice in one session.** Strip an explicit set: `range(0x0591,0x05B0)` plus `05BD 05BF 05C0 05C3 05C4 05C5 05C6`. |
 | ⚠️ **`tanach.db` holds NO pointed text** | `text_display` is bare consonants; the nikud lives only in `tanach_corpus.jsonl`. Anything needing vocalized text must index the JSONL, not the DB. The old auto-nikud plan assumed the DB had it. |
 | ⚠️ **Double-quoted SQL string literals** | `WHERE boundary_type="Verse"` is read by SQLite as an IDENTIFIER, not a string, and silently returns ZERO rows. It produced a wrong "0 verses lack a SecondHalf" measurement that was believed until a reviewer contradicted it. Always single-quote. |
+| ⚠️ **Wiktionary's `כתיב מלא` is NOT the bare form** | It is the *plene* spelling, deliberately DIFFERENT from a defectively-spelled pointed headword — `גֹּלֶם` has `כתיב מלא=גולם`. Verifying a pointed form against it rejected **4,993 sound entries (29%)** on a difference that is the field working correctly. Verify against the page **title**, which is the real bare headword. |
+| ⚠️ **A bare letter is not proof of partial pointing** | Three bare letters are correct Hebrew: word-final (`דָּוִד`), a mater itself (the yod of `אֱלֹהִים` — *not* word-final), and a letter whose vowel sits on a following mater (`שָׁלוֹם`, holam on the vav leaves the lamed bare). A checker missing any of the three rejected **79%** of Wiktionary. Ground-truth any such check against the corpus: `is_pointed` rejects 16 of 52,481 Tanach tokens (0.03%), all genuine oddities (`יִשָּׂשכָר`, `נְבוּכַדנֶאצַּר`). |
 | ⚠️ **`has_unpointed_word` is per-word, not per-letter** | It asks whether a word carries ANY nikud — right for its original job (Sefaria prints Ksiv words entirely bare) but it passes partially-pointed words like Harkavy's `חַיה`. It cannot validate an imported vocalization list; `name_review/validate.py` does that per letter. |
 | Local `tanach.db` staleness | `tanach.db` is a **derived artifact** (gitignored, never regenerates on pull) holding boundary types, consonants, display text and all 34 cipher columns. Docker rebuilds it every build; **locally you must**. Two failure modes: a schema change crashes loudly (`no such column`), but a change to stored *values* fails **silently** — the app runs and serves stale data. After pulling anything that touches stored data: `rm tanach.db && python app.py builddb` (~100s). |
 | **A stale `tanach.db` now self-heals, but rebuild anyway** | Since `b08c1e4` `_build_connection` checks the `units` schema and rebuilds if a column this release queries is missing — that is what fixed Streamlit Cloud. It costs a one-time ~30s on first load, so locally still run `python app.py builddb` after pulling a ⚠️ commit. |
