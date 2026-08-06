@@ -4315,6 +4315,22 @@ def run_app() -> None:
             return {}
         return json.loads(path.read_text(encoding="utf-8"))
 
+    @st.cache_data(show_spinner=False, max_entries=2, ttl=3600)
+    def cached_wiktionary_nikud():
+        """General vocabulary, built offline by build_wiktionary_nikud.py.
+
+        {bare consonants: [pointed form, ...]} — 18,519 entries from Hebrew
+        Wiktionary (CC-BY-SA), the LOWEST-priority source. It covers ordinary
+        words the Tanach corpus and the curated name lists do not, but it is a
+        modern dictionary: for a name it would offer the common noun, so it
+        must never outrank the other two. Used as a last-resort fallback and to
+        pad the variant picker.
+        """
+        path = pathlib.Path(__file__).with_name("wiktionary_nikud.json")
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+
     @st.cache_data(show_spinner=False, max_entries=4, ttl=3600)
     def cached_ref_index(_conn, corpus_key):
         """{book: {chapter: [verses]}} for the cascading selects.
@@ -5017,23 +5033,36 @@ def run_app() -> None:
             "Hebrew word or phrase", key="nk_input",
             placeholder="e.g. דוד בן ישי",
             help=_tip("Names are looked up in the Tanach corpus first, then a "
-                      "curated list. Words found nowhere are left bare and "
-                      "flagged."))
+                      "curated list, then a Hebrew dictionary for ordinary "
+                      "words. Words found nowhere are left bare and flagged."))
 
         if _nk_raw.strip():
             _names = cached_name_index()
+            _wikt = cached_wiktionary_nikud()
             _words = _nk_raw.split()
             _chosen = []
             _missing = []
             for _wi, _w in enumerate(_words):
                 _bare = strip_to_consonants(_w)
                 _entry = _names.get(_bare)
-                if not _entry:
+                # Wiktionary is the bottom tier: it fills in only where the
+                # corpus and the curated lists have nothing, and otherwise just
+                # adds variants below them. It is a modern dictionary, so for a
+                # name it would offer the common noun — אבא as "father" rather
+                # than the verb attested in the corpus — and must never be
+                # allowed to displace the first choice.
+                _extra = [f for f in _wikt.get(_bare, [])
+                          if not _entry
+                          or f not in {v for o in _entry["options"]
+                                       for v in o["variants"]}]
+                if not _entry and not _extra:
                     _chosen.append(_w)
                     if _bare:
                         _missing.append(_w)
                     continue
-                _opts = _entry["options"]
+                _opts = list(_entry["options"]) if _entry else []
+                _opts += [{"form": f, "count": 0, "variants": [f],
+                           "wiktionary": True} for f in _extra]
                 if len(_opts) == 1:
                     _chosen.append(_opts[0]["form"])
                     continue
@@ -5045,6 +5074,8 @@ def run_app() -> None:
                     o["form"]: (f"{o['form']}"
                                 + (f"  ·  {o['count']}× in Tanach"
                                    if o["count"] else "")
+                                + ("  ·  dictionary"
+                                   if o.get("wiktionary") else "")
                                 + f"  ·  HaNekudot {g_hanekudot(o['form'])}")
                     for o in _opts}
                 _pick = st.selectbox(
