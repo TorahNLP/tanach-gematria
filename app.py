@@ -4319,17 +4319,24 @@ def run_app() -> None:
     def cached_wiktionary_nikud():
         """General vocabulary, built offline by build_wiktionary_nikud.py.
 
-        {bare consonants: [pointed form, ...]} — 18,519 entries from Hebrew
-        Wiktionary (CC-BY-SA), the LOWEST-priority source. It covers ordinary
-        words the Tanach corpus and the curated name lists do not, but it is a
-        modern dictionary: for a name it would offer the common noun, so it
-        must never outrank the other two. Used as a last-resort fallback and to
-        pad the variant picker.
+        Returns (headwords, derived), each {bare consonants: [pointed form]}.
+        18,519 headwords from Hebrew Wiktionary (CC-BY-SA) plus 3,792 words
+        recovered by splitting its multi-word phrases — the LOWEST-priority
+        source. It covers ordinary words the Tanach corpus and the curated name
+        lists do not, but it is a modern dictionary: for a name it would offer
+        the common noun, so it must never outrank the other two.
+
+        ⚠️ `derived` ranks below `headwords` and is kept separate for a reason:
+        a word pulled out of a phrase is often construct-state or prefixed
+        (תְּרוּמַת is "terumah OF"), so the vocalization is correct but
+        grammatically BOUND. Fine as an offered variant, wrong as the default
+        answer for a word typed on its own.
         """
         path = pathlib.Path(__file__).with_name("wiktionary_nikud.json")
         if not path.exists():
-            return {}
-        return json.loads(path.read_text(encoding="utf-8"))
+            return {}, {}
+        data = json.loads(path.read_text(encoding="utf-8"))
+        return data.get("headwords", {}), data.get("derived", {})
 
     @st.cache_data(show_spinner=False, max_entries=4, ttl=3600)
     def cached_ref_index(_conn, corpus_key):
@@ -5038,7 +5045,7 @@ def run_app() -> None:
 
         if _nk_raw.strip():
             _names = cached_name_index()
-            _wikt = cached_wiktionary_nikud()
+            _wikt, _wikt_derived = cached_wiktionary_nikud()
             _words = _nk_raw.split()
             _chosen = []
             _missing = []
@@ -5051,11 +5058,15 @@ def run_app() -> None:
                 # name it would offer the common noun — אבא as "father" rather
                 # than the verb attested in the corpus — and must never be
                 # allowed to displace the first choice.
-                _extra = [f for f in _wikt.get(_bare, [])
-                          if not _entry
-                          or f not in {v for o in _entry["options"]
-                                       for v in o["variants"]}]
-                if not _entry and not _extra:
+                _seen = ({v for o in _entry["options"] for v in o["variants"]}
+                         if _entry else set())
+                _extra = [f for f in _wikt.get(_bare, []) if f not in _seen]
+                # Phrase-derived forms rank below real headwords — they are
+                # often bound (construct/prefixed), so they may be offered but
+                # must never be the default.
+                _bound = [f for f in _wikt_derived.get(_bare, [])
+                          if f not in _seen and f not in _extra]
+                if not _entry and not _extra and not _bound:
                     _chosen.append(_w)
                     if _bare:
                         _missing.append(_w)
@@ -5063,6 +5074,8 @@ def run_app() -> None:
                 _opts = list(_entry["options"]) if _entry else []
                 _opts += [{"form": f, "count": 0, "variants": [f],
                            "wiktionary": True} for f in _extra]
+                _opts += [{"form": f, "count": 0, "variants": [f],
+                           "wiktionary": True, "bound": True} for f in _bound]
                 if len(_opts) == 1:
                     _chosen.append(_opts[0]["form"])
                     continue
@@ -5074,8 +5087,10 @@ def run_app() -> None:
                     o["form"]: (f"{o['form']}"
                                 + (f"  ·  {o['count']}× in Tanach"
                                    if o["count"] else "")
-                                + ("  ·  dictionary"
-                                   if o.get("wiktionary") else "")
+                                + ("  ·  dictionary (in a phrase)"
+                                   if o.get("bound") else
+                                   "  ·  dictionary" if o.get("wiktionary")
+                                   else "")
                                 + f"  ·  HaNekudot {g_hanekudot(o['form'])}")
                     for o in _opts}
                 _pick = st.selectbox(

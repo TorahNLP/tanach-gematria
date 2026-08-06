@@ -180,13 +180,53 @@ def main():
                             found[key].append(pointed)
                             stats['accepted'] += 1
 
+    # --- split phrases into their component words --------------------------
+    # 5,900 entries are phrases (בִּרְכַּת כֹּהֲנִים) and the tool looks words up one
+    # at a time, so those vocalizations would otherwise be unreachable. The
+    # bare key and the pointed form both split on whitespace and zip together.
+    #
+    # ⚠️ Kept in a SEPARATE "derived" map, never merged into the headword map,
+    # and only for words with no headword of their own. Many are
+    # construct-state or prefixed forms —
+    # תְּרוּמַת is "terumah OF", וְהָאַגָּדָה carries a vav and a he — which are
+    # correct vocalizations but grammatically BOUND, not free-standing words.
+    # Ranking them below real headwords keeps a dependent form from ever being
+    # the default answer for a word typed on its own.
+    derived = collections.defaultdict(collections.Counter)
+    for key, forms in found.items():
+        if ' ' not in key:
+            continue
+        parts = key.split()
+        for form in forms:
+            fparts = form.split()
+            if len(fparts) != len(parts):
+                stats['split_misaligned'] += 1
+                continue
+            for bare, pointed in zip(parts, fparts):
+                if bare in found or not app.strip_to_consonants(bare):
+                    continue
+                if app.strip_to_consonants(pointed) != app.strip_to_consonants(bare):
+                    continue
+                if not is_pointed(pointed) or app.g_hanekudot(pointed) == 0:
+                    continue
+                # Count occurrences across phrases: בְּרֵכַת ("pool of") and
+                # בִּרְכַּת ("blessing of") are both real readings of ברכת, and
+                # the commoner one should lead rather than whichever sorts
+                # first alphabetically.
+                if not derived[bare][pointed]:
+                    stats['split_words'] += 1
+                derived[bare][pointed] += 1
     print()
     for k in sorted(stats):
         print(f'   {k:26s} {stats[k]:,}')
-    print(f'   distinct bare forms        {len(found):,}')
+    print(f'   headwords                  {len(found):,}')
+    print(f'   derived from phrases       {len(derived):,}')
 
     out = os.path.join(HERE, 'wiktionary_nikud.json')
-    json.dump(found, open(out, 'w', encoding='utf-8'),
+    json.dump({"headwords": found,
+               "derived": {k: [f for f, _ in c.most_common()]
+                           for k, c in derived.items()}},
+              open(out, 'w', encoding='utf-8'),
               ensure_ascii=False, sort_keys=True)
     print(f'\nwrote {out} ({os.path.getsize(out)/1e6:.1f} MB)')
     return 0
