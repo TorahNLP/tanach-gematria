@@ -74,6 +74,19 @@ def collapse(counter):
     return out
 
 
+_PUNCT = re.compile(r"[’'׳״-]")
+
+
+def _cmp_key(s):
+    """Consonants only, with name punctuation removed.
+
+    Geresh (ג'ק), gershayim and hyphen (מאי-לי) are part of how a name is
+    written but are not letters, so they must come off both sides before two
+    spellings are compared.
+    """
+    return app.strip_to_consonants(_PUNCT.sub('', s))
+
+
 def load_csv(name):
     path = os.path.join(REVIEW, name)
     if not os.path.exists(path):
@@ -152,9 +165,13 @@ def main():
         # Compare consonants on BOTH sides. A two-word key like "בת שבע" keeps
         # its space, which strip_to_consonants drops from the form — comparing
         # the stripped form against the raw key flags those wrongly.
-        want = app.strip_to_consonants(name)
+        # ⚠️ Strip geresh, gershayim and hyphen from BOTH sides before
+        # comparing. They are name punctuation, not letters — ג'ושוע and
+        # מאי-לי carry them in the key AND the vocalized form, and stripping
+        # only one side rejected four correctly-vocalized names as drift.
+        want = _cmp_key(name)
         for opt in entry["options"]:
-            if app.strip_to_consonants(opt["form"]) != want and \
+            if _cmp_key(opt["form"]) != want and \
                     entry.get("source") != "tanach-plene":
                 print(f"  !! {name}: {opt['form']} has different consonants")
                 problems += 1
