@@ -3406,7 +3406,7 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      kri_display="", query_english="",
                      query_english_is_full_verse=False,
                      query_disputed_note="", query_method=None,
-                     derivation=None) -> str:
+                     derivation=None, query_derivation=None) -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -3679,14 +3679,27 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
     # at its value. Only rendered when there is a real query word (not
     # Gematria-value-mode prints, which pass query_breakdown=None) and the
     # method has a letter/mark breakdown at all.
-    if query_breakdown:
+    if query_breakdown or query_derivation:
         # Matches the section-1 heading: "Your Word" is right for a typed Tab 1
         # search, wrong for a Tab 2 unit the reader selected from the table.
         _bd_label = e((query_info or {}).get("label") or "") or "Your Word"
+        # ⚠️ The derived methods (KatanMispari, HaMerubahKlali, KololEhad,
+        # KololOtiyot) have no per-letter rows, so gating this section on
+        # query_breakdown alone made the whole "Your Word" calculation VANISH
+        # for them — the document showed how the match reached its value but
+        # never how the reader's own word did, which is the other half of
+        # "these two are equal".
+        if query_breakdown:
+            _qbody = _breakdown_table(query_breakdown)
+        else:
+            _qsteps = "".join(
+                f'<tr><td class="dl">{lbl}</td><td class="dv">{v}</td></tr>'
+                for lbl, v in query_derivation)
+            _qbody = f'<table class="deriv">{_qsteps}</table>'
         sec1b = f"""
 <div class="sec">
   <div class="sec-title">Calculation — {_bd_label} ({q_method})</div>
-  {_breakdown_table(query_breakdown)}
+  {_qbody}
 </div>"""
     else:
         sec1b = ""
@@ -4999,6 +5012,7 @@ def run_app() -> None:
         # only cons/raw/wcons (no vals), so the query's own breakdown and value
         # are computed here, the same way the matched unit's already are above.
         query_breakdown = None
+        query_derivation = None
         query_val = None
         # The query is normally scored under the same method as the match, but a
         # cross-method drill-down scores the two sides differently — see the
@@ -5011,6 +5025,8 @@ def run_app() -> None:
                 _q_cons, _q_raw, word_consonants=_q_wcons).get(_q_method)
             query_breakdown = cipher_breakdown(_q_method, _q_cons, _q_wcons,
                                                cantillated=_q_raw)
+            if not query_breakdown:
+                query_derivation = derivation_steps(_q_method, _q_cons)
         _print_key   = f"do_print_{_uid}"
         _html_doc = build_print_html(
             query_info,
@@ -5018,7 +5034,7 @@ def run_app() -> None:
              "boundary": boundary, "highlighted_html": highlighted_html},
             breakdown_rows, active_method or "Standard", colel, vals,
             query_breakdown=query_breakdown, query_val=query_val,
-            derivation=derivation,
+            derivation=derivation, query_derivation=query_derivation,
             match_nikud_unreliable=match_nikud_unreliable,
             # Only when the box is ticked: the export mirrors what the panel
             # shows rather than always carrying the translation.
