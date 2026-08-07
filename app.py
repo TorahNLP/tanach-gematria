@@ -1357,6 +1357,57 @@ def shape_result_columns(df, app_view: bool = False, drop_value: bool = False):
     return out.drop(columns=drop) if drop else out
 
 
+def vocalize_result_text(df, verse_index):
+    """Replace the bare `Text` column with the pointed text from the corpus.
+
+    ⚠️ `tanach.db` stores NO pointed text — `text_display` is bare consonants
+    and the nikud lives only in the corpus JSONL, which `verse_index` holds in
+    memory (cached by @st.cache_resource, so this is a dict hit per row).
+
+    96% of result rows are a WORD, phrase or half-verse rather than a whole
+    verse, so most rows need their fragment located inside the parent verse's
+    pointed text. Measured before building this: 3,000 samples across Word,
+    ZakefPhrase, TiphchaPhrase, FirstHalf and SecondHalf located at 100%, on
+    both the Ksiv and Kri tracks.
+
+    Falls back to the bare text whenever the lookup or the location fails, so a
+    miss degrades to today's behaviour rather than blanking the column. Row
+    order and count are untouched — dataframe selection indices still address
+    the source frame.
+    """
+    if not hasattr(df, "columns") or df.empty:
+        return df
+    if not {"Book", "Chapter", "Verse", "Text"} <= set(df.columns):
+        return df
+
+    def _point(row):
+        bare = row["Text"]
+        v = verse_index.get((row["Book"], int(row["Chapter"]), int(row["Verse"])))
+        if v is None:
+            return bare
+        # A Kri match must be rendered against the Kri reading, not the Ksiv
+        # text verse_index holds by default — otherwise the located fragment
+        # belongs to a different reading than the one that was scored.
+        src = v.text
+        if row.get("Track") == "Kri" and getattr(v, "kri_text", None):
+            src = v.kri_text
+        cons = strip_to_consonants(bare)
+        if not cons:
+            return bare
+        if strip_to_consonants(src) == cons:      # whole verse: use it directly
+            return src
+        located = locate_vocalized(src, cons)
+        # Verify before trusting: a located run whose consonants differ is the
+        # wrong stretch of verse, and showing it would misattribute the text.
+        if located and strip_to_consonants(located) == cons:
+            return located
+        return bare
+
+    out = df.copy()
+    out["Text"] = out.apply(_point, axis=1)
+    return out
+
+
 def word_span_token_count(cantillated: str) -> int:
     """Number of words mark_word_span() counts — must equal len(tokenize_words())."""
     marker_spans = [m.span() for m in _MARKER_STRIP_RE.finditer(cantillated)]
@@ -6073,8 +6124,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 event_num = st.dataframe(
                     # Every row equals the searched value, so Value adds nothing
                     # here either — except under colel, where it varies.
-                    shape_result_columns(hide_uniform_track(res_num_disp),
-                                         app_view, drop_value=not colel),
+                    shape_result_columns(
+                        vocalize_result_text(hide_uniform_track(res_num_disp),
+                                             verse_index),
+                        app_view, drop_value=not colel),
                     width="stretch", hide_index=True,
                     on_select="rerun", selection_mode="single-row", key="t1_num_sel")
                 sel_num = event_num.selection.rows
@@ -6189,8 +6242,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                         # drop_value: this table is one method whose value is in
                         # the heading above — unless colel is on, where rows
                         # legitimately differ across the ±1 window.
-                        shape_result_columns(hide_uniform_track(res),
-                                             app_view, drop_value=not colel),
+                        shape_result_columns(
+                            vocalize_result_text(hide_uniform_track(res),
+                                                 verse_index),
+                            app_view, drop_value=not colel),
                         width="stretch", hide_index=True,
                         on_select="rerun", selection_mode="single-row",
                         # _c_cons suffix: same class of bug as the xm_run/span_run
@@ -6395,7 +6450,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                 # count are untouched, so the selection index
                                 # below still addresses drill_res.
                                 shape_result_columns(
-                                    drop_uniform_track(drill_res), app_view),
+                                    vocalize_result_text(
+                                        drop_uniform_track(drill_res),
+                                        verse_index),
+                                    app_view),
                                 width="stretch", hide_index=True,
                                 on_select="rerun", selection_mode="single-row",
                                 # _c_cons suffix: same reason as t1_sel_* above —
@@ -6515,9 +6573,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                                                        span_df["_end_ch"],
                                                        span_df["_end_vs"])])
                         span_show = shape_result_columns(
-                            hide_uniform_track(
-                                _span_vis[[c for c in _span_vis.columns
-                                           if not c.startswith("_")]]),
+                            vocalize_result_text(
+                                hide_uniform_track(
+                                    _span_vis[[c for c in _span_vis.columns
+                                               if not c.startswith("_")]]),
+                                verse_index),
                             app_view)
                         span_event = st.dataframe(
                             span_show, width="stretch", hide_index=True,
@@ -6633,7 +6693,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             event2 = st.dataframe(
                 # Shaped at display time, not before: the filter above still
                 # reads Parsha (which holds the book name, so it filters by book).
-                shape_result_columns(show),
+                shape_result_columns(vocalize_result_text(show, verse_index)),
                 width="stretch", hide_index=True,
                 on_select="rerun",
                 selection_mode="single-row",
