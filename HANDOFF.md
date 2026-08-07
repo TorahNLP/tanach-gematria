@@ -922,16 +922,30 @@ public-domain JPS 1917 via `FALLBACK_VERSION`/`FALLBACK_REFS` in
 `fetch_english.py`, which a refetch reproduces automatically. JPS 1917 brackets
 them; the brackets are stripped, since square brackets already mean Kri here.
 
-### Hebrew Wiktionary — `wiktionary_nikud.json` (CC-BY-SA, `6292dc3`)
+### Hebrew Wiktionary — `wiktionary_nikud.json` (`6292dc3`)
 
 `build_wiktionary_nikud.py` extracts 18,519 vocalized entries from the
-he.wiktionary dump. **CC-BY-SA is share-alike, a stricter obligation than the
-Koren CC-BY-NC** — it is not yet surfaced anywhere in the UI. ⚠️ **Open
-question, not a settled decision:** whether a word→vocalization mapping is a
-copyrightable expression at all (arguably it is a fact, so arguably not), and
-therefore whether the share-alike term reaches the app. Joshua has not ruled on
-this. If it does apply, an attribution line is the minimum and the interaction
-with CC-BY-NC needs thought before any commercial use.
+he.wiktionary dump, plus 3,792 recovered by splitting its multi-word phrases.
+
+**SETTLED 2026-08-07 (Joshua): no attribution, and CC-BY-SA does not reach the
+app.** The earlier entry left this open; it is now decided, and the reasoning
+should survive rather than be re-litigated:
+
+- What was extracted is **facts, not authorship**. That `אהבה` is vocalized
+  `אַהֲבָה` is how Hebrew works — nobody at Wiktionary invented it, they
+  recorded it. Facts are not copyrightable and a mechanical extraction of them
+  does not inherit the source page's licence (the *Feist* principle: effort in
+  compiling confers no copyright over what was compiled).
+- **No prose was taken.** No definitions, etymologies or usage notes — only the
+  pointed headword and its bare spelling.
+- **The selection was not taken either.** A dictionary's *arrangement* can
+  attract protection even where individual entries do not, but our keys come
+  from the corpus and the name lists; Wiktionary only fills gaps. Their word
+  list was never copied as a work.
+
+This is unlike the Koren translation, which **is** expressive authorship and
+whose CC-BY-NC attribution is a genuine licence condition — see above. Do not
+generalise from one to the other.
 
 Rebuilding needs only `python build_wiktionary_nikud.py`; the dump is fetched
 once and cached in the system temp dir.
