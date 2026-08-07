@@ -4304,11 +4304,15 @@ def run_app() -> None:
         # reads on both themes without hard-coding either one.
         "hr.mdiv{border:0;border-top:1px solid currentColor;opacity:.18;"
         "margin:1.9rem 0 1.1rem;}"
-        # The result line. Full-strength text against the dimmed blurb above it,
-        # with a leading rule, so the method's OUTCOME is visually distinct from
-        # the method's DESCRIPTION rather than being a second grey caption.
-        ".mval{font-size:.95rem;margin:.5rem 0 .35rem;padding-left:.6rem;"
-        "border-left:3px solid currentColor;opacity:.85;"
+        # The result line. Full-strength text against the dimmed blurb above it
+        # carries the distinction on its own — an earlier version added a left
+        # rule, but hanging a vertical mark directly above a boxed table put two
+        # competing left edges a few pixels apart and read as clutter.
+        #
+        # Spacing does the grouping instead: it sits closer to the table it
+        # describes than to the blurb above, so the value and its results read
+        # as one block rather than as a caption stranded between the two.
+        ".mval{font-size:.95rem;margin:1.1rem 0 .3rem;"
         "font-variant-numeric:tabular-nums;}"
         ".mval b{font-size:1.15rem;font-weight:700;}"
         "</style>",
