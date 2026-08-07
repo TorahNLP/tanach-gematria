@@ -4312,7 +4312,14 @@ def run_app() -> None:
         # Spacing does the grouping instead: it sits closer to the table it
         # describes than to the blurb above, so the value and its results read
         # as one block rather than as a caption stranded between the two.
-        ".mval{font-size:.95rem;margin:1.1rem 0 .3rem;"
+        #
+        # ⚠️ Kept TIGHT on purpose. A results page runs up to 35 of these blocks,
+        # so every extra margin here is paid 35 times and turns into a long
+        # scroll. The blurb is pulled up under its heading and the gap to the
+        # value is trimmed, keeping the grouping while cutting the total height.
+        ".mhead{margin-bottom:.15rem !important;}"
+        ".mblurb{margin-top:0 !important;margin-bottom:0 !important;}"
+        ".mval{font-size:.95rem;margin:.55rem 0 .25rem;"
         "font-variant-numeric:tabular-nums;}"
         ".mval b{font-size:1.15rem;font-weight:700;}"
         "</style>",
@@ -6124,13 +6131,24 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # "Emtzaiyot Maleh — אמצעיות 2 — 99 = מלא result(s)". Keep the
                 # name on its own line and the numbers on a second line, so no
                 # digit is ever adjacent to Hebrew.
+                import html as _h_m
                 st.markdown(
-                    f"#### {CIPHER_DISPLAY_NAMES.get(cipher, cipher)}")
+                    f"<h4 class='mhead'>"
+                    # quote=False: these are display strings, not attribute
+                    # values. Escaping quotes would render Achbi — אכב&quot;י
+                    # and every possessive as &#x27; in the source.
+                    f"{_h_m.escape(CIPHER_DISPLAY_NAMES.get(cipher, cipher), quote=False)}"
+                    f"</h4>", unsafe_allow_html=True)
                 if CIPHER_BLURB.get(cipher):
                     # Blurb goes UNDER its own heading. It used to print above,
                     # so every description sat between two methods and appeared
-                    # to belong to the one before it.
-                    st.caption(CIPHER_BLURB[cipher])
+                    # to belong to the one before it. Rendered as markdown rather
+                    # than st.caption so it can carry a class — st.caption's own
+                    # margins are what pushed it away from its heading.
+                    st.markdown(
+                        f"<p class='mblurb' style='font-size:.875rem;opacity:.7'>"
+                        f"{_h_m.escape(CIPHER_BLURB[cipher], quote=False)}</p>",
+                        unsafe_allow_html=True)
                 # Order: what the method IS (heading, then blurb), then what it
                 # FOUND. The value used to sit above the blurb in the same grey
                 # caption style, so the method's definition and its outcome ran
