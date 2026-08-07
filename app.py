@@ -3181,6 +3181,47 @@ def locate_vocalized(cantillated: str, matched_cons: str) -> str:
     return ""
 
 
+def derivation_steps(cipher: str, consonants: str) -> Optional[List[Tuple[str, str]]]:
+    """Return [(label, value)] showing HOW a non-per-letter total is reached.
+
+    The four ciphers `cipher_breakdown` returns None for are not opaque — each
+    is a named operation on the Standard total, so each has work to show:
+
+        KatanMispari    reduce the total to its digital root
+        HaMerubahKlali  square the total
+        KololEhad       add 1 for the unit
+        KololOtiyot     add the letter count
+
+    The printout used to say "No per-letter breakdown for this method" and stop
+    at the total, which is true but useless: showing the work IS the point of a
+    printout, and "Total value: 8" alone gives the reader nothing to check.
+    """
+    if not consonants:
+        return None
+    base = g_absolute(consonants)
+    if cipher == "KatanMispari":
+        steps = [("Standard total", str(base))]
+        cur = base
+        while cur >= 10:
+            digits = " + ".join(str(d) for d in str(cur))
+            cur = sum(int(d) for d in str(cur))
+            steps.append((f"Reduce {digits}", str(cur)))
+        steps.append(("Digital root", str(cur)))
+        return steps
+    if cipher == "HaMerubahKlali":
+        return [("Standard total", str(base)),
+                (f"Squared {base} × {base}", str(base ** 2))]
+    if cipher == "KololEhad":
+        return [("Standard total", str(base)),
+                ("Plus 1 for the unit itself", str(base + 1))]
+    if cipher == "KololOtiyot":
+        n = sum(1 for c in consonants
+                if STANDARD.get(_normalize_final(c), 0))
+        return [("Standard total", str(base)),
+                (f"Plus {n} letters", str(base + n))]
+    return None
+
+
 def nikud_breakdown(cipher: str, cantillated: str,
                     consonants: str = "") -> Optional[List[Tuple[str, int]]]:
     """Per-mark breakdown for the vowel-mark ciphers.
@@ -3364,7 +3405,8 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
                      english_is_full_verse=False, ksiv_unpointed=False,
                      kri_display="", query_english="",
                      query_english_is_full_verse=False,
-                     query_disputed_note="", query_method=None) -> str:
+                     query_disputed_note="", query_method=None,
+                     derivation=None) -> str:
     """Return a self-contained HTML document suitable for window.print().
 
     `breakdown_rows`/`vals` describe the *matched* corpus text. `query_breakdown`/
@@ -3662,6 +3704,24 @@ def build_print_html(query_info, match_info, breakdown_rows, active_method,
   <div class="sec-title">{sec3_title}</div>
   {match_nikud_warn}{_breakdown_table(breakdown_rows)}{note}
 </div>"""
+    elif derivation:
+        # ⚠️ Showing the work IS the point of a printout. This branch used to
+        # print "Total value: 8" and a note saying there was no breakdown —
+        # true only in the narrow sense that the total is not a per-LETTER sum.
+        # Katan Mispari reduces the Standard total to its digital root, and
+        # those steps are exactly what a reader needs to check the number.
+        _steps = "".join(
+            f'<tr><td class="dl">{lbl}</td><td class="dv">{v}</td></tr>'
+            for lbl, v in derivation)
+        sec3 = f"""
+<div class="sec">
+  <div class="sec-title">{sec3_title}</div>
+  {match_nikud_warn}
+  <table class="deriv">{_steps}</table>
+  <p>Total value: <strong>{val_txt}</strong></p>
+  <p class="fn">This method derives its total from the Standard sum rather than
+  from a value per letter, so the steps above are the calculation in full.</p>
+</div>"""
     else:
         sec3 = f"""
 <div class="sec">
@@ -3725,6 +3785,13 @@ table.bd tfoot td{border-top:3px double #000;padding:4px 7px}
 table.bd tr{break-inside:avoid;page-break-inside:avoid}
 .num{text-align:center;direction:ltr}
 .warn{border:2px solid #000;padding:7px 10px;font-weight:bold;margin-bottom:8px}
+/* Derivation steps for the four methods with no per-letter breakdown. LTR:
+   these rows are English labels and numerals, unlike table.bd which is RTL. */
+table.deriv{border-collapse:collapse;margin:6px 0 8px;direction:ltr}
+table.deriv td{border:0;padding:2px 0}
+table.deriv td.dl{padding-right:14px;color:#333}
+table.deriv td.dv{font-weight:bold;text-align:right;font-variant-numeric:tabular-nums}
+table.deriv tr:last-child td{border-top:1px solid #000;padding-top:4px}
 .fn{font-size:9pt;color:#555;font-style:italic;margin-top:5px}
 @media print{
   *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
@@ -4220,6 +4287,10 @@ def run_app() -> None:
         "[data-testid='stMarkdownContainer'] blockquote{"
         "font-family:'Noto Serif Hebrew',Georgia,'Times New Roman',serif;"
         "font-size:1.05rem;}"
+        # Rule between per-method result blocks. currentColor at low alpha so it
+        # reads on both themes without hard-coding either one.
+        "hr.mdiv{border:0;border-top:1px solid currentColor;opacity:.18;"
+        "margin:1.9rem 0 1.1rem;}"
         "</style>",
         unsafe_allow_html=True)
 
@@ -4819,6 +4890,7 @@ def run_app() -> None:
         # in the text would reinstate, letter by letter, exactly the number the
         # exclusion exists to withhold.
         breakdown_rows = None
+        derivation = None
         if active_method and active_method in CIPHERS and not ksiv_unpointed:
             breakdown_rows = cipher_breakdown(active_method, cons, w_cons,
                                               cantillated=cantillated_src)
@@ -4826,6 +4898,15 @@ def run_app() -> None:
                 parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown_rows)
                 total = sum(val for _, val in breakdown_rows)
                 st.caption(f"**{active_method}:** {parts} = {total}")
+            else:
+                # Not a per-letter sum, but not opaque either: these four are
+                # named operations on the Standard total and the steps are the
+                # whole answer. Showing "Total value: 8" alone gave the reader
+                # nothing to check.
+                derivation = derivation_steps(active_method, cons)
+                if derivation:
+                    st.caption(f"**{active_method}:** " + " → ".join(
+                        f"{lbl} = {v}" for lbl, v in derivation))
         if boundary in ("Petucha", "Setuma"):
             run = _paragraph_run(book, chapter, verse)
             if run and len(run) > 1:
@@ -4937,6 +5018,7 @@ def run_app() -> None:
              "boundary": boundary, "highlighted_html": highlighted_html},
             breakdown_rows, active_method or "Standard", colel, vals,
             query_breakdown=query_breakdown, query_val=query_val,
+            derivation=derivation,
             match_nikud_unreliable=match_nikud_unreliable,
             # Only when the box is ticked: the export mirrors what the panel
             # shows rather than always carrying the translation.
@@ -5993,8 +6075,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     "MiluiNekudot / ImMiluiNekudot) count vowel marks. "
                     "Your input has no nikud, so their values will be 0 or equal to Standard. "
                     "Add nikud for accurate results.")
-            for cipher in active_ciphers:
-                st.caption(CIPHER_BLURB.get(cipher, ""))
+            for _ci, cipher in enumerate(active_ciphers):
                 res = payload["results"][cipher]
                 tgt = vals[cipher]
                 # Verse mode only: drop the searched unit from its own results.
@@ -6002,10 +6083,32 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # and before the dataframe is built so selection indices still
                 # address this frame (see the stale-index note below).
                 res = drop_self_match(res, _committed.get("unit"), cipher)
+
+                # A rule between methods. Without it the blurb of one method and
+                # the heading of the next read as one block, and on a phone it
+                # is genuinely ambiguous which description belongs to which.
+                if _ci:
+                    st.markdown("<hr class='mdiv'>", unsafe_allow_html=True)
+
+                # ⚠️ The method name ENDS in Hebrew (`Emtzaiyot Maleh — אמצעיות
+                # מלא`). Appending " = 99 — 2 result(s)" to it puts digits and
+                # `=`/`—` directly after an RTL run, so the bidi algorithm pulls
+                # them INTO that run and reorders them: the heading rendered as
+                # "Emtzaiyot Maleh — אמצעיות 2 — 99 = מלא result(s)". Keep the
+                # name on its own line and the numbers on a second line, so no
+                # digit is ever adjacent to Hebrew.
                 st.markdown(
-                    f"#### {CIPHER_DISPLAY_NAMES.get(cipher, cipher)} = {tgt}"
-                    + (f" (Colel window {tgt-1}–{tgt+1})" if colel else "")
-                    + f" — {len(res)} result(s)")
+                    f"#### {CIPHER_DISPLAY_NAMES.get(cipher, cipher)}")
+                _sub = f"Value **{tgt}**"
+                if colel:
+                    _sub += f" · Colel window {tgt-1}–{tgt+1}"
+                _sub += f" · {len(res)} result(s)"
+                st.caption(_sub)
+                if CIPHER_BLURB.get(cipher):
+                    # Blurb goes UNDER its own heading. It used to print above,
+                    # so every description sat between two methods and appeared
+                    # to belong to the one before it.
+                    st.caption(CIPHER_BLURB[cipher])
                 if res.empty:
                     st.info("No structural unit in the loaded corpus matches this value.")
                 else:
