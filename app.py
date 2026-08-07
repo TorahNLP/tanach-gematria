@@ -893,43 +893,64 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
 }
 
 # Human-readable one-liners shown next to each cipher selector in the UI.
+#
+# ⚠️ NO SOURCES HERE. Attribution lives in the Guide's Source column, which is
+# where a reader goes to ask "says who?". Repeating it in the results list put a
+# citation in front of someone who is reading down 35 methods looking for a
+# number, and half the methods carried one while half did not.
+#
+# Keep each to one line that answers "what does this do to my letters?", with a
+# worked example only where the rule is hard to picture without one. Every
+# number in these strings is verified against the implementation.
 CIPHER_BLURB: Dict[str, str] = {
     "Standard":        "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
     "Katan":           "Reduced values — drop trailing zeros (ק→1, מ→4), then sum.",
     "Gadol":           "Like Standard but finals count higher: ך=500 … ץ=900.",
     "Siduri":          "Ordinal position: א=1, ב=2 … ת=22. Sequence, not Standard value.",
-    "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22. Chassidei Ashkenaz / Sefer Raziel.",
-    "Ribua":           "Sum of squared values per letter: Σ v².",
-    "HaMerubahKlali":  "The total Standard sum squared as one block: (Σv)². Pardes Rimonim Sha'ar 30. "
-                       "Note: always matches Standard here — see cross-method below.",
+    "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22.",
+    "Ribua":           "Square each letter's Standard value, then sum: דוד = 4²+6²+4² = 68.",
+    "HaMerubahKlali":  "Sum the Standard values first, then square the total: דוד = 14² = 196. "
+                       "Squaring preserves order, so this always finds the same units as Standard.",
     "Kidmi":           "Cumulative sum of Standard values: each letter = Σ Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
-    "Milui":           "Spell each letter's full name (Lurianic: א=אלף=111 …); sum all spelling letters.",
+    # "Lurianic" was the last source name left, but it is doing real work here:
+    # it says WHICH spelling table, and אלף vs אלפ is a different value. Kept as
+    # a plain statement of the spelling used rather than as an attribution.
+    "Milui":           "Spell each letter's full name and sum those letters: א=אלף=111, ד=דלת=434.",
     "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
     "Emtzaiyot":       "Middle letter: Standard value of the second letter of each Milui name (2-letter spellings). אלף→ל=30, בית→י=10 …",
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
-    "HaNekudot":        "Geometric value of each vowel mark: each dot=10, each line=6. Sheva=20, Kamatz=16, Patah=6, Tsere=20, Segol=30, Hiriq=10, Holam=10, Kubutz=30, Shuruk=10. Chatafim add the sheva: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh is not a nekuda and scores 0. Consonants and taamim contribute 0.",
-    "ImHaNekudot":      "Standard gematria of the consonants plus HaNekudot of the vowel marks: letters + vowel-mark geometric values combined.",
-    "MiluiNekudot":     "Standard gematria of the Hebrew NAME of each vowel mark. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. Chatafim are named sheva + base: חטף פתח=791, חטף קמץ=533, חטף סגול=402.",
-    "ImMiluiNekudot":   "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines letter totals with the spelled-out vowel marks.",
+    # The vowel-mark four. The full value tables are in the Guide; here just say
+    # what is counted and what is not — the old versions listed all nine marks
+    # and all three chatafim inline, which is a table pretending to be a
+    # sentence. The dagesh note stays: it is the one thing readers query.
+    "HaNekudot":        "Counts the vowel marks by shape — each dot=10, each line=6. "
+                        "Kamatz=16, Patah=6, Segol=30. The dagesh is not a vowel and scores 0; "
+                        "consonants and ta'amim count 0 too.",
+    "ImHaNekudot":      "Standard values of the letters plus HaNekudot of their vowel marks.",
+    "MiluiNekudot":     "Standard value of each vowel mark's Hebrew NAME: קמץ=230, פתח=488, סגול=99.",
+    "ImMiluiNekudot":   "Standard values of the letters plus MiluiNekudot of their vowel marks.",
     "MiluiMaleh":       "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
     "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
     "EmtzaiyotMaleh":   "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
     "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
     "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
-    "Atbach":          "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900.",
+    # ה and נ are their own partners (5+5=10, 50+50=100), so they are the only
+    # letters this method leaves unchanged. Reads like a bug without the note.
+    "Atbach":          "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900. "
+                       "ה and נ pair with themselves, so their values don't change.",
     "Avgad":           "+1 cyclic shift: א→ב … ת→א. Then Standard values.",
     "Agdat":           "+2 cyclic shift: א→ג … ת→ב. Then Standard values.",
-    "ReverseAvgad":    "−1 cyclic shift: ב→א … א→ת. Then Standard values. R. Eliezer Ashkenazi.",
-    "AyakBachar":      "3×9 cyclic rotation: units→tens→hundreds→units (א↔י↔ק, ב↔כ↔ר …). Tikunei HaZohar 21.",
-    "AchasBeta":       "7/7/7 cyclic rotation across groups א-ז / ח-נ / ס-ש; ת is invariant. Pardes Rimonim.",
+    "ReverseAvgad":    "−1 cyclic shift: ב→א … א→ת. Then Standard values.",
+    "AyakBachar":      "3×9 cyclic rotation: units→tens→hundreds→units (א↔י↔ק, ב↔כ↔ר …).",
+    "AchasBeta":       "7/7/7 cyclic rotation across groups א-ז / ח-נ / ס-ש; ת is unchanged.",
     "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
-    "HaAchor":         "Each Standard value × its ordinal position within the word; position resets per word. Pardes Rimonim Sha'ar 30.",
-    "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum those words' values. י=10→עשרה=575, ה=5→חמשה=353.",
-    "MispariHaGadol":  "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620, א→אלף=111→מאה ואחד עשר.",
-    "KololEhad":       "Standard total + 1 (the word counted as one collective unit).",
-    "KololOtiyot":     "Standard total + number of letters in the unit (one per letter). Also called Mispar Musafi.",
+    "HaAchor":         "Each Standard value × its position in the word: דוד = 4×1 + 6×2 + 4×3 = 28. Resets per word.",
+    "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum that word: י=10→עשרה=575.",
+    "MispariHaGadol":  "Spell each letter's Milui total as a Hebrew number-word, then sum that word: י→יוד=20→עשרים=620.",
+    "KololEhad":       "Standard total + 1, counting the word itself as one more unit.",
+    "KololOtiyot":     "Standard total + 1 for each letter: דוד = 14 + 3 = 17.",
 }
 
 # Canonical Tanach order — Torah, Nevi'im, Ketuvim (Masoretic/Sefaria ordering)
@@ -5467,7 +5488,7 @@ def run_app() -> None:
                  "Source": "פרדס רימונים (שער הגימטריאות, שער ל׳, the Remak, 1548)."},
                 {"Method": "Emtzaiyot",
                  "Hebrew": "אמצעיות (Emtzaiyot — Middle Letters)",
-                 "Rule": "Standard value of the second letter of each letter's Milui name. Uses the 2-letter (Lurianic) spellings: אלף→ל=30, בית→י=10. ה (הא) and פ (פא) have two-letter names, so the second letter is also the last — for these the value matches Ofanim.",
+                 "Rule": "Standard value of the second letter of each letter's Milui name. Uses the 2-letter spellings of the Arizal: אלף→ל=30, בית→י=10. ה (הא) and פ (פא) have two-letter names, so the second letter is also the last — for these the value matches Ofanim.",
                  "Source": "The Arizal's letter-name spellings; brought in ספר רזיאל המלאך."},
                 {"Method": "Ofanim",
                  "Hebrew": "אופנים (Ofanim — Wheels)",
@@ -5492,7 +5513,7 @@ def run_app() -> None:
                 {"Method": "MiluiMaleh",
                  "Hebrew": "מילוי מלא (Milui Maleh — Full Filling)",
                  "Rule": "Like Milui, but uses the Maleh (מלא) 3-letter spellings for כ and מ: כ=כאף=101, מ=מאם=81. All other letter spellings are identical to standard Milui.",
-                 "Source": "The maleh/chaser distinction follows the scribal tradition of כתיב מלא and כתיב חסר. The 3-letter forms are used in various Lurianic and Sephardic sources; cf. שער הכוונות and related kisvei haAri."},
+                 "Source": "The maleh/chaser distinction follows the scribal tradition of כתיב מלא and כתיב חסר. The 3-letter forms are brought in kisvei haAri and in Sephardic sources; cf. שער הכוונות."},
                 {"Method": "NeelAmMaleh",
                  "Hebrew": "נעלם מלא (Neelam Maleh — Full Hidden)",
                  "Rule": "Like Neelam, but with Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Reveals an additional Alef hidden inside each of these letters.",
