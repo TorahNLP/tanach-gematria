@@ -4304,6 +4304,13 @@ def run_app() -> None:
         # reads on both themes without hard-coding either one.
         "hr.mdiv{border:0;border-top:1px solid currentColor;opacity:.18;"
         "margin:1.9rem 0 1.1rem;}"
+        # The result line. Full-strength text against the dimmed blurb above it,
+        # with a leading rule, so the method's OUTCOME is visually distinct from
+        # the method's DESCRIPTION rather than being a second grey caption.
+        ".mval{font-size:.95rem;margin:.5rem 0 .35rem;padding-left:.6rem;"
+        "border-left:3px solid currentColor;opacity:.85;"
+        "font-variant-numeric:tabular-nums;}"
+        ".mval b{font-size:1.15rem;font-weight:700;}"
         "</style>",
         unsafe_allow_html=True)
 
@@ -6115,16 +6122,23 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 # digit is ever adjacent to Hebrew.
                 st.markdown(
                     f"#### {CIPHER_DISPLAY_NAMES.get(cipher, cipher)}")
-                _sub = f"Value **{tgt}**"
-                if colel:
-                    _sub += f" · Colel window {tgt-1}–{tgt+1}"
-                _sub += f" · {len(res)} result(s)"
-                st.caption(_sub)
                 if CIPHER_BLURB.get(cipher):
                     # Blurb goes UNDER its own heading. It used to print above,
                     # so every description sat between two methods and appeared
                     # to belong to the one before it.
                     st.caption(CIPHER_BLURB[cipher])
+                # Order: what the method IS (heading, then blurb), then what it
+                # FOUND. The value used to sit above the blurb in the same grey
+                # caption style, so the method's definition and its outcome ran
+                # together as one undifferentiated block. This line is the
+                # result, so it is styled as a result and not as more prose.
+                _res_bits = [f"<b>{tgt}</b>"]
+                if colel:
+                    _res_bits.append(f"Colel window {tgt-1}–{tgt+1}")
+                _res_bits.append(f"{len(res)} result(s)")
+                st.markdown(
+                    "<div class='mval'>Value " + " · ".join(_res_bits) + "</div>",
+                    unsafe_allow_html=True)
                 if res.empty:
                     st.info("No structural unit in the loaded corpus matches this value.")
                 else:
