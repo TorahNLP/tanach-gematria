@@ -4422,8 +4422,8 @@ def run_app() -> None:
         """General vocabulary, built offline by build_wiktionary_nikud.py.
 
         Returns (headwords, derived), each {bare consonants: [pointed form]}.
-        18,519 headwords from Hebrew Wiktionary (CC-BY-SA) plus 3,792 words
-        recovered by splitting its multi-word phrases — the LOWEST-priority
+        18,519 headwords from Hebrew Wiktionary plus 3,792 words recovered by
+        splitting its multi-word phrases — the LOWEST-priority
         source. It covers ordinary words the Tanach corpus and the curated name
         lists do not, but it is a modern dictionary: for a name it would offer
         the common noun, so it must never outrank the other two.

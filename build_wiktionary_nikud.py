@@ -18,7 +18,16 @@ Run:  python build_wiktionary_nikud.py
 Writes wiktionary_nikud.json beside app.py. Downloads ~14 MB once and caches
 the dump in the system temp dir.
 
-Source: he.wiktionary.org, CC-BY-SA 4.0.
+Source: he.wiktionary.org (page dumps are CC-BY-SA 4.0).
+
+No attribution is carried in the app, decided 2026-08-07. What this extracts is
+facts — that `אהבה` is vocalized `אַהֲבָה` is how Hebrew works, not something
+Wiktionary authored — and facts do not inherit the source page's licence. No
+prose is taken (no definitions, etymologies or usage notes), and the word list
+is not copied as a work either: the keys come from the corpus and the name
+lists, and this only fills gaps. Contrast the Koren translation, which IS
+expressive authorship and whose attribution is a real licence condition. See
+HANDOFF.md.
 """
 import bz2
 import collections
