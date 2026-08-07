@@ -910,7 +910,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22.",
     "Ribua":           "Square each letter's Standard value, then sum: דוד = 4²+6²+4² = 68.",
     "HaMerubahKlali":  "Sum the Standard values first, then square the total: דוד = 14² = 196. "
-                       "Squaring preserves order, so this always finds the same units as Standard.",
+                       "It always finds the same matches as Standard — its use is in Cross-method matches.",
     "Kidmi":           "Cumulative sum of Standard values: each letter = Σ Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
     # "Lurianic" was the last source name left, but it is doing real work here:
@@ -937,14 +937,18 @@ CIPHER_BLURB: Dict[str, str] = {
     "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
     "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
     # ה and נ are their own partners (5+5=10, 50+50=100), so they are the only
-    # letters this method leaves unchanged. Reads like a bug without the note.
-    "Atbach":          "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. Finals carry 600–900. "
-                       "ה and נ pair with themselves, so their values don't change.",
+    # letters this method leaves unchanged. Reads like a bug without the note,
+    # which is why it comes before the finals detail rather than after it.
+    "Atbach":          "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. "
+                       "נ and ה pair with themselves. Finals carry 600–900.",
     "Avgad":           "+1 cyclic shift: א→ב … ת→א. Then Standard values.",
     "Agdat":           "+2 cyclic shift: א→ג … ת→ב. Then Standard values.",
     "ReverseAvgad":    "−1 cyclic shift: ב→א … א→ת. Then Standard values.",
     "AyakBachar":      "3×9 cyclic rotation: units→tens→hundreds→units (א↔י↔ק, ב↔כ↔ר …).",
-    "AchasBeta":       "7/7/7 cyclic rotation across groups א-ז / ח-נ / ס-ש; ת is unchanged.",
+    # ⚠️ "ת is unchanged" put an English clause directly after a Hebrew letter,
+    # and the RTL run swallowed the boundary — it read as if the clause attached
+    # to ס-ש. Naming the letter LAST keeps the sentence ending in LTR text.
+    "AchasBeta":       "7/7/7 cyclic rotation across the groups א-ז / ח-נ / ס-ש. The only letter left unchanged is ת.",
     "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
     "HaAchor":         "Each Standard value × its position in the word: דוד = 4×1 + 6×2 + 4×3 = 28. Resets per word.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum that word: י=10→עשרה=575.",
@@ -5437,7 +5441,7 @@ def run_app() -> None:
                 "**🔍 All word-span matches** finds runs of consecutive words "
                 "whose combined value matches, optionally carrying across a "
                 "verse boundary.\n\n"
-                "**🔀 Cross-method coincidences** compares every value of your "
+                "**🔀 Cross-method matches** compares every value of your "
                 "input against every method, highlighting rare matches."
             )
 
@@ -5523,7 +5527,7 @@ def run_app() -> None:
                 {"Method": "HaMerubahKlali",
                  "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
                  "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua, which squares per letter. "
-                         "Searching it alone returns the same matches as Standard; its use is in cross-method comparison.",
+                         "Searching it alone returns the same matches as Standard; its use is in Cross-method matches.",
                  "Source": "פרדס רימונים (the Remak, שער ל׳)."},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
@@ -6292,7 +6296,9 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 st.caption("— = needs nikud. Add vowel points to your input to get "
                            "the four vowel-mark methods.")
 
-            with st.expander("🔀 Cross-method coincidences", expanded=False):
+            # "Coincidences" implied the matches are accidental, which is the
+            # opposite of why someone opens this box.
+            with st.expander("🔀 Cross-method matches", expanded=False):
                 # Streamlit executes an expander body even while it is collapsed, so
                 # this block used to run on every search and every widget interaction.
                 # Opt-in keeps a plain search cheap; once run, the result is cached.
