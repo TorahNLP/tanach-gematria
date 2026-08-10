@@ -3179,6 +3179,14 @@ def _xm_count_matrix(
             cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}"
                     if colel and mb not in COLEL_EXEMPT
                     else f"{mb} = {v}")
+            # ⚠️ Per-COLUMN, not in the WHERE clause. A unit with a knowably
+            # short vowel total must be excluded from the four vowel-mark
+            # columns, but it is a perfectly good row for the other 31 — a
+            # WHERE would drop it from every column and understate them.
+            # Without this the matrix reported 1,364 matches for a bare query
+            # under HaNekudot where the true count is 1: the query scores 0,
+            # and so does every unit whose vowels could not all be counted.
+            cond += nikud_partial_clause(mb)
             cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
     sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
     row = pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0]
