@@ -809,16 +809,56 @@ def nikud_partial_clause(cipher: str) -> str:
     """
     return " AND nikud_partial = 0" if cipher in NIKUD_CIPHERS else ""
 
-# Classical / Talmud-attested methods, listed first in app view (?view=app).
+# Classical / Talmud-attested methods, listed first everywhere.
 BASIC_CIPHERS: List[str] = [
     "Standard", "Katan", "Gadol", "Siduri",
     "Atbash", "Albam", "Atbach", "AchasBeta",
 ]
 
-# App view offers every method; classical ones are listed first.
-APP_CIPHER_ORDER: List[str] = BASIC_CIPHERS + [
-    c for c in CIPHER_NAMES if c not in BASIC_CIPHERS
+# ⚠️ THE display order for every list, dropdown, chart and table in the app.
+#
+# CIPHER_NAMES cannot be used for this: it is the DB COLUMN order. Rows are
+# inserted with a positional tuple (`tuple(vals[c] for c in CIPHER_NAMES)`)
+# against `CIPHER_INSERT_COLS`, so reordering it would silently write every
+# cipher value into the wrong column — a prebuilt DB would keep loading and
+# every number would be wrong. It is a storage contract, not a display choice.
+#
+# The order: the eight classical methods first, since they are what most people
+# come for, then the rest grouped by what they operate on and simplest-first
+# within each group. Anything not listed falls in at the end, so a newly added
+# cipher shows up rather than vanishing.
+_DISPLAY_GROUPS: List[str] = BASIC_CIPHERS + [
+    # Core values — the remaining whole-number methods.
+    "KatanMispari", "Mispari", "MispariHaGadol",
+    # Substitution — the rest of the letter-swap ciphers.
+    "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar",
+    # Positional — value depends on where the letter sits.
+    "ReverseOrdinal", "Ribua", "Kidmi", "Boneeh", "HaAchor", "HaMerubahKlali",
+    # Letter-name — the Milui family and its Maleh variants.
+    "Milui", "Neelam", "Emtzaiyot",
+    "MiluiMaleh", "NeelAmMaleh", "EmtzaiyotMaleh", "Ofanim",
+    # Vowel-mark — undefined without nikud.
+    "HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot",
+    # Kolel — the total plus a collective term.
+    "KololEhad", "KololOtiyot",
 ]
+
+CIPHER_DISPLAY_ORDER: List[str] = _DISPLAY_GROUPS + [
+    c for c in CIPHER_NAMES if c not in _DISPLAY_GROUPS
+]
+
+# Kept as the app-view name; both views now use the same order.
+APP_CIPHER_ORDER: List[str] = CIPHER_DISPLAY_ORDER
+
+
+def in_display_order(ciphers) -> List[str]:
+    """Sort any cipher collection into CIPHER_DISPLAY_ORDER.
+
+    For the places that build a list from a set, a DB result or a user's
+    multiselect, where the incoming order is arbitrary or selection-ordered.
+    """
+    rank = {c: i for i, c in enumerate(CIPHER_DISPLAY_ORDER)}
+    return sorted(ciphers, key=lambda c: rank.get(c, len(rank)))
 
 # Methods the ±1 Colel search tolerance is NOT applied to, because ±1 is
 # either already built in, incoherent, or mathematically dead there:
@@ -2827,7 +2867,7 @@ def search_phrase(conn: sqlite3.Connection, phrase_consonants: str,
     """Compute every cipher value for the input phrase and search each one."""
     values = compute_all_ciphers(phrase_consonants, cantillated, word_consonants)
     results = {c: search_value(conn, c, values[c], colel, tracks, boundaries)
-               for c in CIPHER_NAMES}
+               for c in CIPHER_DISPLAY_ORDER}
     return {"values": values, "results": results}
 
 
@@ -2872,14 +2912,16 @@ def search_value_all_methods(
             f" LIMIT {int(limit_per_method)})"
         )
         params += branch_params
+    # Rows are grouped by method in the output, so this ORDER BY is a
+    # user-visible sequence, not an internal one.
     method_order = (
         "CASE Method " +
-        " ".join(f"WHEN ? THEN {i}" for i, _ in enumerate(CIPHER_NAMES)) +
+        " ".join(f"WHEN ? THEN {i}" for i, _ in enumerate(CIPHER_DISPLAY_ORDER)) +
         " ELSE 9999 END"
     )
     sql = ("SELECT * FROM (" + " UNION ALL ".join(unions) +
            f") ORDER BY {method_order}, ABS(Value - ?), {_book_rank_sql('Book')}, Book, Chapter, Verse")
-    params += list(CIPHER_NAMES)
+    params += list(CIPHER_DISPLAY_ORDER)
     params.append(value)
     return pd.read_sql_query(sql, raw_conn(conn), params=params)
 
@@ -3125,23 +3167,29 @@ def _xm_count_matrix(
         where.append("boundary_type IN (%s)" % ",".join("?" * len(boundaries)))
         params += boundaries
     where_clause = ("WHERE " + " AND ".join(where)) if where else ""
+    # ⚠️ The SQL is built POSITIONALLY: the nested loops below and the read-back
+    # must walk the same list in the same order, or every cell lands in the
+    # wrong row/column. Display order is used throughout so the matrix comes out
+    # grouped like every other list; changing one of these four references
+    # without the others silently transposes the results.
     cases = []
-    for ma in CIPHER_NAMES:
+    for ma in CIPHER_DISPLAY_ORDER:
         v = int(a_vals[ma])
-        for mb in CIPHER_NAMES:
+        for mb in CIPHER_DISPLAY_ORDER:
             cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}"
                     if colel and mb not in COLEL_EXEMPT
                     else f"{mb} = {v}")
             cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
     sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
     row = pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0]
-    n = len(CIPHER_NAMES)
+    n = len(CIPHER_DISPLAY_ORDER)
     matrix_rows = {}
-    for i, ma in enumerate(CIPHER_NAMES):
+    for i, ma in enumerate(CIPHER_DISPLAY_ORDER):
         matrix_rows[f"{ma} ({a_vals[ma]})"] = [
             int(row.iloc[i * n + j]) for j in range(n)
         ]
-    return pd.DataFrame.from_dict(matrix_rows, orient="index", columns=CIPHER_NAMES)
+    return pd.DataFrame.from_dict(matrix_rows, orient="index",
+                                  columns=CIPHER_DISPLAY_ORDER)
 
 
 # ---------------------------------------------------------------------------
@@ -4686,8 +4734,8 @@ def run_app() -> None:
         st.header("⚙️ Corpus")
         st.caption(f"{n_loaded:,} Masoretic verses — loaded from bundled corpus.")
         st.divider()
-        st.subheader(f"Active methods ({len(CIPHER_NAMES)})")
-        st.write(", ".join(CIPHER_NAMES))
+        st.subheader(f"Active methods ({N_CIPHERS})")
+        st.write(", ".join(CIPHER_DISPLAY_ORDER))
         st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
                    "Value: Ribua, HaMerubahKlali, Kidmi, KatanMispari, Mispari, ReverseOrdinal. "
                    "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim. "
@@ -6102,8 +6150,11 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         # Method picker sits here, ahead of any search, so methods can be chosen
         # before a word is entered rather than only after results exist.
         # Gematria-value mode searches every method by design, so it has none.
-        _t1_opts = APP_CIPHER_ORDER if app_view else CIPHER_NAMES
-        active_ciphers = [CIPHER_NAMES[0]]
+        # Both views use the same order now — app view used to lead with the
+        # classical eight while the site showed DB column order, so the two
+        # disagreed about where every method sat.
+        _t1_opts = CIPHER_DISPLAY_ORDER
+        active_ciphers = [CIPHER_DISPLAY_ORDER[0]]
         if mode in ("Hebrew text", "Verse reference"):
             # ⚠️ Query-side nikud gate. When the committed unit is flagged
             # nikud_partial its vowel total is knowably short, so the four
@@ -6121,7 +6172,10 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 "Show matches for method(s)", _picker_opts, default=_default,
                 key=("t1_ciphers_np" if _q_partial else "t1_ciphers"),
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c))
-            active_ciphers = ciphers_sel or [_picker_opts[0]]
+            # Sorted, not selection-ordered: a multiselect returns options in
+            # the order they were CLICKED, so the results below would appear in
+            # whatever sequence the reader happened to tick them.
+            active_ciphers = in_display_order(ciphers_sel or [_picker_opts[0]])
 
         # Perek/Sefer rows are stored under the "Aggregate" track (a DB tag,
         # not a reading tradition). Auto-include it when those boundaries are selected.
@@ -6431,7 +6485,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     dc1, dc2 = st.columns(2)
                     with dc1:
                         drill_a = st.selectbox(
-                            "Method A — your search term", CIPHER_NAMES,
+                            "Method A — your search term", CIPHER_DISPLAY_ORDER,
                             key="xm_drill_a",
                             format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                             help=_tip("Which method scores the word you "
@@ -6441,14 +6495,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     with dc2:
                         drill_b_list = st.multiselect(
                             "Method B — corpus results (one or more)",
-                            CIPHER_NAMES,
-                            default=[CIPHER_NAMES[0]], key="xm_drill_b",
+                            CIPHER_DISPLAY_ORDER,
+                            default=[CIPHER_DISPLAY_ORDER[0]], key="xm_drill_b",
                             format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                             help=_tip("Which method the corpus units are scored "
                                       "under when matching that value.")
                         )
                     drill_val = a_vals[drill_a]
-                    for drill_b in (drill_b_list or [CIPHER_NAMES[0]]):
+                    for drill_b in in_display_order(drill_b_list or [CIPHER_DISPLAY_ORDER[0]]):
                         st.markdown(
                             f"**{drill_a}({_c_raw.strip()}) = {drill_val}** "
                             f"→ corpus units with **{drill_b} = {drill_val}**"
@@ -6539,11 +6593,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     )
                     sc1, sc2 = st.columns([2, 1])
                     with sc1:
-                        _span_default = active_ciphers[0] if active_ciphers else CIPHER_NAMES[0]
+                        _span_default = active_ciphers[0] if active_ciphers else CIPHER_DISPLAY_ORDER[0]
                         span_cipher = st.selectbox(
                             "Cipher",
-                            CIPHER_NAMES,
-                            index=CIPHER_NAMES.index(_span_default) if _span_default in CIPHER_NAMES else 0,
+                            CIPHER_DISPLAY_ORDER,
+                            index=(CIPHER_DISPLAY_ORDER.index(_span_default)
+                                   if _span_default in CIPHER_DISPLAY_ORDER else 0),
                             format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                             key="span_cipher",
                         )
@@ -6642,7 +6697,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
     if tab2 is not None:
       with tab2:
         st.subheader("Scriptural Structural Explorer")
-        t2_ciphers = CIPHER_NAMES
+        t2_ciphers = CIPHER_DISPLAY_ORDER
         # "BothHalves" is a tab-2-only pseudo-boundary, not a stored boundary_type.
         # Browsing here is about comparing units, and forcing a choice between
         # first and second half made the two searchable only in isolation — a
@@ -6763,7 +6818,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     for c in t2_ciphers if c in row2.index
                 }
                 st.markdown(f"**Selected unit — values across the {N_CIPHERS} methods:**"
-                            if t2_ciphers is CIPHER_NAMES else
+                            if t2_ciphers is CIPHER_DISPLAY_ORDER else
                             "**Selected unit — classical method values:**")
                 st.dataframe(pd.DataFrame([summary]),
                              width="stretch", hide_index=True)
@@ -6914,12 +6969,12 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
         col_m1, col_m2, col_opts = st.columns([3, 3, 2])
         with col_m1:
             t3_ma = st.multiselect(
-                "Method A", CIPHER_NAMES, default=["Standard"], key="t3_ma",
+                "Method A", CIPHER_DISPLAY_ORDER, default=["Standard"], key="t3_ma",
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Gematria method for the first element of each pattern")
         with col_m2:
             t3_mb = st.multiselect(
-                "Method B", CIPHER_NAMES, default=["Standard"], key="t3_mb",
+                "Method B", CIPHER_DISPLAY_ORDER, default=["Standard"], key="t3_mb",
                 format_func=lambda c: CIPHER_DISPLAY_NAMES.get(c, c),
                 help="Method for the second element. When Cross-method is off, Method A is used for both.")
         with col_opts:
@@ -6951,8 +7006,8 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                 help="Filter results to references containing this text")
 
         # Effective method sets
-        eff_a = t3_ma or CIPHER_NAMES
-        eff_b = (t3_mb if t3_cross else eff_a) or CIPHER_NAMES
+        eff_a = in_display_order(t3_ma or CIPHER_DISPLAY_ORDER)
+        eff_b = in_display_order((t3_mb if t3_cross else eff_a) or CIPHER_DISPLAY_ORDER)
 
         _low_cardinality = {"Katan", "KatanMispari"}
         if any(c in eff_a or c in eff_b for c in _low_cardinality) and int(t3_minval) < 41:
@@ -7171,7 +7226,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                        "Methods with high correlation produce similar rankings; "
                        "low/negative correlation highlights structurally distinct searches. "
                        "Hover any cell to see the exact value.")
-            numeric_cols = [c for c in CIPHER_NAMES
+            numeric_cols = [c for c in CIPHER_DISPLAY_ORDER
                            if c in plot_df.columns and c not in _HEATMAP_EXCLUDE]
             corr = plot_df[numeric_cols].corr().round(2)
             fig_corr = px.imshow(
@@ -7221,7 +7276,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                          expanded=False):
             import plotly.express as _px_xm
 
-            _BALANCE_COLS = [c for c in CIPHER_NAMES if c not in _HEATMAP_EXCLUDE]
+            _BALANCE_COLS = [c for c in CIPHER_DISPLAY_ORDER if c not in _HEATMAP_EXCLUDE]
 
             @st.cache_data(show_spinner="Computing cross-method balance matrix…")
             def _xm_balance_matrix(_conn, corpus_key):
