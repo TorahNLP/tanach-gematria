@@ -5326,17 +5326,16 @@ def run_app() -> None:
       with tab_nikud:
         st.title("Nikud tool")
         st.markdown(
-            "Type a Hebrew word or phrase to add nikud. Each word can be "
-            "changed to any other attested vocalization — the four vowel-mark "
-            "methods score 0 on bare consonants, so a name needs pointing "
-            "before it can be searched under them.")
+            "Type a Hebrew word or phrase to add nikud. Where a word has more "
+            "than one attested vocalization you can pick between them, then "
+            "send the result to the search.")
 
         _nk_raw = st.text_input(
             "Hebrew word or phrase", key="nk_input",
             placeholder="e.g. דוד בן ישי",
-            help=_tip("Names are looked up in the Tanach corpus first, then a "
-                      "curated list, then a Hebrew dictionary for ordinary "
-                      "words. Words found nowhere are left bare and flagged."))
+            help=_tip("Looked up in the Tanach first, then a curated name "
+                      "list, then a Hebrew dictionary. Anything found nowhere "
+                      "is left bare and flagged."))
 
         if _nk_raw.strip():
             _names = cached_name_index()
@@ -5450,9 +5449,8 @@ def run_app() -> None:
                 # dropdown, and only the reader knows which is meant.
                 st.caption(
                     "Read as a name: the words beside **בן**/**בת** prefer a "
-                    "name vocalization. Where the Tanach attests a word only "
-                    "as an ordinary word, that form still leads — check the "
-                    "dropdown if the name you mean is spelled the same.")
+                    "name vocalization. If a name shares its spelling with an "
+                    "ordinary word, check the dropdown.")
 
             _res_cons = strip_to_consonants(_result)
 
@@ -5460,10 +5458,8 @@ def run_app() -> None:
                 st.warning(
                     "Not vocalized: "
                     + ", ".join(f"**{w}**" for w in _missing)
-                    + ". The four vowel-mark methods are **undefined** for this "
-                    "text, so no values are shown — the same rule the corpus "
-                    "applies to a Ksiv word printed without nikud. Fix or "
-                    "remove the word to see them.")
+                    + ". The vowel-mark values need every word pointed, so "
+                    "they are not shown. Fix or remove the word to see them.")
             elif _res_cons:
                 # ⚠️ Values ONLY when every word was vocalized. With a word left
                 # bare the totals are computed over partly-pointed text and come
@@ -5659,16 +5655,16 @@ def run_app() -> None:
                  "Source": "ספר רזיאל המלאך."},
                 {"Method": "HaNekudot",
                  "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
-                 "Rule": "Geometric value of each vowel mark: each dot=10, each line=6. Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30, Shuruk=10 (the dot; the vav is a consonant). The three chatafim are a sheva plus their base vowel: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh scores 0 — it is not one of the nekudot. Taamim, meteg and the shin/sin dot are likewise excluded.",
-                 "Source": "תיקוני הזהר תיקון ע׳ gives the identity that a dot is a yud and a line is a vav (נקודה איהי י׳, וקוא איהו ו׳). The shape of each nekuda — how many dots and lines it has — is set out by the Remak in פרדס רימונים שער כ״ח (שער הנקודות) פרק א׳, who also names the three chatafim as שבא קמץ, שבא פתח, שבא סגול — a sheva together with a base vowel. Putting numbers to those shapes is a later convention rather than a cheshbon any of these seforim prints. עץ חיים שער ה׳ rules out the dagesh: דגש ורפה אינם לא טעמים ולא נקודות ולא תגין."},
+                 "Rule": "Each vowel mark scored by its shape: every dot=10, every line=6. Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30, Shuruk=10. The chatafim are a sheva plus their base vowel: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh, taamim and the shin/sin dot are not nekudos and score 0.",
+                 "Source": "תיקוני הזהר תיקון ע׳: a dot is a yud, a line is a vav (נקודה איהי י׳, וקוא איהו ו׳). The shapes of the nekudos are in פרדס רימונים שער כ״ח (שער הנקודות) פרק א׳, where the Remak names the chatafim as שבא קמץ, שבא פתח, שבא סגול. עץ חיים שער ה׳ excludes the dagesh: דגש ורפה אינם לא טעמים ולא נקודות ולא תגין."},
                 {"Method": "ImHaNekudot",
                  "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
                  "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines consonant totals with vowel-mark geometric values in a single sum.",
                  "Source": "פרדס רימונים (the Remak, 1548), שער הגימטריאות (שער ל׳), פרק ח׳."},
                 {"Method": "MiluiNekudot",
                  "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
-                 "Rule": "Standard gematria of the Hebrew NAME of each vowel mark. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. The three chatafim are named as the Remak names them, a sheva together with their base vowel: חטף פתח=791, חטף קמץ=533, חטף סגול=402. The dagesh has no name to sum here — it is not one of the nekudot.",
-                 "Source": "The method is R' Yosef Gikatilla's, גנת אגוז (1274), in the section on the sod of the nekudos. The SPELLINGS here are the Remak's in פרדס רימונים שער כ״ח, because his are the ones that can be checked — גנת אגוז was not available, and no seforim print these sums as a table in any case, so the cheshbon is ours applied to his orthography."},
+                 "Rule": "Standard gematria of each vowel mark's Hebrew name. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. The chatafim are named as the Remak names them, a sheva with their base vowel: חטף פתח=791, חטף קמץ=533, חטף סגול=402.",
+                 "Source": "R' Yosef Gikatilla, גנת אגוז (1274), in the section on the sod of the nekudos. The spellings used here are the Remak's in פרדס רימונים שער כ״ח."},
                 {"Method": "ImMiluiNekudot",
                  "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
                  "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
