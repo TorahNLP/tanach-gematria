@@ -120,12 +120,25 @@ for i in range(11, 22):                   # second half indices 11..21
 # The hundred-class partners are final forms valued at their HUNDREDS value
 # (600..900), so the defining sum-to-1000 relation is preserved exactly:
 #   Qof(100)+900=1000, Resh(200)+800=1000, Shin(300)+700=1000, Tav(400)+600=1000.
+# ⚠️ ה, נ and ך do NOT map to themselves. Rashi on Sukkah 52b, on the words
+# באטב"ח, sets out the tiers and then says: "ונשארו הנ\"ך שלא היה לה\"א בן זוג
+# בעשיריות ולא לנו\"ן בן זוג במאות ולא לכ\"ף בן זוג באלפים וחברם יחד" — hey had
+# no partner in the tens, nun none in the hundreds, kaf none in the thousands,
+# SO HE JOINED THEM TOGETHER. They form a cross-tier triplet.
+#
+# The Gemara's own worked example needs this: סהדה <-> מנון, where Rashi spells
+# out "ה\"א מן ה\"ן במקום נו\"ן" — hey from the pair ה-ן, standing for nun. With
+# ה mapped to itself that example does not come out, which is how the bug was
+# found. Direction ה->נ, נ->ה is what the example requires; ך joins the triplet
+# as the third member with no partner of its own.
 ATBAH_MAP = {
     "א": "ט", "ט": "א", "ב": "ח", "ח": "ב", "ג": "ז", "ז": "ג",
-    "ד": "ו", "ו": "ד", "ה": "ה",
+    "ד": "ו", "ו": "ד",
     "י": "צ", "צ": "י", "כ": "פ", "פ": "כ", "ל": "ע", "ע": "ל",
-    "מ": "ס", "ס": "מ", "נ": "נ",
+    "מ": "ס", "ס": "מ",
     "ק": "ץ", "ר": "ף", "ש": "ן", "ת": "ם",
+    # the הנ"ך triplet
+    "ה": "נ", "נ": "ה",
 }
 
 # Value of each letter's Atbah partner. Final-form partners take their Gadol
@@ -4031,9 +4044,18 @@ def run_selftest() -> None:
     # Atbah must preserve the defining sum-to-10/100/1000 relation, incl. hundreds.
     assert g_atbah("ק") == 900 and g_atbah("ר") == 800
     assert g_atbah("ש") == 700 and g_atbah("ת") == 600
-    for L, total in (("א", 10), ("ה", 10), ("י", 100), ("נ", 100),
+    # ⚠️ ה and נ are EXCLUDED from the sum rule. Rashi on Sukkah 52b says they
+    # are precisely the letters with no partner in their tier — "שלא היה לה\"א
+    # בן זוג בעשיריות ולא לנו\"ן בן זוג במאות" — and joins them to each other
+    # instead. This assert previously included them and so enforced the
+    # self-pairing that made the Gemara's own example fail.
+    for L, total in (("א", 10), ("ד", 10), ("י", 100), ("מ", 100),
                      ("ק", 1000), ("ר", 1000), ("ש", 1000), ("ת", 1000)):
         assert g_absolute(L) + g_atbah(L) == total, (L, g_atbah(L))
+    # The הנ"ך triplet, and the Gemara's worked example that requires it:
+    # סהדה <-> מנון (Sukkah 52b).
+    assert g_atbah("ה") == 50 and g_atbah("נ") == 5
+    assert [ATBAH_VALUE[c] for c in "סהדה"] == [40, 50, 6, 50],         [ATBAH_VALUE[c] for c in "סהדה"]
     assert g_gadol("ם") == 600 and g_absolute("ם") == 40
     assert g_ribua("אב") == 5 and g_kidmi("ג") == 6
     assert g_katan("ר") == 2 and g_katan("י") == 1
@@ -5689,7 +5711,7 @@ def run_app() -> None:
                  "Source": "Set out as a grid in ספר רזיאל המלאך; brought by the Radal on פרקי דרבי אליעזר."},
                 {"Method": "Atbach",
                  "Hebrew": "אטב\"ח (At-Bach)",
-                 "Rule": "Pairs whose values sum to 10/100/1000: א↔ט, ב↔ח; י↔צ, כ↔פ; ק↔ץ … Finals carry 600–900.",
+                 "Rule": "Each letter is replaced by the one that completes its tier to 10, 100 or 1000: א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ץ, ר↔ף, ש↔ן, ת↔ם. ה, נ and ך are left without a partner in their own tier, so Rashi joins them together — ה and נ swap.",
                  "Source": "From R' Chiya (late 2nd/early 3rd c. CE): בְּאַטְבַּ\"ח שֶׁל רַבִּי חִיָּיא, קוֹרִין לְסָהֲדָה מָנוֹן — סוכה נ״ב ע״ב. Jastrow (א\"ט) defines it as the interchange whose pairs sum to ten or a hundred, ה and נ standing alone. Also counted in the ל\"ב middos of R' Eliezer ben Yose ha-Gelili."},
                 {"Method": "Avgad",
                  "Hebrew": "אבג\"ד (Av-Gad / Abgad)",
