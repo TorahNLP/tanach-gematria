@@ -5617,7 +5617,7 @@ def run_app() -> None:
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Standard, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
-                 "Source": "Set out systematically in שפתי ישנים (R' Shabsai Bass, 17th c.). The 500–900 values for the sofios are a later convention, not in ספר יצירה, which counts twenty-two letters."},
+                 "Source": "The sofios themselves are early — מנצפ\"ך צופים אמרום (מגילה ב׳ ע״ב), and אטב\"ח of R' Chiya (סוכה נ״ב ע״ב) needs the 500–900 tier for its pairs to reach 1000. Set out systematically in שפתי ישנים (R' Shabsai Bass, 17th c.)."},
                 {"Method": "KatanMispari",
                  "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
                  "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
