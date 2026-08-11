@@ -453,6 +453,25 @@ def g_agdat(s: str) -> int:
     return _temurah_value(s, AGDAT_MAP)
 
 
+def g_hameugal(s: str) -> int:
+    """Mispar HaMeugal HaKlali - thousands count as units ("the turning of the wheel").
+
+    Pardes Rimonim 30:8:2, the Remak's own first method: "בחזרת הגלגל ר\"ל
+    שהאלפים אינם נחשבים אלא כאחדים כגון חמשה פעמים רי\"ו שעולים אנכ\"י" — five
+    times 216 is 1080, which he reads as אנכ"י = 81. So 1080 -> 80 + 1 = 81.
+
+    ⚠️ Two readings fit his single example: one pass, or repeat until under a
+    thousand. They are IDENTICAL for every value below 999,000, which no Hebrew
+    word reaches, so the ambiguity is untestable rather than resolved. Single
+    pass is implemented.
+
+    ⚠️ NOT the same as our Katan. He notes that "many call" the letter-wise
+    reduction מספר קטן — that is Katan; this is his #1 under that heading.
+    """
+    total = g_absolute(s)
+    return total % 1000 + total // 1000
+
+
 def g_katan_mispari(s: str) -> int:
     """Mispar Katan Mispari - sum Standard values first, then reduce total to digital root."""
     total = g_absolute(s)
@@ -491,8 +510,18 @@ def g_emtzaiyot_maleh(s: str) -> int:
     return sum(EMTZAIYOT_MALEH_VALS.get(_normalize_final(c), 0) for c in s)
 
 
-def g_boneeh(s: str) -> int:
-    """Mispar Bone'eh (Building) - running prefix sums, reset at each word boundary."""
+def g_achorayim(s: str) -> int:
+    """Mispar HaAchorayim - running prefix sums, reset at each word boundary.
+
+    The אחוריים of a word: written out progressively (י, יה, יהו, יהוה) and the
+    rows summed. Sefer Etz Chaim 34:2 gives the Havayah's achorayim as 72, which
+    this reproduces. Verified independently against Sha'ar HaPesukim (Vayishlach),
+    which counts the LETTERS of the filled achorayim as 102 for the four Havayot
+    and 78 for three Ehyeh, total 180 — the milui pyramid gives exactly that.
+
+    ⚠️ Was shipped as "Bone'eh" (מספר בונה), a modern label with no attestation
+    in the corpus. The calculation was always right; only the name was invented.
+    """
     total = 0
     for word in s.split():
         running = 0
@@ -501,22 +530,6 @@ def g_boneeh(s: str) -> int:
             total += running
     return total
 
-
-def g_haachor(s: str) -> int:
-    """Mispar HaAchor - each letter × its ordinal position within its word; resets per word.
-
-    Per Pardes Rimonim (Sha'ar 30, Ch. 8): called 'Achor' because the positional
-    weighting mirrors back-stacking of textual formula layouts.
-    """
-    total = 0
-    for word in s.split():
-        pos = 0
-        for c in word:
-            v = STANDARD.get(_normalize_final(c), 0)
-            if v:
-                pos += 1
-                total += pos * v
-    return total
 
 
 def g_mityashev(s: str) -> int:
@@ -774,8 +787,8 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "AyakBachar":      g_ayak_bachar,       # אי"ק בכ"ר 3×9 cyclic rotation
     "AchasBeta":       g_achas_beta,        # אח"ס בט"ע 7/7/7 rotation (ת fixed)
     # ── Word-structure ciphers ────────────────────────────────────────────────
-    "Boneeh":          g_boneeh,            # Mispar Bone'eh (building / prefix sums)
-    "HaAchor":         g_haachor,           # Mispar HaAchor (value × position in word)
+    "Achorayim":       g_achorayim,         # Mispar HaAchorayim (progressive expansion)
+    "HaMeugal":        g_hameugal,          # Mispar HaMeugal HaKlali (thousands as units)
     # Mityashev is deliberately ABSENT from this table — see g_mityashev. The
     # function, its self-tests and its word-boundary plumbing are all retained
     # so it can be reinstated the moment a source turns up; it simply is not
@@ -851,7 +864,7 @@ _DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     # provenance as Avgad's neighbours, not Talmudic.
     "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar", "AchasBeta",
     # Positional — value depends on where the letter sits.
-    "ReverseOrdinal", "Ribua", "Kidmi", "Boneeh", "HaAchor", "HaMerubahKlali",
+    "ReverseOrdinal", "Ribua", "Kidmi", "Achorayim", "HaMerubahKlali",
     # Letter-name — the Milui family and its Maleh variants.
     "Milui", "Neelam", "Emtzaiyot",
     "MiluiMaleh", "NeelAmMaleh", "EmtzaiyotMaleh", "Ofanim",
@@ -942,14 +955,8 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "ReverseAvgad":    "Reverse Avgad — אבג\"ד הפוך",
     "AyakBachar":      "Ayak Bachar — אי\"ק בכ\"ר",
     "AchasBeta":       "Achas Beta — אח\"ס בט\"ע",
-    # ⚠️ Keeps the modern label deliberately. The classical name for this method
-    # is מספר האחוריים, but מספר האחור is ALREADY shipped as HaAchor — a
-    # different calculation (each letter × its position; חבד is 24 there and 32
-    # here) sitting two rows away in the same list. Using the classical name
-    # would put מספר האחור and מספר האחוריים side by side for two different
-    # things. The Guide's Hebrew column records the classical name.
-    "Boneeh":          "Bone'eh — מספר בונה",
-    "HaAchor":         "HaAchor — מספר האחור",
+    "Achorayim":       "Achorayim — מספר האחוריים",
+    "HaMeugal":        "HaMeugal — מספר המעוגל",
     "Mispari":         "Mispari — מספר המספריי",
     "MispariHaGadol":  "Mispari HaGadol — מספריי הגדול",
     "KololEhad":       "Kolel (Word) — כולל",
@@ -1013,8 +1020,8 @@ CIPHER_BLURB: Dict[str, str] = {
     # and the RTL run swallowed the boundary — it read as if the clause attached
     # to ס-ש. Naming the letter LAST keeps the sentence ending in LTR text.
     "AchasBeta":       "7/7/7 cyclic rotation across the groups א-ז / ח-נ / ס-ש. The only letter left unchanged is ת.",
-    "Boneeh":          "Building value: stacked prefix sums per word (ח=8, ח+ב=10, ח+ב+ד=14 → 32). Resets per word.",
-    "HaAchor":         "Each Standard value × its position in the word: דוד = 4×1 + 6×2 + 4×3 = 28. Resets per word.",
+    "Achorayim":       "Write the word out progressively and sum the rows: חבד = 8 + (8+2) + (8+2+4) = 32. Resets per word.",
+    "HaMeugal":        "Sum as Standard, then count thousands as units: 1080 becomes 80 + 1 = 81.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum that word: י=10→עשרה=575.",
     "MispariHaGadol":  "Spell each letter's Milui total as a Hebrew number-word, then sum that word: י→יוד=20→עשרים=620.",
     "KololEhad":       "Standard total + 1, counting the word itself as one more unit.",
@@ -1122,7 +1129,7 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
 
     Nikud ciphers are dispatched to `cantillated` (raw vocalised text).
     Im* variants add Standard(consonants) to the nikud total.
-    HaAchor, Mityashev, Boneeh are dispatched to `word_consonants` so they
+    Achorayim is dispatched to `word_consonants` so it
     reset counters at each word boundary; falls back to `consonants` when empty.
     """
     word_src = word_consonants if word_consonants else consonants
@@ -1135,7 +1142,7 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
             result[name] = std_val + g_hanekudot(cantillated)
         elif name == "ImMiluiNekudot":
             result[name] = std_val + g_milui_nekudot(cantillated)
-        elif name in ("HaAchor", "Mityashev", "Boneeh"):
+        elif name in ("Achorayim",):
             result[name] = fn(word_src)
         else:
             result[name] = fn(consonants)
@@ -1242,7 +1249,7 @@ def split_halves_by_atnach(text: str) -> Tuple[str, str]:
 def split_halves_word_cons(text: str) -> Tuple[str, str]:
     """Like split_halves_by_atnach but returns space-separated word consonants for each half.
 
-    Used to feed word-boundary-aware ciphers (HaAchor, Mityashev, Boneeh) the
+    Used to feed the word-boundary-aware cipher (Achorayim) the
     correct word structure for half-verse units.
     """
     idx = text.find(ATNACH)
@@ -3460,33 +3467,15 @@ def cipher_breakdown(cipher: str, consonants: str,
     result: List[Tuple[str, int]] = []
 
     # Word-boundary-aware ciphers reset counters at each word boundary.
-    if cipher in ("HaAchor", "Mityashev", "Boneeh"):
+    if cipher in ("Achorayim",):
         src = word_consonants if word_consonants else consonants
         for word in src.split():
-            if cipher == "Boneeh":
+            if cipher == "Achorayim":
                 running = 0
                 for c in word:
                     base = _normalize_final(c)
                     running += STANDARD.get(base, 0)
                     result.append((c, running))
-            elif cipher == "HaAchor":
-                pos = 0
-                for c in word:
-                    base = _normalize_final(c)
-                    v = STANDARD.get(base, 0)
-                    if v:
-                        pos += 1
-                    result.append((f"{c}×{pos}", v * pos))
-            elif cipher == "Mityashev":
-                letters = [STANDARD.get(_normalize_final(c), 0) for c in word
-                           if STANDARD.get(_normalize_final(c), 0)]
-                n = len(letters)
-                for c in word:
-                    base = _normalize_final(c)
-                    v = STANDARD.get(base, 0)
-                    if not v:
-                        continue
-                    result.append((f"{c}×{n}", v * n))
         return result
 
     # All other ciphers iterate letter by letter over the space-free consonant string.
@@ -4094,8 +4083,8 @@ def run_selftest() -> None:
     assert g_neelam(emet) == 166,             g_neelam(emet)           # לף(110)+ם(40)+יו(16)
     assert g_kolel_ehad(emet) == 442,         g_kolel_ehad(emet)       # 441+1
     assert g_kolel_otiyot(emet) == 444,       g_kolel_otiyot(emet)     # 441+3
-    assert g_boneeh(emet) == 483,             g_boneeh(emet)           # 1+(1+40)+(1+40+400)
-    assert g_haachor(emet) == 1281,           g_haachor(emet)          # 1×1+40×2+400×3
+    assert g_achorayim(emet) == 483,          g_achorayim(emet)        # 1+(1+40)+(1+40+400)
+    assert g_hameugal("אנכי") == 81,          g_hameugal("אנכי")       # Remak PR 30:8:2
     assert g_mityashev(emet) == 1323,         g_mityashev(emet)        # 441×3
     assert g_reverse_ordinal("ת") == 1
     assert g_reverse_ordinal("א") == 22
@@ -4107,11 +4096,10 @@ def run_selftest() -> None:
     assert g_ofanim(emet) == 126,             g_ofanim(emet)           # א→פ(80)+מ→מ(40)+ת→ו(6)
     assert g_achas_beta(emet) == 608,         g_achas_beta(emet)       # א→ח(8)+מ→ר(200)+ת→ת(400)
     assert g_reverse_avgad(emet) == 730,      g_reverse_avgad(emet)    # א→ת(400)+מ→ל(30)+ת→ש(300)
-    # Word-boundary reset: HaAchor/Mityashev/Boneeh must reset counters between words.
+    # Word-boundary reset: Achorayim must reset counters between words.
     two_words = "אמת שלום"
-    assert g_haachor(two_words) == 1819,      g_haachor(two_words)     # אמת:1281 + שלום:538
     assert g_mityashev(two_words) == 2827,    g_mityashev(two_words)   # אמת:1323 + שלום:1504
-    assert g_boneeh(two_words) == 1825,       g_boneeh(two_words)      # אמת:483 + שלום:1342
+    assert g_achorayim(two_words) == 1825,    g_achorayim(two_words)   # אמת:483 + שלום:1342
     # Gate 30 §9 — the Remak's own worked example is the ONLY checksum this
     # method has, so pin it: yud's milui יוד = 20, and עשרים = 620 = כתר.
     assert MILUI_VALS["י"] == 20,             MILUI_VALS["י"]
@@ -4778,7 +4766,7 @@ def run_app() -> None:
             "Common (later): " + ", ".join(COMMON_CIPHERS) + ". "
             "Core values: KatanMispari, Mispari, MispariHaGadol. "
             "Temurah: Achbi, Avgad, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
-            "Positional: ReverseOrdinal, Ribua, Kidmi, Boneeh, HaAchor, HaMerubahKlali. "
+            "Positional: ReverseOrdinal, Ribua, Kidmi, Achorayim, HaMerubahKlali. "
             "Letter-name: Milui, Neelam, Emtzaiyot, MiluiMaleh, NeelAmMaleh, "
             "EmtzaiyotMaleh, Ofanim. "
             "Vowel-mark (nikud): " + ", ".join(NIKUD_CIPHERS) + ". "
@@ -5723,14 +5711,14 @@ def run_app() -> None:
                  "Hebrew": "אח\"ס בט\"ע (Achas Beta)",
                  "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
                  "Source": "פרדס רימונים (the Remak, שער ל׳)."},
-                {"Method": "Boneeh",
-                 "Hebrew": "מספר בונה (Mispar Bone'eh) — a modern label; classically מספר האחוריים",
-                 "Rule": "Cumulative prefix sums per word: letter 1 alone, then 1+2, then 1+2+3 … Resets at each word boundary. Not to be confused with HaAchor (מספר האחור), which multiplies each letter by its position.",
-                 "Source": "ספר עץ חיים ל״ד:ב׳ — the אחוריים of a Name, written out progressively. שער הפסוקים (וישלח) counts the letters of those expansions."},
-                {"Method": "HaAchor",
-                 "Hebrew": "מספר האחור (Mispar HaAchor)",
-                 "Rule": "Each letter × its ordinal position within the word (1st×v₁ + 2nd×v₂ + …). Position resets per word.",
-                 "Source": "No source located. Not among the Remak's nine in פרדס רימונים שער ל׳, and no attestation found for מספר האחור under that or any variant name."},
+                {"Method": "Achorayim",
+                 "Hebrew": "מספר האחוריים (Mispar HaAchorayim)",
+                 "Rule": "Write the word out progressively — א, אב, אבג … — and sum the rows. חבד = 8 + (8+2) + (8+2+4) = 32. Resets at each word boundary.",
+                 "Source": "ספר עץ חיים ל״ד:ב׳ gives the אחוריים of the Havayah as ע״ב: י=10, יה=15, יהו=21, יהוה=26, together 72. שער הפסוקים (וישלח) counts the letters of the filled אחוריים as ק״ב for the four Havayot and ע״ח for three אהי״ה, ק״פ together — which this same expansion reproduces exactly."},
+                {"Method": "HaMeugal",
+                 "Hebrew": "מספר המעוגל הכללי (Mispar HaMeugal HaKlali)",
+                 "Rule": "Sum as Standard, then count thousands as units — \"the turning of the wheel\". 1080 becomes 80 + 1 = 81. Distinct from מספר קטן, which reduces each letter before summing.",
+                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) פרק ח׳ §1 — the Remak's own first method: 'בחזרת הגלגל ר\"ל שהאלפים אינם נחשבים אלא כאחדים כגון חמשה פעמים רי\"ו שעולים אנכ\"י'. He records that many call this מספר קטן, and that the Rashbi calls it חשבן זעיר דחנוך."},
                 {"Method": "Mispari",
                  "Hebrew": "מספר המספריי (Mispar HaMispari)",
                  "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13. Follows the Remak's own masculine spellings.",
@@ -6960,7 +6948,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                             # the panel scores the matched unit.
                             _sel_raw = locate_vocalized(_sel_v.text, _sel_cons)
                         # wcons must keep word boundaries or the word-aware
-                        # ciphers (Kaful/Mityashev/Boneeh/HaAchor) score the
+                        # word-boundary ciphers score the
                         # unit as one long token. Derived per boundary the same
                         # way render_verse_detail derives its own w_cons.
                         _sel_b = str(_sel_src.get("boundary_type", ""))
