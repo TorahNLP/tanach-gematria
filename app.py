@@ -822,11 +822,10 @@ TALMUD_CIPHERS: List[str] = [
     "Standard", "Gadol", "Atbash", "Albam", "Atbach",
 ]
 
-# Later than Chazal but in common use, so they still lead the rest. Katan's
-# Guide row is precise about what is missing — "no source in Chazal for this
-# PARTICULAR reduction" (dropping trailing zeros); it is חסידי אשכנז, 12th-13th
-# c., in ספר גימטריאות. Siduri is the Remak, 1548. Familiarity and attestation
-# genuinely diverge for both, and this group is where that shows.
+# Later than Chazal but in common use, so they still lead the rest. Katan is
+# ספר גימטריאות / חסידי אשכנז, 12th-13th c.; Siduri is the Remak, 1548.
+# Familiarity and attestation genuinely diverge for both, and this group is
+# where that shows.
 COMMON_CIPHERS: List[str] = ["Katan", "Siduri"]
 
 # Kept for anything that wants "the methods shown first".
@@ -5612,7 +5611,7 @@ def run_app() -> None:
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
-                 "Source": "No source in Chazal for this particular reduction. Formulated among the חסידי אשכנז (12th–13th c.), and found in ספר גימטריאות (attributed to R' Yehuda haChassid, d. 1217)."},
+                 "Source": "חסידי אשכנז (12th–13th c.); brought in ספר גימטריאות, attributed to R' Yehuda haChassid (d. 1217)."},
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Standard, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
