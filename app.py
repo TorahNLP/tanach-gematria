@@ -942,6 +942,12 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "ReverseAvgad":    "Reverse Avgad — אבג\"ד הפוך",
     "AyakBachar":      "Ayak Bachar — אי\"ק בכ\"ר",
     "AchasBeta":       "Achas Beta — אח\"ס בט\"ע",
+    # ⚠️ Keeps the modern label deliberately. The classical name for this method
+    # is מספר האחוריים, but מספר האחור is ALREADY shipped as HaAchor — a
+    # different calculation (each letter × its position; חבד is 24 there and 32
+    # here) sitting two rows away in the same list. Using the classical name
+    # would put מספר האחור and מספר האחוריים side by side for two different
+    # things. The Guide's Hebrew column records the classical name.
     "Boneeh":          "Bone'eh — מספר בונה",
     "HaAchor":         "HaAchor — מספר האחור",
     "Mispari":         "Mispari — מספר המספריי",
@@ -5718,8 +5724,8 @@ def run_app() -> None:
                  "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
                  "Source": "פרדס רימונים (the Remak, שער ל׳)."},
                 {"Method": "Boneeh",
-                 "Hebrew": "מספר האחוריים (Mispar HaAchorayim); מספר בונה / Bone'eh is a modern label",
-                 "Rule": "Cumulative prefix sums per word: letter 1 alone, then 1+2, then 1+2+3 … Resets at each word boundary.",
+                 "Hebrew": "מספר בונה (Mispar Bone'eh) — a modern label; classically מספר האחוריים",
+                 "Rule": "Cumulative prefix sums per word: letter 1 alone, then 1+2, then 1+2+3 … Resets at each word boundary. Not to be confused with HaAchor (מספר האחור), which multiplies each letter by its position.",
                  "Source": "חסידי אשכנז (12th–13th c.); זהר ח\"ב ר״ע ע״א; catalogued in פרדס רימונים (שער ל׳, פרק ח׳) by the Remak."},
                 {"Method": "HaAchor",
                  "Hebrew": "מספר האחור (Mispar HaAchor)",
