@@ -809,11 +809,28 @@ def nikud_partial_clause(cipher: str) -> str:
     """
     return " AND nikud_partial = 0" if cipher in NIKUD_CIPHERS else ""
 
-# Classical / Talmud-attested methods, listed first everywhere.
-BASIC_CIPHERS: List[str] = [
-    "Standard", "Katan", "Gadol", "Siduri",
-    "Atbash", "Albam", "Atbach", "AchasBeta",
+# ⚠️ Attested in Tanach, Chazal or ספר יצירה — the genuinely early methods, and
+# the app's own Guide sources are the test. Standard is the 29th middah
+# (סנהדרין ל״ח); Atbash is שֵׁשַׁךְ=בָּבֶל in ירמיהו, explicit in סנהדרין כ״ב;
+# Atbach is R' Chiya in סוכה נ״ב; Albam is in ילקוט שמעוני and ספר יצירה; the
+# 27-letter sequence Gadol needs is ספר יצירה ב׳:ב׳.
+#
+# Siduri and AchasBeta used to sit in this group and do NOT belong: both are
+# פרדס רימונים (1548). Siduri's own Guide row concedes that letter-position
+# counting is only "implicit" in Chazal, which is plausibility, not attestation.
+TALMUD_CIPHERS: List[str] = [
+    "Standard", "Gadol", "Atbash", "Albam", "Atbach",
 ]
+
+# Later than Chazal but in common use, so they still lead the rest. Katan's
+# Guide row is precise about what is missing — "no source in Chazal for this
+# PARTICULAR reduction" (dropping trailing zeros); it is חסידי אשכנז, 12th-13th
+# c., in ספר גימטריאות. Siduri is the Remak, 1548. Familiarity and attestation
+# genuinely diverge for both, and this group is where that shows.
+COMMON_CIPHERS: List[str] = ["Katan", "Siduri"]
+
+# Kept for anything that wants "the methods shown first".
+BASIC_CIPHERS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS
 
 # ⚠️ THE display order for every list, dropdown, chart and table in the app.
 #
@@ -823,15 +840,17 @@ BASIC_CIPHERS: List[str] = [
 # cipher value into the wrong column — a prebuilt DB would keep loading and
 # every number would be wrong. It is a storage contract, not a display choice.
 #
-# The order: the eight classical methods first, since they are what most people
-# come for, then the rest grouped by what they operate on and simplest-first
-# within each group. Anything not listed falls in at the end, so a newly added
-# cipher shows up rather than vanishing.
-_DISPLAY_GROUPS: List[str] = BASIC_CIPHERS + [
+# The order: the Talmud-attested methods first, then the common-but-later ones,
+# then the rest grouped by what they operate on and simplest-first within each
+# group. Anything not listed falls in at the end, so a newly added cipher shows
+# up rather than vanishing.
+_DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     # Core values — the remaining whole-number methods.
     "KatanMispari", "Mispari", "MispariHaGadol",
-    # Substitution — the rest of the letter-swap ciphers.
-    "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar",
+    # Substitution — the rest of the letter-swap ciphers. AchasBeta sits here
+    # rather than in the lead group: it is פרדס רימונים (1548), the same
+    # provenance as Avgad's neighbours, not Talmudic.
+    "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar", "AchasBeta",
     # Positional — value depends on where the letter sits.
     "ReverseOrdinal", "Ribua", "Kidmi", "Boneeh", "HaAchor", "HaMerubahKlali",
     # Letter-name — the Milui family and its Maleh variants.
@@ -4744,15 +4763,23 @@ def run_app() -> None:
         st.divider()
         st.subheader(f"Active methods ({N_CIPHERS})")
         st.write(", ".join(CIPHER_DISPLAY_ORDER))
-        st.caption("Traditional: Standard, Katan, Gadol, Atbash, Albam, Atbach, Avgad, Siduri. "
-                   "Value: Ribua, HaMerubahKlali, Kidmi, KatanMispari, Mispari, ReverseOrdinal. "
-                   "Name-expansion (2-letter): Milui, Neelam, Emtzaiyot, Ofanim. "
-                   "Vowel-mark (nikud): HaNekudot, ImHaNekudot, MiluiNekudot, ImMiluiNekudot. "
-                   "Name-expansion (Maleh): MiluiMaleh, NeelAmMaleh, EmtzaiyotMaleh. "
-                   "Temurah: Achbi, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
-                   "Word-structure: HaAchor, Boneeh. "
-                   "Kolel: KololEhad, KololOtiyot. "
-                   "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, SecondHalf, Verse, Perek, Sefer.")
+        # ⚠️ Derived from the display groups, not hand-listed. The old caption
+        # was maintained separately and had drifted: it called Avgad
+        # "Traditional" (it is Remak-era, not Talmudic) while listing Achbi and
+        # Agdat — the same temurah family — under a different heading, and it
+        # grouped Katan and Siduri with the genuinely Talmudic methods.
+        st.caption(
+            "Talmud-attested: " + ", ".join(TALMUD_CIPHERS) + ". "
+            "Common (later): " + ", ".join(COMMON_CIPHERS) + ". "
+            "Core values: KatanMispari, Mispari, MispariHaGadol. "
+            "Temurah: Achbi, Avgad, Agdat, ReverseAvgad, AyakBachar, AchasBeta. "
+            "Positional: ReverseOrdinal, Ribua, Kidmi, Boneeh, HaAchor, HaMerubahKlali. "
+            "Letter-name: Milui, Neelam, Emtzaiyot, MiluiMaleh, NeelAmMaleh, "
+            "EmtzaiyotMaleh, Ofanim. "
+            "Vowel-mark (nikud): " + ", ".join(NIKUD_CIPHERS) + ". "
+            "Kolel: KololEhad, KololOtiyot. "
+            "Text units: Word, ZakefPhrase, TiphchaPhrase, FirstHalf, "
+            "SecondHalf, Verse, Perek, Sefer.")
 
     DETAIL_BOUNDARIES = {"Word", "ZakefPhrase", "TiphchaPhrase",
                          "FirstHalf", "SecondHalf", "Verse", "Petucha", "Setuma",
@@ -5572,7 +5599,12 @@ def run_app() -> None:
                 "catalogue — the tradition contains many more, and further "
                 "variants can be formed by combining them. Each is listed with "
                 "the earliest source known for it.")
-            st.table(pd.DataFrame([
+            # ⚠️ Sorted at render time, not hand-ordered. The rows below are a
+            # literal list that had drifted into roughly DB order, putting
+            # Atbash at row 21; sorting here keeps the Guide in step with every
+            # other list in the app automatically, so adding a method in any
+            # position still lands it in the right place.
+            st.table(pd.DataFrame(sorted([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
                  "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
@@ -5714,7 +5746,9 @@ def run_app() -> None:
                  "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
                  "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
                  "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §4: 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה' — the Remak (1548) defines מספר מוספי as adding the word's letters to its value, or else the word itself. The first half is this method; the second is כולל (Word)."}
-            ]))
+            ], key=lambda r: (CIPHER_DISPLAY_ORDER.index(r["Method"])
+                              if r["Method"] in CIPHER_DISPLAY_ORDER
+                              else len(CIPHER_DISPLAY_ORDER)))))
 
         with st.expander("Boundary types"):
             st.dataframe(pd.DataFrame([
