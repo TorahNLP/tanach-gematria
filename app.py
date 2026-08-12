@@ -131,23 +131,86 @@ for i in range(11, 22):                   # second half indices 11..21
 # ה mapped to itself that example does not come out, which is how the bug was
 # found. Direction ה->נ, נ->ה is what the example requires; ך joins the triplet
 # as the third member with no partner of its own.
-ATBAH_MAP = {
+# ─── Atbach: TWO GIRSAOS IN RASHI ───────────────────────────────────────────
+# ⚠️ Not "textual vs mathematical" — these are two readings of Rashi on Sukkah
+# 52b, and the Maharshal says so explicitly (Chochmat Shlomo there):
+#
+#   "ק"ת ר"ש הרי חמש מאות נשאר ה"ן ... כ"ה הגירסא ברש"י בספרים מדויקים
+#    ופי' זה שנכתב בספרים שלנו הוא פי' הערוך ולא של רש"י"
+#
+# i.e. the 22-letter/500 version is Rashi's girsa in accurate manuscripts, and
+# the 27-letter version printed in our Rashi is really the ARUCH's explanation.
+# The Aruch's own entry (Sefer HeArukh, Letter Alef 250) is indeed the 27-letter
+# one: "אט בח גז דו יצ כפ לע מס קץ רף שן תם ... כת שלישית אלף אלף ישארו ה' נ' ך'
+# שאין לה זוגות".
+#
+# The Maharshal raises three objections to the Aruch reading, and the second is
+# decisive for us: "למה ה' אחרונה של סהדה מתחלפת במקום נו"ן פשוטה מאחר ששי"ן
+# מתחלפת בנו"ן פשוטה" — if ש↔ן, the last ה of סהדה should become ש, not ן. That
+# is exactly what our Mode 2 produces (מנון → סהדש), so his objection is a live
+# property of the cipher rather than a scribal quibble.
+#
+# On the final letter of מנון: the Aruch LaNer resolves it by reading the sugya
+# from סהדה outward — the verse's word is סהדה, its swap is מנון, and the final
+# ן is simply how a nun is written at the end of a word. The true swap is ה↔נ.
+# Hafla'ah ShebaArakhin puts it plainly: "במקום ב' ההי"ן ב' נוני"ן".
+#
+# MODE 1 — RASHI'S GIRSA (default, cipher key "Atbach")
+# 22 letters, hundreds pair to 500: ק↔ת, ר↔ש. ה and נ are the only unpaired
+# midpoints, so they take each other. Reproduces the sugya: מנון → סהדה.
+MAHARSHAL_ATBACH_MAP = {
     "א": "ט", "ט": "א", "ב": "ח", "ח": "ב", "ג": "ז", "ז": "ג",
     "ד": "ו", "ו": "ד",
     "י": "צ", "צ": "י", "כ": "פ", "פ": "כ", "ל": "ע", "ע": "ל",
     "מ": "ס", "ס": "מ",
-    "ק": "ץ", "ר": "ף", "ש": "ן", "ת": "ם",
-    # the הנ"ך triplet
+    "ק": "ת", "ת": "ק", "ר": "ש", "ש": "ר",
     "ה": "נ", "נ": "ה",
 }
+MAHARSHAL_ATBACH_VALUE = {ch: STANDARD[MAHARSHAL_ATBACH_MAP[ch]]
+                          for ch in ALEFBET}
 
-# Value of each letter's Atbah partner. Final-form partners take their Gadol
-# (hundreds) value so that letter + partner sums to 10 / 100 / 1000 exactly.
-ATBAH_VALUE = {
-    ch: (GADOL_FINALS[ATBAH_MAP[ch]] if ATBAH_MAP[ch] in GADOL_FINALS
-         else STANDARD[ATBAH_MAP[ch]])
-    for ch in ALEFBET
+# THE MAHARSHAL'S GIRSA (cipher key "AtbachMaharshal")
+# 27 letters, sofios live at 500-900, hundreds pair to 1000. ה, נ and ך are the
+# three left "שאין לה זוגות"; ה and נ take each other and ך has no partner at
+# all — which is the Maharshal's third objection, and it stands.
+# ⚠️ On the Gemara's own word this gives סהדש, not סהדה. That is not a bug in
+# the implementation; it is the Maharshal's second objection, reproduced.
+ATBAH_MAP = {
+    "א": "ט", "ט": "א", "ב": "ח", "ח": "ב", "ג": "ז", "ז": "ג",
+    "ד": "ו", "ו": "ד", "ה": "נ", "נ": "ה",
+    "י": "צ", "צ": "י", "כ": "פ", "פ": "כ", "ל": "ע", "ע": "ל",
+    "מ": "ס", "ס": "מ",
+    "ק": "ץ", "ץ": "ק", "ר": "ף", "ף": "ר",
+    "ש": "ן", "ן": "ש", "ת": "ם", "ם": "ת",
+    # ⚠️ ך stands alone here, and that is a CHOICE the sources under-determine.
+    #
+    # The Maharsha (חדושי אגדות on Sukkah 52b) supports the 27 and describes the
+    # three leftovers as "לית להו זוג והם בעצמם זוגין להיות מתחלפים" — they have
+    # no partner and are themselves partners, swapping among one another. That
+    # phrasing groups all three; but the only swap he DEMONSTRATES is ה↔נ ("כי
+    # הכא נ' ממנון במקום ה' סהדה"), and he gives no rule for ך.
+    #
+    # The Maharshal's third objection cuts the other way: "הך פשוטה נשארת בלי
+    # חיבור כלל" — kaf sofit is left with no connection at all. He could not say
+    # that if ך were in a working cycle.
+    #
+    # ה↔נ is what both demonstrate, so it is what ships. A three-way cycle was
+    # tried and reverted: it makes ה give ך rather than נ, which breaks the very
+    # example the sugya turns on.
+    #
+    # ⚠️ OPEN — REVISIT. If the three really are mutually interchangeable, a
+    # letter would have TWO possible partners and a unit would have several
+    # possible totals. Measured before parking it: enumerating strings is
+    # hopeless (2^29 ≈ 5.4e8 outputs for the worst verse), but VALUES collapse
+    # to (h+1)(n+1)(k+1) since identical letters make identical choices — worst
+    # verse 819 distinct totals, about 16.6M rows corpus-wide against 599,617
+    # today. So a multi-value Atbach is buildable, just not a single column.
+    # Parked pending more sourcing on whether ך is genuinely in the swap.
+    "ך": "ך",
 }
+_ALL27 = dict(STANDARD)
+_ALL27.update(GADOL_FINALS)
+ATBAH_VALUE = {ch: _ALL27[ATBAH_MAP[ch]] for ch in ATBAH_MAP}
 
 # Reverse Avgad (אבג"ד הפוך): −1 cyclic shift (Bet→Alef, … Alef→Tav).
 REVERSE_AVGAD_MAP: Dict[str, str] = {ALEFBET[i]: ALEFBET[(i - 1) % 22] for i in range(22)}
@@ -393,13 +456,23 @@ def g_avgad(s: str) -> int:
     return _temurah_value(s, AVGAD_MAP)
 
 
-def g_atbah(s: str) -> int:
-    """Atbah (א"ט ב"ח) - sum-to-10/100/1000 substitution.
+def g_atbach_maharshal(s: str) -> int:
+    """Atbah (א"ט ב"ח), rabbinic mode - finals normalised, tiers sum to 10/100/500.
 
-    Each letter is replaced by its Atbah partner's value; hundred-class partners
-    carry their full 600..900 value so letter+partner sums to exactly 10/100/1000.
+    The mode the Talmud uses on text. Sukkah 52b reads מנון as סהדה, which needs
+    the final ן to behave as an ordinary nun; see ATBAH_MAP.
     """
-    return sum(ATBAH_VALUE.get(_normalize_final(c), 0) for c in s)
+    return sum(MAHARSHAL_ATBACH_VALUE.get(_normalize_final(c), 0) for c in s)
+
+
+def g_atbah(s: str) -> int:
+    """Atbach, strict 27-letter matrix - no normalisation, hundreds sum to 1000.
+
+    ⚠️ Deliberately does NOT call _normalize_final: the sofios are distinct
+    letters here, valued 500-900, and that is the whole difference from
+    g_atbah. ך is the unpaired pivot and maps to itself.
+    """
+    return sum(ATBAH_VALUE.get(c, 0) for c in s)
 
 
 def g_achbi(s: str) -> int:
@@ -793,7 +866,8 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Atbash":          g_atbash,            # א"ת ב"ש mirror swap
     "Albam":           g_albam,             # א"ל ב"ם ROT-11
     "Achbi":           g_achbi,             # א"כ ב"י reversed-half swap
-    "Atbach":          g_atbah,             # א"ט ב"ח sum-to-10/100/1000
+    "Atbach":          g_atbah,                 # 27 letters, as printed in Rashi
+    "AtbachMaharshal": g_atbach_maharshal,      # 22 letters, the Maharshal's girsa             # א"ט ב"ח sum-to-10/100/1000
     "Avgad":           g_avgad,             # א"ב ג"ד +1 shift
     "Agdat":           g_agdat,             # אגד"ת +2 shift
     "ReverseAvgad":    g_reverse_avgad,     # Reverse Avgad −1 shift
@@ -876,6 +950,7 @@ _DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     # rather than in the lead group: it is פרדס רימונים (1548), the same
     # provenance as Avgad's neighbours, not Talmudic.
     "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar", "AchasBeta",
+    "AtbachMaharshal",
     # Positional — value depends on where the letter sits.
     "ReverseOrdinal", "Ribua", "Kidmi", "Achorayim", "HaMerubahKlali",
     # Letter-name — the Milui family and its Maleh variants.
@@ -963,6 +1038,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Albam":           "Albam — אלב\"ם",
     "Achbi":           "Achbi — אכב\"י",
     "Atbach":          "Atbach — אטב\"ח",
+    "AtbachMaharshal": "Atbach (22) — אטב\"ח בכ\"ב אותיות",
     "Avgad":           "Avgad — אבג\"ד",
     "Agdat":           "Agdat — אגד\"ת",
     "ReverseAvgad":    "Reverse Avgad — אבג\"ד הפוך",
@@ -1020,11 +1096,14 @@ CIPHER_BLURB: Dict[str, str] = {
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
     "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
     "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
-    # ה and נ are their own partners (5+5=10, 50+50=100), so they are the only
-    # letters this method leaves unchanged. Reads like a bug without the note,
-    # which is why it comes before the finals detail rather than after it.
-    "Atbach":          "Pairs summing to 10/100/1000: א↔ט, ב↔ח … ק↔ץ. "
-                       "נ and ה pair with themselves. Finals carry 600–900.",
+    # ⚠️ ה↔נ is the part readers query — it looks like a bug without the note.
+    "Atbach":          "Pairs summing to 10, 100 and 1000: א↔ט, ב↔ח · י↔צ, כ↔פ · "
+                       "ק↔ץ, ר↔ף, ש↔ן, ת↔ם, the finals valued 500–900. ה and נ "
+                       "have no partner in their tier so they take each other; "
+                       "ך is left over.",
+    "AtbachMaharshal": "The 22-letter list of Rabbeinu Chananel: the hundreds "
+                       "pair to 500 (ק↔ת, ר↔ש) and a final form counts as "
+                       "its base letter. ה and נ still take each other.",
     "Avgad":           "+1 cyclic shift: א→ב … ת→א. Then Standard values.",
     "Agdat":           "+2 cyclic shift: א→ג … ת→ב. Then Standard values.",
     "ReverseAvgad":    "−1 cyclic shift: ב→א … א→ת. Then Standard values.",
@@ -4041,9 +4120,14 @@ def run_selftest() -> None:
     assert g_atbash("א") == 400 and g_atbash("ב") == 300
     assert g_albam("א") == 30 and g_avgad("א") == 2
     assert g_achbi("א") == 20 and g_atbah("א") == 9
-    # Atbah must preserve the defining sum-to-10/100/1000 relation, incl. hundreds.
-    assert g_atbah("ק") == 900 and g_atbah("ר") == 800
-    assert g_atbah("ש") == 700 and g_atbah("ת") == 600
+    # ⚠️ Atbach ships in TWO GIRSAOS and they disagree by design.
+    # Default (g_atbah): the 27 letters printed in our Rashi, hundreds pair to
+    # 1000 using the sofios at 500-900.
+    assert g_atbah("ק") == 900 and g_atbah("ת") == 600
+    assert g_atbah("ש") == 700 and g_atbah("ך") == 500   # ך has no partner
+    # The Maharshal's girsa (g_atbach_maharshal): 22 letters, hundreds to 500.
+    assert g_atbach_maharshal("ק") == 400 and g_atbach_maharshal("ת") == 100
+    assert g_atbach_maharshal("ר") == 300 and g_atbach_maharshal("ש") == 200
     # ⚠️ ה and נ are EXCLUDED from the sum rule. Rashi on Sukkah 52b says they
     # are precisely the letters with no partner in their tier — "שלא היה לה\"א
     # בן זוג בעשיריות ולא לנו\"ן בן זוג במאות" — and joins them to each other
@@ -4052,10 +4136,23 @@ def run_selftest() -> None:
     for L, total in (("א", 10), ("ד", 10), ("י", 100), ("מ", 100),
                      ("ק", 1000), ("ר", 1000), ("ש", 1000), ("ת", 1000)):
         assert g_absolute(L) + g_atbah(L) == total, (L, g_atbah(L))
-    # The הנ"ך triplet, and the Gemara's worked example that requires it:
-    # סהדה <-> מנון (Sukkah 52b).
+    for L, total in (("א", 10), ("י", 100), ("ק", 500), ("ת", 500)):
+        assert g_absolute(L) + g_atbach_maharshal(L) == total, (L, g_atbach_maharshal(L))
+    # ה and נ take each other in BOTH girsaos — they are the letters with no
+    # partner in their own tier (Rashi on Sukkah 52b, "וחברם יחד").
     assert g_atbah("ה") == 50 and g_atbah("נ") == 5
-    assert [ATBAH_VALUE[c] for c in "סהדה"] == [40, 50, 6, 50],         [ATBAH_VALUE[c] for c in "סהדה"]
+    assert g_atbach_maharshal("ה") == 50 and g_atbach_maharshal("נ") == 5
+    # The sugya's own word. ⚠️ The two girsaos DISAGREE here and that is the
+    # point: Sukkah 52b reads מנון as סהדה, which the Maharshal's 22-letter
+    # girsa gives directly. The printed 27-letter Rashi gives סהדש, because the
+    # final ן is a 700-letter pairing with ש — exactly the Maharshal's objection.
+    # The Aruch LaNer answers it: the verse's word is סהדה and the ן of מנון is
+    # simply how a נ is written at the end of a word.
+    _mnon = "מנון"
+    assert "".join(MAHARSHAL_ATBACH_MAP[_normalize_final(c)] for c in _mnon) == "סהדה", \
+        "".join(MAHARSHAL_ATBACH_MAP[_normalize_final(c)] for c in _mnon)
+    assert "".join(ATBAH_MAP[c] for c in _mnon) == "סהדש", \
+        "".join(ATBAH_MAP[c] for c in _mnon)
     assert g_gadol("ם") == 600 and g_absolute("ם") == 40
     assert g_ribua("אב") == 5 and g_kidmi("ג") == 6
     assert g_katan("ר") == 2 and g_katan("י") == 1
@@ -5709,10 +5806,16 @@ def run_app() -> None:
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
                  "Source": "Set out as a grid in ספר רזיאל המלאך; brought by the Radal on פרקי דרבי אליעזר."},
+
                 {"Method": "Atbach",
-                 "Hebrew": "אטב\"ח (At-Bach)",
-                 "Rule": "Each letter is replaced by the one that completes its tier to 10, 100 or 1000: א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ץ, ר↔ף, ש↔ן, ת↔ם. ה, נ and ך are left without a partner in their own tier, so Rashi joins them together — ה and נ swap.",
-                 "Source": "From R' Chiya (late 2nd/early 3rd c. CE): בְּאַטְבַּ\"ח שֶׁל רַבִּי חִיָּיא, קוֹרִין לְסָהֲדָה מָנוֹן — סוכה נ״ב ע״ב. Jastrow (א\"ט) defines it as the interchange whose pairs sum to ten or a hundred, ה and נ standing alone. Also counted in the ל\"ב middos of R' Eliezer ben Yose ha-Gelili."},
+                 "Hebrew": "מספר אטב\"ח (Mispar Atbach) — בכ\"ז אותיות",
+                 "Rule": "Each letter is replaced by the one completing its tier to 10, 100 or 1000: א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ץ, ר↔ף, ש↔ן, ת↔ם, the final forms valued 500–900. ה and נ are left with no partner in their own tier, so they take each other. ⚠️ ך is left over too, and the sources do not settle what it does — the Maharsha calls all three mutually interchangeable but demonstrates only ה↔נ, while the Maharshal objects that ך is stranded. It is scored as itself here.",
+                 "Source": "From R' Chiya (late 2nd/early 3rd c. CE): בְּאַטְבַּ\"ח שֶׁל רַבִּי חִיָּיא, קוֹרִין לְסָהֲדָה מָנוֹן — סוכה נ״ב ע״ב. The 27-letter tiers are set out in ספר הערוך (ערך אטבח): אט בח גז דו יצ כפ לע מס קץ רף שן תם, כת שלישית אלף אלף, ישארו ה נ ך שאין לה זוגות — and this is what is printed in our Rashi. The Maharsha (חדושי אגדות שם) reads the same way. ⚠️ On the sugya’s own word this yields סהדש rather than סהדה, since the final ן is a 700-letter paired with ש. The Maharsha raises exactly that and leaves it צריך עיון; the Aruch LaNer answers that the verse’s word is סהדה and the ן of מנון is only how a נ is written at a word’s end. See the 22-letter row for the other girsa."},
+
+                {"Method": "AtbachMaharshal",
+                 "Hebrew": "מספר אטב\"ח (Mispar Atbach) — בכ\"ב אותיות",
+                 "Rule": "The same tiers on 22 letters only: a final form counts as its base letter, so the hundreds have just four members and pair to 500 — א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ת, ר↔ש. That leaves ה and נ as the only unpaired letters in the whole alphabet, and they take each other. Reproduces the sugya directly: מנון → סהדה.",
+                 "Source": "רבינו חננאל על סוכה נב: א\"ט ב\"ח ג\"ז ד\"ו י\"צ כ\"ף ל\"ע מ\"ס ק\"ת ר\"ש — no sofios, the hundreds pairing to five hundred. The Maharshal (חכמת שלמה שם) holds the same list is Rashi’s girsa בספרים מדויקים, and that the 27-letter version printed in our Rashi is the Aruch’s explanation rather than his."},
                 {"Method": "Avgad",
                  "Hebrew": "אבג\"ד (Av-Gad / Abgad)",
                  "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of the shifted letters. Also known as Mispar Ha'Ahari (next-letter value).",
