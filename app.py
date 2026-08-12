@@ -911,9 +911,10 @@ def nikud_partial_clause(cipher: str) -> str:
 
 # ⚠️ Attested in Tanach, Chazal or ספר יצירה — the genuinely early methods, and
 # the app's own Guide sources are the test. Standard is the 29th middah
-# (סנהדרין ל״ח); Atbash is שֵׁשַׁךְ=בָּבֶל in ירמיהו, explicit in סנהדרין כ״ב;
-# Atbach is R' Chiya in סוכה נ״ב; Albam is in ילקוט שמעוני and ספר יצירה; the
-# 27-letter sequence Gadol needs is ספר יצירה ב׳:ב׳.
+# (סנהדרין ל״ח); Atbash is שֵׁשַׁךְ=בָּבֶל in ירמיהו, explicit in סנהדרין כ״ב, and
+# its pairs are worked in שבת ק״ד ע״א; Atbach is R' Chiya in סוכה נ״ב; Albam is
+# given whole in that same שבת ק״ד sugya; the 27-letter sequence Gadol needs is
+# ספר יצירה ב׳:ב׳.
 #
 # Siduri and AchasBeta used to sit in this group and do NOT belong: both are
 # פרדס רימונים (1548). Siduri's own Guide row concedes that letter-position
@@ -5797,11 +5798,11 @@ def run_app() -> None:
                 {"Method": "Atbash",
                  "Hebrew": "אתב\"ש (At-Bash)",
                  "Rule": "Mirror the alphabet: א↔ת, ב↔ש, ג↔ר … then Standard values of the swapped letters.",
-                 "Source": "שֵׁשַׁךְ in ירמיהו כ״ה:כ״ו and נ״א:מ״א is בָּבֶל by atbash (Rashi there). At סנהדרין כ״ב ע״א Rav reads the writing on the wall as בְּגִימַטְרִיָּא: יטת יטת אדך פוגחמט — מנא by atbash."},
+                 "Source": "שֵׁשַׁךְ in ירמיהו כ״ה:כ״ו and נ״א:מ״א is בָּבֶל by atbash (Rashi there). שבת ק״ד ע״א works the pairs themselves — א״ת ב״ש ג״ר ד״ק — in the children’s derashah. At סנהדרין כ״ב ע״א Rav reads the writing on the wall as בְּגִימַטְרִיָּא: יטת יטת אדך פוגחמט — מנא by atbash."},
                 {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
                  "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
-                 "Source": "Spelled out in ילקוט שמעוני (יתרו, רמז רע\"א). The table at פרדס רימונים ל׳:ה׳ — אל בם גן דס הע וף זץ חק טר יש כת — matches this implementation."},
+                 "Source": "שבת ק״ד ע״א gives the whole cipher in the children’s derashah: א״ל ב״ם ג״ן ד״ס — להיכן אוליכן, לגן הדס; ה״ע ו״ף … ז״ץ ח״ק … ט״ר י״ש כ״ת. All eleven pairs match this implementation exactly. Tabulated at פרדס רימונים ל׳:ה׳."},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
