@@ -3,13 +3,18 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `5da07eb` (Milui HaNekudot: chatafim are sheva + base)
+**Last code commit:** `1088128` (Atbach in two girsaos; 27-letter becomes the default)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
-**Last DB-affecting commit:** `5da07eb` — **rebuild `tanach.db` if you are older than this**
-**Handoff date:** 2026-08-05
+**Last DB-affecting commit:** `1088128` — **rebuild `tanach.db` if you are older than this**
+**Handoff date:** 2026-08-12
 
 > ✅ **Everything in this document is pushed and verified live** on all four
 > targets unless explicitly marked otherwise.
+>
+> ⚠️ **EXCEPTION as of 2026-08-12:** the Shabbat 104a citation upgrades for
+> Atbash and Albam, and the removal of Yalkut Shimoni, are **committed to
+> `main` but NOT yet deployed**. Selftests pass. See "Citations: verify against
+> the primary text".
 >
 > **This file lives on the `docs` branch and is never deployed** — see "Docs are
 > off the deploy path" below. Editing it costs nothing; it used to cost a
@@ -33,6 +38,12 @@
 >   (word-range spans) and the cascading-select polish remain.
 > - Variants-toggle redesign, `TODO(site)` on cleaned-consonants — both still
 >   deferred.
+> - **231 gates** — rule recovered and validated; display handling for ~22
+>   further methods still to build. See "Open: 231 gates".
+> - **`Agdat` (+2 shift)** — no source found, its one citation proven
+>   fabricated. Decision parked until 231 ships. See "Open: the +2 shift".
+> - **Source research** — `RESEARCH_LOG.md` on this branch has the full
+>   per-claim verification record and the two traps that yield wrong results.
 
 ---
 
@@ -1106,6 +1117,149 @@ an old database self-heals instead of failing on first search.
 - **Both calculations everywhere.** Three of seven `render_verse_detail` call
   sites never passed `query_info`, so their exports showed one side of a
   "these are equal" claim. All pass it now.
+
+---
+
+## Atbach ships in two girsaos (`423029e`, `1088128`)
+
+**`ה` and `נ` pair with EACH OTHER, not with themselves.** The earlier
+self-pairing failed the Gemara's own case: `מנון → סהדה` requires `נ→ה`. A
+three-way `ה→נ→ך→ה` cycle was implemented once on the strength of an external
+model agreeing 3/3, then reverted — `מנון`'s two nuns rule it out. **Model
+agreement is weak evidence; disagreement is strong evidence of fabrication.**
+
+Two methods now, both shipped:
+
+- **`Atbach` — 27 letters, the DEFAULT.** Tiers complete to 10/100/1000 with
+  final forms valued 500–900. This is what is printed in our Rashi; the sequence
+  is set out in `ספר הערוך` (ערך אטבח).
+- **`AtbachMaharshal` — 22 letters.** Finals count as their base letter, so the
+  hundreds have four members pairing to 500. R' Chananel's girsa, cited by the
+  Maharshal. Reproduces the sugya directly: `מנון → סהדה`.
+
+Selftest pins both: `מנון → סהדה` (22) and `מנון → סהדש` (27).
+
+On the 27-letter reading the sugya's own word gives `סהדש`, since final `ן` is a
+700-letter paired with `ש`. The Maharsha raises exactly this and leaves it
+`צריך עיון`; the **Aruch LaNer** answers that the verse's word is `סהדה` and the
+`ן` of `מנון` is only how `נ` is written word-finally.
+
+⚠️ **`ך` is under-determined in the 27-letter version.** It is left over after
+`ה↔נ`. The Maharsha calls all three mutually interchangeable but demonstrates
+only `ה↔נ`; the Maharshal objects that `ך` is stranded. **Currently scored as
+itself and documented as a choice.** Parked idea: emit two outputs for every
+`הנ"ך`. Do not silently "fix" this — it is a sourcing question, not a bug.
+
+⚠️ When swapping which girsa is the default, the `Rule` and `Source` strings
+must move with it. That was missed once and caught late.
+
+---
+
+## ⚠️ Citations: verify against the primary text, always (2026-08-12)
+
+**Full detail is in `RESEARCH_LOG.md` on this branch.** Summary of what changed
+and what bit us.
+
+**Several supplied citations were fabricated** — plausible Hebrew attributed to
+a real sefer and chapter that does not contain it. Confirmed invented:
+
+- `פרדס רימונים` "Gate 22" for `אגדת` — שער כ״ב has no `אגדת`
+- PR 30:8 / 30:2 "defines Achorayim" — neither chapter does
+- PR 30:1 `דע כי האותיות מתחלפות … ב״ג ד״ה` — **not one phrase** is in the
+  chapter. This was the would-be source for the +2 shift.
+
+The near-miss worth knowing: PR 30:1 *does* contain a real, useful quote — the
+Ramak's three-way taxonomy `חלק הצרוף וחלק התמורה וחלק הגמטריא`. A fabricated
+quote pinned to a chapter that holds a *different* real quote is the hardest
+kind to catch. Nothing goes in without a fetch-and-probe.
+
+### Two traps that produce WRONG verification results
+
+1. **Vocalized text.** Sefaria texts are fully pointed with mid-word gershayim;
+   a bare probe `אטב` will not match `בְּאַטְבַּ״ח`. Strip both sides to `א`–`ת`
+   before comparing. This produced a false "Atbach is not in Sukkah".
+2. **Partial fetches.** Segment-by-segment fetching returns empty strings on
+   timeout, and a missing-text `False` is indistinguishable from a real `False`.
+   Fetch parallel with retries and check the context reads continuously. This
+   produced a spurious `אם אתה בוש` = False on Shabbat 104a.
+
+**A negative result is only evidence if the fetch was complete — say which.**
+
+### Shabbat 104a: better sources for Atbash and Albam (applied)
+
+The page carries **both**, in one sugya: the letter-name mnemonic
+(`אָלֶף בִּינָה, גְּמוֹל דַּלִּים`) running into the cipher pairs themselves under
+`מדת רשעים` / `מדת צדיקים` — `אתבש אם אתה בוש … גר דק … אלבם אם אתה עושה כן`.
+All 11 Albam pairs match our map exactly.
+
+`TALMUD_CIPHERS` is now literally true of every member: Standard (סנהדרין ל״ח),
+Atbash + Albam (שבת ק״ד), Atbach (סוכה נ״ב), Gadol's 27-letter sequence
+(ספר יצירה ב׳:ב׳). Albam was already at display position 4 — the citation moved,
+not the ordering.
+
+**Yalkut Shimoni cut from Albam** (was יתרו רמז רע״א): a likut citing the Gemara
+adds nothing behind the Gemara. Decision was cut regardless; *if* it turns out
+to be quoting a **midrash**, cite that midrash directly. **That check was never
+done** — still open. `פרדס רימונים ל׳:ה׳` stays as the tabulation, since PR is
+the baseline naming source throughout the app.
+
+### Not yet applied
+
+PR 30:1's taxonomy quote would make good framing for the temurah group in the
+Guide. Verified verbatim, not yet in the app.
+
+---
+
+## Open: the +2 shift (`Agdat`) — PARKED until 231 ships
+
+**No source found after four attempts.** Do not re-litigate without new evidence:
+
+1. Sefaria search for `אגד"ת` / `אג"דת` → **zero hits**, while controls `אבג"ד`
+   and `אלב"ם` return many. The search works; the name is not in the corpus.
+2. The PR `ב״ג ד״ה` quote that would have sourced it is fabricated (above).
+3. `אג דת הש ור` in PR 30:5 is **real but is not a shift** — it is the third of
+   the 22 alphabets of the רל״א שערים, a *pairing* (א↔ג, ד↔ת, ה↔ש). Same
+   letters, different parsing. **Do not accept this as a +2 source.**
+4. Abulafia (`חיי העולם הבא`, `גן נעול`) — **unverifiable**, not on Sefaria, and
+   the labels are internally broken: `+3` given as `גדה״ו`, four letters for a
+   three-step shift, and `ג→ד` is a +1 step. Already dropped in Pass 1.
+
+**The asymmetry is the argument.** `Avgad` (+1) is easy to source (טעם זקנים,
+R' Eliezer Ashkenazi). If ordinal shifts were a classical family, +2 would not
+be invisible while +1 is not.
+
+Also settled: **231 cannot mean shifts.** Directed maps give 462; the Remak's
+`רל"א שערים מפני שהם רל"א זוגות` counts *pairs* = C(22,2) = 231. The gates
+cannot be retrofitted as a +2 source.
+
+**Decision deferred by Joshua to after the 231 work.** Options: cut, keep
+flagged as a modern extension with no classical source, or leave parked.
+Recommendation on file: **cut** — it is the only one of the 35 resting on a
+citation proven invented.
+
+---
+
+## Open: 231 gates (IN PROGRESS)
+
+Generative rule recovered and validated three ways:
+
+- Gate *k* pairs letters whose indices sum to *k−1* mod 22; self-paired letters
+  join each other.
+- 10 of 22 printed tables reproduce **exactly**; 89.7% of pairs overall — the
+  other 12 tables are corrupted in the edition used.
+- Yields exactly **231 distinct pairs = C(22,2)**, matching the Remak's own count.
+
+`ספר יצירה ב׳:ד׳` verified verbatim: `קבועות בגלגל ברל"א שערים וחוזר הגלגל פנים
+ואחור`. Note the wheel turns **forward and back**, not at arbitrary skip
+intervals — readings that gloss this as "rotating across fixed intervals
+generates shift rings" are importing the Ra'avad (on ב׳:ה׳) into the mishnah's
+words. The Ra'avad's construction yields **pairings, not directed rotations**.
+
+**Still to do:** display handling for ~22 further methods. Direction chosen —
+one method + gate selector; Atbash kept separate (well known, straight from
+Tanach) *and* also present in the sub-box. Naming suggested: `כ"ב אלפא ביתות`
+rather than "231". Ideally verify the 12 corrupted tables against a cleaner
+edition. Method grouping in the picker to be revisited once this lands.
 
 ---
 
