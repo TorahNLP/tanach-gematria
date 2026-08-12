@@ -4321,6 +4321,34 @@ def run_selftest() -> None:
 # SECTION 10.  STREAMLIT USER INTERFACE
 # ---------------------------------------------------------------------------
 
+# ⚠️ Streamlit's index.html references every asset RELATIVELY ("./static/js/...").
+# Served under a path prefix, those resolve against the current directory, so the
+# trailing slash decides where they land:
+#
+#     /gematria/  -> ./static/js/... -> /gematria/static/js/...   correct
+#     /gematria   -> ./static/js/... -> /static/js/...            wrong
+#
+# On the local Tailscale host "/" is a DIFFERENT APP (the FPS Requests Bot, port
+# 5051), which answers /static/ unauthenticated. The slash-less URL therefore
+# served a blank page AND pulled FPS's manifest, briefly painting its logo before
+# the app failed to start. This redirect fixes the URL before any asset loads.
+#
+# Deliberately narrow: it fires only when the path has no trailing slash, no
+# extension, and is not one of Streamlit's own endpoints (/_stcore/health and
+# friends must never be redirected), and it preserves query and hash.
+# location.replace, not href, so the bad URL leaves no history entry to go
+# "back" to. On hosts where the app sits at the root (Hugging Face, Streamlit
+# Cloud) the path is already "/" and this is a no-op.
+_SLASH_REDIRECT_SNIPPET = (
+    "<script>(function(){"
+    "var p=location.pathname;"
+    "if(p!=='/'&&!/\\/$/.test(p)&&!/\\.[^\\/]+$/.test(p)"
+    "&&!/(^|\\/)_stcore(\\/|$)/.test(p)){"
+    "location.replace(p+'/'+location.search+location.hash);"
+    "}})();</script>"
+)
+
+
 _PWA_HEAD_SNIPPET = (
     '<link rel="manifest" href="./app/static/manifest.json"/>'
     '<meta name="theme-color" content="#312e81"/>'
@@ -4535,8 +4563,12 @@ def _inject_pwa_head() -> None:
                       html, flags=re.S)
         html = re.sub(r"<script>(?:(?!</script>).)*?gem-nakdan.*?</script>", "",
                       html, flags=re.S)
+        # gem-redirect is inserted last so it ends up FIRST in <head>: each new
+        # block is prepended right after "<head>", and the fix must run before
+        # the browser starts resolving any relative asset URL.
         for name, snippet in (("gem-pwa", _PWA_HEAD_SNIPPET),
-                              ("gem-loader", _LOADER_HEAD_SNIPPET)):
+                              ("gem-loader", _LOADER_HEAD_SNIPPET),
+                              ("gem-redirect", _SLASH_REDIRECT_SNIPPET)):
             start, end = f"<!--{name}-start-->", f"<!--{name}-end-->"
             block = start + snippet + end
             pat = re.compile(re.escape(start) + ".*?" + re.escape(end), re.S)
