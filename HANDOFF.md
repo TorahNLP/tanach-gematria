@@ -3,9 +3,9 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `39290d2` (relative PWA scope; app moves to /gematria on the local host)
+**Last code commit:** `40ca9bf` (the 231 gates — 21 new methods, 57 total)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
-**Last DB-affecting commit:** `1088128` — **rebuild `tanach.db` if you are older than this**
+**Last DB-affecting commit:** `8bc855a` — **rebuild `tanach.db` if you are older than this**
 **Handoff date:** 2026-08-12
 
 > ✅ **Everything in this document is pushed and verified live** on all four
@@ -37,8 +37,8 @@
 >   (word-range spans) and the cascading-select polish remain.
 > - Variants-toggle redesign, `TODO(site)` on cleaned-consonants — both still
 >   deferred.
-> - **231 gates** — rule recovered and validated; display handling for ~22
->   further methods still to build. See "Open: 231 gates".
+> - **231 gates** — ✅ SHIPPED. 21 new methods (57 total), DB rebuilt, live on
+>   all four targets. See "The 231 gates" below.
 > - **`Agdat` (+2 shift)** — no source found, its one citation proven
 >   fabricated. Decision parked until 231 ships. See "Open: the +2 shift".
 > - **Source research** — `RESEARCH_LOG.md` on this branch has the full
@@ -1287,7 +1287,7 @@ Guide. Verified verbatim, not yet in the app.
 
 ---
 
-## Open: the +2 shift (`Agdat`) — PARKED until 231 ships
+## Open: the +2 shift (`Agdat`) — PARKED, and 231 has now shipped
 
 **No source found after four attempts.** Do not re-litigate without new evidence:
 
@@ -1316,27 +1316,69 @@ citation proven invented.
 
 ---
 
-## Open: 231 gates (IN PROGRESS)
+## The 231 gates — SHIPPED (`8bc855a`, `40ca9bf`)
 
-Generative rule recovered and validated three ways:
+21 new methods, **57 total**. `ספר יצירה ב׳:ד׳` sets the 22 letters in a wheel of
+`רל"א שערים`; `פרדס רימונים ל׳:ה׳` prints all 22 alphabets and gives the reason
+for the number — `רל"א שערים מפני שהם רל"א זוגות`, 231 *pairs*, which is every
+possible pairing of two letters from 22.
 
-- Gate *k* pairs letters whose indices sum to *k−1* mod 22; self-paired letters
-  join each other.
-- 10 of 22 printed tables reproduce **exactly**; 89.7% of pairs overall — the
-  other 12 tables are corrupted in the edition used.
-- Yields exactly **231 distinct pairs = C(22,2)**, matching the Remak's own count.
+**The rule.** Gate *k* pairs the letters whose alphabet positions sum to *k−1*
+(counting round the 22); the two letters left without a partner take each other.
 
-`ספר יצירה ב׳:ד׳` verified verbatim: `קבועות בגלגל ברל"א שערים וחוזר הגלגל פנים
-ואחור`. Note the wheel turns **forward and back**, not at arbitrary skip
-intervals — readings that gloss this as "rotating across fixed intervals
-generates shift rings" are importing the Ra'avad (on ב׳:ה׳) into the mishnah's
-words. The Ra'avad's construction yields **pairings, not directed rotations**.
+### ⚠️ The maps are GENERATED, never transcribed
 
-**Still to do:** display handling for ~22 further methods. Direction chosen —
-one method + gate selector; Atbash kept separate (well known, straight from
-Tanach) *and* also present in the sub-box. Naming suggested: `כ"ב אלפא ביתות`
-rather than "231". Ideally verify the 12 corrupted tables against a cleaner
-edition. Method grouping in the picker to be revisited once this lands.
+**12 of the 22 printed tables are corrupt.** They repeat one letter and drop
+another, so they cannot be read as they stand — provable, not a judgement call:
+a valid alphabet uses each of the 22 letters exactly once. Row 2 prints two `ח`
+and no `ט`; row 13 has three duplicates. The errors are Rashi-script confusions
+(`כ↔נ`, `ג↔נ`, `ח↔ט`, `ס↔כ`, `ג↔ר`).
+
+The rule reproduces 10 of the 22 rows exactly and 217/242 pairs, and yields
+exactly 231 distinct pairs. Generating keeps the rule the single source of truth
+so code and tables cannot drift. **Do not "fix" a gate map against a printed
+table.** Derivation and evidence: `research/gates/` in the main repo.
+
+### 21 columns, not 22
+
+**Gate 22 IS Atbash** — reflection is the one rotation that is also a
+constant-sum pairing. There is no `Gate22` column; the UI shows Atbash in its
+place (`GATE_NUMBER["Atbash"] = 22`). Atbash keeps its own top-tier entry and
+its own Guide row: readers look for it by name, not as "gate 22".
+
+**Albam is NOT in the family.** It is a +11 *shift*, so its position sums run
+11, 13, 15 … rather than staying constant. Independent confirmation that shifts
+and gates are different constructions — and why the gates cannot source `Agdat`.
+
+### ⚠️ Two N² queries had to be batched — SQLITE_MAX_COLUMN
+
+SQLite caps a result set at **2000 columns**. Two matrices are N² in the method
+count and both broke at 57:
+
+| query | at 36 | at 57 |
+|---|---|---|
+| `_xm_count_matrix` (cross-method) | 1296 ✓ | **3249 ✗** |
+| `_xm_balance_matrix` (half-verse balance) | 1156 ✓ | **3025 ✗** |
+
+Both now batch by row (`1800 // n` rows per query), one scan per batch. Verified
+on the rebuilt DB: 57×57 in ~1.5 s. **Any future N² query over the methods needs
+the same treatment** — the failure is a hard error, not a slowdown.
+
+### Display
+
+- The picker was already a `st.multiselect`, so 1 / several / all gates works
+  with no new UI.
+- Gates render a **compact block**: gate number and swap pairs, no heading
+  paragraph. Verse detail already renders inside each method's own block, right
+  under that method's table — keep it that way.
+- The Guide gives the family **one row**; Atbash keeps its own.
+- Reader-facing wording stays plain: no "ROT-11", no "cyclic shift", no
+  "mod 22". Those live in code comments, not in blurbs or the Guide.
+
+### Still open
+
+The 12 corrected rows rest on the rule alone. A cleaner printed edition would
+let them be checked against a second witness.
 
 ---
 
