@@ -225,6 +225,68 @@ for _i in range(7):
     ACHAS_BETA_MAP[_AB_G3[_i]] = _AB_G1[_i]   # g3 → g1
 ACHAS_BETA_MAP["ת"] = "ת"                       # ת unchanged
 
+
+# ── The 231 gates (רל"א שערים) — כ"ב אלפא ביתות ──────────────────────────────
+#
+# ספר יצירה ב׳:ד׳ fixes the 22 letters "in a wheel of 231 gates"; פרדס רימונים
+# ל׳:ה׳ prints all 22 alphabets and names the count: רל"א שערים מפני שהם
+# רל"א זוגות — 231 PAIRS, which is exactly C(22,2). That count is the proof the
+# gates are pairings and not shifts: 22 directed rotations would give 462.
+#
+# THE RULE. Gate k pairs the letters whose alphabet indices sum to k-1 (mod 22).
+# Exactly two letters have no partner under that sum (the fixed points, where
+# 2i ≡ k-1); they take each other. Every gate is therefore a clean involution on
+# all 22 letters, and the family covers all 231 pairs.
+#
+# ⚠ The maps are GENERATED, never pasted from the printed tables. 12 of the 22
+# printed rows are corrupt, and the rule is the corrected reading — see below.
+# Generating keeps the rule as the single source of truth so the two cannot
+# drift apart.
+def _gate_pairs(k: int) -> List[Tuple[str, str]]:
+    """The 11 letter-pairs of gate k (1-22). See the note above for the rule."""
+    target = (k - 1) % 22
+    seen: set = set()
+    pairs: List[Tuple[str, str]] = []
+    fixed: List[int] = []
+    for i in range(22):
+        if i in seen:
+            continue
+        j = (target - i) % 22
+        if j == i:                       # no partner under the sum
+            fixed.append(i)
+            continue
+        seen.add(i)
+        seen.add(j)
+        pairs.append((ALEFBET[i], ALEFBET[j]))
+    if len(fixed) == 2:                  # always exactly two; they pair up
+        pairs.append((ALEFBET[fixed[0]], ALEFBET[fixed[1]]))
+    return pairs
+
+
+def _gate_map(k: int) -> Dict[str, str]:
+    m: Dict[str, str] = {}
+    for a, b in _gate_pairs(k):
+        m[a] = b
+        m[b] = a
+    return m
+
+
+# Gates 1-21 are new methods. GATE 22 IS ATBASH — reflection is the one
+# rotation that is also a constant-sum pairing (i + (21-i) = 21). It keeps its
+# own name and its own DB column; the gate group displays it rather than storing
+# a duplicate. Albam is NOT in this family: it is a +11 SHIFT, so its index sums
+# run 11,13,15,... rather than staying constant.
+GATE_MAPS: Dict[int, Dict[str, str]] = {k: _gate_map(k) for k in range(1, 23)}
+
+# The 12 printed rows that disagree with the rule are corrupt, and this is
+# demonstrable rather than assumed: a valid alphabet uses each of the 22 letters
+# exactly once, and every disagreeing row REPEATS letters and OMITS others (row
+# 2 prints two ח and no ט; row 13 has three duplicates and three absences). Such
+# a row cannot be a rival correct system. The substitutions are Rashi-script
+# letter confusions — כ↔נ, ג↔נ, ח↔ט, ס↔כ, ג↔ר. 10 of 22 rows reproduce exactly,
+# 217/242 pairs agree, and the generated family yields exactly 231 distinct
+# pairs. The derivation scripts live in research/gates/.
+
 # Ayak Bachar (אי"ק בכ"ר): 3×9 cyclic rotation across units/tens/hundreds triplets.
 # Each column (א,י,ק), (ב,כ,ר) … (ט,צ,ץ) rotates: units→tens→hundreds→units.
 # Finals ך,ם,ן,ף,ץ serve as the 500-900 hundreds tier; after substitution their
@@ -821,6 +883,31 @@ def g_achas_beta(s: str) -> int:
     return _temurah_value(s, ACHAS_BETA_MAP)
 
 
+def _make_gate_fn(k: int):
+    """Build the cipher function for gate k of the רל"א שערים.
+
+    A factory rather than 21 near-identical defs: the gates differ only by k,
+    and a late-binding closure over the loop variable would make every one of
+    them compute the last gate.
+    """
+    gate_map = GATE_MAPS[k]
+
+    def _fn(s: str) -> int:
+        return _temurah_value(s, gate_map)
+
+    _fn.__name__ = "g_gate%02d" % k
+    _fn.__doc__ = (
+        'Gate %d of the רל"א שערים (ספר יצירה ב׳:ד׳, tabulated at '
+        'פרדס רימונים ל׳:ה׳) - pairs letters whose indices sum to %d (mod 22), '
+        'then standard value.' % (k, (k - 1) % 22))
+    return _fn
+
+
+# Gates 1-21 only: gate 22 is Atbash, which already has its own name, function
+# and DB column. See the GATE_MAPS note.
+GATE_FNS: Dict[int, Any] = {k: _make_gate_fn(k) for k in range(1, 22)}
+
+
 def g_reverse_avgad(s: str) -> int:
     """Reverse Avgad (אבג"ד הפוך) - −1 cyclic shift: Bet→Alef … Alef→Tav.
 
@@ -884,7 +971,24 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "KololEhad":       g_kolel_ehad,        # Kolel +1 (word as single unit)
     "KololOtiyot":     g_kolel_otiyot,      # Kolel +N (letter count)
 }
+
+# ⚠ APPEND-ONLY, and it must stay last. CIPHER_NAMES below is the DB COLUMN
+# order: rows insert as a positional tuple against CIPHER_INSERT_COLS, so
+# inserting these anywhere but the end would shift every later column and a
+# prebuilt DB would keep loading with every value silently wrong. Display
+# position is CIPHER_DISPLAY_ORDER's job, not this dict's.
+#
+# Gate 22 is absent on purpose: it IS Atbash, already registered above.
+for _k in range(1, 22):
+    CIPHERS["Gate%02d" % _k] = GATE_FNS[_k]
+
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
+
+# The gate ciphers, in gate order — used for display grouping and the compact
+# result blocks. Gate 22 maps to the Atbash column rather than a duplicate.
+GATE_CIPHER_NAMES: List[str] = ["Gate%02d" % k for k in range(1, 22)]
+GATE_NUMBER: Dict[str, int] = {"Gate%02d" % k: k for k in range(1, 22)}
+GATE_NUMBER["Atbash"] = 22
 
 # The four methods that score vowel marks rather than letters. Defined here,
 # beside CIPHER_NAMES, because the search layer needs it long before the
@@ -963,9 +1067,16 @@ _DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     "KololEhad", "KololOtiyot",
 ]
 
-CIPHER_DISPLAY_ORDER: List[str] = _DISPLAY_GROUPS + [
-    c for c in CIPHER_NAMES if c not in _DISPLAY_GROUPS
-]
+# The gates go last as their own block: 21 entries would drown the named
+# methods anywhere else, and they read as a family rather than as individuals.
+# Explicit rather than left to the catch-all below, so the grouping survives
+# anyone adding a new cipher later.
+CIPHER_DISPLAY_ORDER: List[str] = (
+    _DISPLAY_GROUPS
+    + [c for c in CIPHER_NAMES
+       if c not in _DISPLAY_GROUPS and c not in GATE_CIPHER_NAMES]
+    + GATE_CIPHER_NAMES
+)
 
 # Kept as the app-view name; both views now use the same order.
 APP_CIPHER_ORDER: List[str] = CIPHER_DISPLAY_ORDER
@@ -1053,6 +1164,28 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "KololOtiyot":     "Kolel (Letters) — כולל אותיות",
 }
 
+# Hebrew numerals for the gate names: שער א׳ … שער כ״ב. Built rather than typed
+# so the geresh/gershayim convention stays consistent (single letter takes a
+# geresh, two letters take a gershayim before the last).
+_HEB_NUM = {1: "א", 2: "ב", 3: "ג", 4: "ד", 5: "ה", 6: "ו", 7: "ז", 8: "ח",
+            9: "ט", 10: "י", 11: "י״א", 12: "י״ב", 13: "י״ג",
+            14: "י״ד", 15: "ט״ו", 16: "ט״ז", 17: "י״ז",
+            18: "י״ח", 19: "י״ט", 20: "כ", 21: "כ״א",
+            22: "כ״ב"}
+
+
+def gate_display_name(k: int) -> str:
+    """'Gate 7 — שער ז׳' — the picker label for a gate."""
+    num = _HEB_NUM[k]
+    # A bare letter takes a geresh; a two-letter numeral already carries its
+    # gershayim internally (ט"ו), so it takes nothing further.
+    suffix = "׳" if len(num) == 1 else ""
+    return "Gate %d — שער %s%s" % (k, num, suffix)
+
+
+for _k in range(1, 22):
+    CIPHER_DISPLAY_NAMES["Gate%02d" % _k] = gate_display_name(_k)
+
 # Human-readable one-liners shown next to each cipher selector in the UI.
 #
 # ⚠️ NO SOURCES HERE. Attribution lives in the Guide's Source column, which is
@@ -1095,7 +1228,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
     "EmtzaiyotMaleh":   "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
-    "Albam":           "ROT-11 swap: א↔ל, ב↔מ … then Standard values.",
+    "Albam":           "Swap each letter with the one 11 places on: א↔ל, ב↔מ … then Standard values.",
     "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
     # ⚠️ ה↔נ is the part readers query — it looks like a bug without the note.
     "Atbach":          "Pairs summing to 10, 100 and 1000: א↔ט, ב↔ח · י↔צ, כ↔פ · "
@@ -1105,14 +1238,14 @@ CIPHER_BLURB: Dict[str, str] = {
     "AtbachMaharshal": "The 22-letter list of Rabbeinu Chananel: the hundreds "
                        "pair to 500 (ק↔ת, ר↔ש) and a final form counts as "
                        "its base letter. ה and נ still take each other.",
-    "Avgad":           "+1 cyclic shift: א→ב … ת→א. Then Standard values.",
-    "Agdat":           "+2 cyclic shift: א→ג … ת→ב. Then Standard values.",
-    "ReverseAvgad":    "−1 cyclic shift: ב→א … א→ת. Then Standard values.",
-    "AyakBachar":      "3×9 cyclic rotation: units→tens→hundreds→units (א↔י↔ק, ב↔כ↔ר …).",
+    "Avgad":           "Each letter moves on one: א→ב … and ת wraps round to א. Then Standard values.",
+    "Agdat":           "Each letter moves on two: א→ג … and ת wraps round to ב. Then Standard values.",
+    "ReverseAvgad":    "Each letter moves back one: ב→א … and א wraps round to ת. Then Standard values.",
+    "AyakBachar":      "Three rows of nine — units, tens, hundreds — each letter moving to the next row: א→י→ק→א, ב→כ→ר→ב …",
     # ⚠️ "ת is unchanged" put an English clause directly after a Hebrew letter,
     # and the RTL run swallowed the boundary — it read as if the clause attached
     # to ס-ש. Naming the letter LAST keeps the sentence ending in LTR text.
-    "AchasBeta":       "7/7/7 cyclic rotation across the groups א-ז / ח-נ / ס-ש. The only letter left unchanged is ת.",
+    "AchasBeta":       "Three groups of seven — א-ז, ח-נ, ס-ש — each letter moving to the next group. ת stands outside and never changes.",
     "Achorayim":       "Write the word out progressively and sum the rows: חבד = 8 + (8+2) + (8+2+4) = 32. Resets per word.",
     "HaMeugal":        "Sum as Standard, then count thousands as units: 1080 becomes 80 + 1 = 81.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum that word: י=10→עשרה=575.",
@@ -1120,6 +1253,15 @@ CIPHER_BLURB: Dict[str, str] = {
     "KololEhad":       "Standard total + 1, counting the word itself as one more unit.",
     "KololOtiyot":     "Standard total + 1 for each letter: דוד = 14 + 3 = 17.",
 }
+
+# The gate blurbs ARE their pair tables — that is the whole definition of a
+# gate, and it is what the compact result header shows instead of a title and
+# a paragraph. Generated from the rule so the printed pairs can never drift
+# from the ones actually being computed.
+for _k in range(1, 22):
+    CIPHER_BLURB["Gate%02d" % _k] = (
+        "Swap: " + " ".join(a + b for a, b in _gate_pairs(_k)) + "."
+    )
 
 # Canonical Tanach order — Torah, Nevi'im, Ketuvim (Masoretic/Sefaria ordering)
 # — not alphabetical. Plain SQL ORDER BY book sorts strings, putting Amos before
@@ -3278,10 +3420,16 @@ def _xm_count_matrix(
     tracks: Optional[List[str]],
     boundaries: Optional[List[str]],
 ) -> pd.DataFrame:
-    """Build the N×N cross-method count matrix in a single SQL pass.
+    """Build the N×N cross-method count matrix in as few SQL passes as possible.
 
-    One query with N² CASE WHEN expressions (N = len(CIPHER_NAMES)),
-    scanning the units table once instead of issuing N² individual queries.
+    N² CASE WHEN expressions (N = len(CIPHER_NAMES)), batched so the units table
+    is scanned a handful of times instead of N² individual queries.
+
+    ⚠️ Batched, not one query, because of a hard SQLite limit. SQLITE_MAX_COLUMN
+    caps a result set at 2000 columns. At 36 methods the matrix needed 1296 and
+    fit; the 231-gates work took the app to 57, which needs 3249 and fails
+    outright with "too many columns in result set". The rows-per-batch below
+    keeps every query under the cap with room to spare.
     """
     where, params = [], []
     if tracks:
@@ -3296,30 +3444,35 @@ def _xm_count_matrix(
     # wrong row/column. Display order is used throughout so the matrix comes out
     # grouped like every other list; changing one of these four references
     # without the others silently transposes the results.
-    cases = []
-    for ma in CIPHER_DISPLAY_ORDER:
-        v = int(a_vals[ma])
-        for mb in CIPHER_DISPLAY_ORDER:
-            cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}"
-                    if colel and mb not in COLEL_EXEMPT
-                    else f"{mb} = {v}")
-            # ⚠️ Per-COLUMN, not in the WHERE clause. A unit with a knowably
-            # short vowel total must be excluded from the four vowel-mark
-            # columns, but it is a perfectly good row for the other 31 — a
-            # WHERE would drop it from every column and understate them.
-            # Without this the matrix reported 1,364 matches for a bare query
-            # under HaNekudot where the true count is 1: the query scores 0,
-            # and so does every unit whose vowels could not all be counted.
-            cond += nikud_partial_clause(mb)
-            cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
-    sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
-    row = pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0]
     n = len(CIPHER_DISPLAY_ORDER)
+    # Each source method contributes one row of n CASE expressions, so batch
+    # whole rows: rows_per_batch * n must stay under SQLITE_MAX_COLUMN (2000).
+    rows_per_batch = max(1, 1800 // n)
     matrix_rows = {}
-    for i, ma in enumerate(CIPHER_DISPLAY_ORDER):
-        matrix_rows[f"{ma} ({a_vals[ma]})"] = [
-            int(row.iloc[i * n + j]) for j in range(n)
-        ]
+    for start in range(0, n, rows_per_batch):
+        batch = CIPHER_DISPLAY_ORDER[start:start + rows_per_batch]
+        cases = []
+        for ma in batch:
+            v = int(a_vals[ma])
+            for mb in CIPHER_DISPLAY_ORDER:
+                cond = (f"{mb} BETWEEN {v - 1} AND {v + 1}"
+                        if colel and mb not in COLEL_EXEMPT
+                        else f"{mb} = {v}")
+                # ⚠️ Per-COLUMN, not in the WHERE clause. A unit with a knowably
+                # short vowel total must be excluded from the four vowel-mark
+                # columns, but it is a perfectly good row for the others — a
+                # WHERE would drop it from every column and understate them.
+                # Without this the matrix reported 1,364 matches for a bare query
+                # under HaNekudot where the true count is 1: the query scores 0,
+                # and so does every unit whose vowels could not all be counted.
+                cond += nikud_partial_clause(mb)
+                cases.append(f"SUM(CASE WHEN {cond} THEN 1 ELSE 0 END)")
+        sql = f"SELECT {', '.join(cases)} FROM units {where_clause}"
+        row = pd.read_sql_query(sql, raw_conn(conn), params=params).iloc[0]
+        for i, ma in enumerate(batch):
+            matrix_rows[f"{ma} ({a_vals[ma]})"] = [
+                int(row.iloc[i * n + j]) for j in range(n)
+            ]
     return pd.DataFrame.from_dict(matrix_rows, orient="index",
                                   columns=CIPHER_DISPLAY_ORDER)
 
@@ -4261,6 +4414,43 @@ def run_selftest() -> None:
     for _b, _lbl in BOOK_DISPLAY_NAMES.items():
         assert parse_verse_ref(f"{_lbl} 1:1") == (_b, 1, 1), _lbl
         assert _b in BOOK_ORDER, _b
+    # ── The 231 gates (רל"א שערים) ──────────────────────────────────────────
+    # The invariants below are strong enough that any corruption of the rule
+    # breaks at least one of them. They are the reason the maps are generated
+    # rather than transcribed from the printed (and partly corrupt) tables.
+    _all_gate_pairs = set()
+    for _k in range(1, 23):
+        _pairs = _gate_pairs(_k)
+        assert len(_pairs) == 11, f"gate {_k}: {len(_pairs)} pairs, expected 11"
+        _letters = [c for p in _pairs for c in p]
+        assert sorted(_letters) == sorted(ALEFBET), \
+            f"gate {_k} does not use each of the 22 letters exactly once"
+        # A gate is an involution: swapping twice returns the original letter.
+        _m = GATE_MAPS[_k]
+        assert all(_m[_m[c]] == c for c in ALEFBET), f"gate {_k} is not an involution"
+        _all_gate_pairs |= {frozenset(p) for p in _pairs}
+    # The family covers every unordered pair of distinct letters exactly once:
+    # C(22,2) = 231, which is the count the Remak gives (רל"א זוגות). This is
+    # also the proof the gates are pairings and not shifts — 22 directed
+    # rotations would give 462.
+    assert len(_all_gate_pairs) == 231, \
+        f"gates yield {len(_all_gate_pairs)} distinct pairs, expected 231"
+    # Gate 22 IS Atbash — reflection is the one rotation that is also a
+    # constant-sum pairing. This is why no Gate22 column exists.
+    assert GATE_MAPS[22] == ATBASH_MAP, "gate 22 must equal Atbash"
+    # Albam is a +11 SHIFT, not a constant-sum pairing, so it must not appear.
+    assert all(GATE_MAPS[_k] != ALBAM_MAP for _k in range(1, 23)), \
+        "Albam must not be in the gate family — it is a shift, not a pairing"
+    # Gate ciphers are registered, and gate 22 is deliberately not among them.
+    assert len(GATE_CIPHER_NAMES) == 21, "expected 21 gate columns (22 is Atbash)"
+    assert "Gate22" not in CIPHERS, "gate 22 must not have its own column"
+    # Worked values, hand-checked against the pair tables above.
+    #   שלום under gate 1 : ש→ג ל→א ו→צ ם→כ = 3+1+90+20    = 114
+    #   אמת  under gate 7 : א→ז מ→פ ת→ח      = 7+80+8       = 95
+    assert CIPHERS["Gate01"]("שלום") == 114, CIPHERS["Gate01"]("שלום")
+    assert CIPHERS["Gate07"]("אמת") == 95, CIPHERS["Gate07"]("אמת")
+    print(f"  All 22 gates valid; family covers {len(_all_gate_pairs)} pairs  OK")
+
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -5833,7 +6023,7 @@ def run_app() -> None:
                  "Source": "שֵׁשַׁךְ in ירמיהו כ״ה:כ״ו and נ״א:מ״א is בָּבֶל by atbash (Rashi there). שבת ק״ד ע״א works the pairs themselves — א״ת ב״ש ג״ר ד״ק — in the children’s derashah. At סנהדרין כ״ב ע״א Rav reads the writing on the wall as בְּגִימַטְרִיָּא: יטת יטת אדך פוגחמט — מנא by atbash."},
                 {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
-                 "Rule": "Split 22 letters into two groups of 11; swap across groups: א↔ל, ב↔מ, ג↔נ … (ROT-11).",
+                 "Rule": "Split the 22 letters into two halves of 11 and swap across: א↔ל, ב↔מ, ג↔נ …",
                  "Source": "שבת ק״ד ע״א gives the whole cipher in the children’s derashah: א״ל ב״ם ג״ן ד״ס — להיכן אוליכן, לגן הדס; ה״ע ו״ף … ז״ץ ח״ק … ט״ר י״ש כ״ת. All eleven pairs match this implementation exactly. Tabulated at פרדס רימונים ל׳:ה׳."},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
@@ -5892,10 +6082,38 @@ def run_app() -> None:
                 {"Method": "KololOtiyot",
                  "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
                  "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §4, the Remak (1548): 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה'."}
+                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §4, the Remak (1548): 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה'."},
+                # ONE row for all 21 gates. They share a single rule and a
+                # single source, so 21 near-identical rows would bury the named
+                # methods without adding anything. Atbash keeps its own row
+                # above: it is the one gate with independent standing in Tanach
+                # and Shas, and readers look for it by name, not as "gate 22".
+                {"Method": "Gate01",
+                 "Hebrew": "כ\"ב אלפא ביתות / רל\"א שערים (the 231 Gates)",
+                 "Rule": "22 alphabets, each pairing the letters up a different "
+                         "way. Every letter swaps with its partner, then the "
+                         "values are added as usual. Each gate's own pairs are "
+                         "shown beside it. Listed here as Gate 1 – Gate 21; "
+                         "Gate 22 is Atbash, which has its own row above.",
+                 "Source": "ספר יצירה ב׳:ד׳ — the 22 letters are set in a wheel "
+                           "of רל\"א שערים, 231 gates. All 22 alphabets are "
+                           "printed at פרדס רימונים ל׳:ה׳, and the Remak "
+                           "explains the number: רל\"א שערים מפני שהם רל\"א "
+                           "זוגות — because they make 231 pairs, which is every "
+                           "possible pairing of two letters. ⚠️ 12 of the 22 "
+                           "printed tables have letters garbled in the "
+                           "typesetting — they repeat one letter and drop "
+                           "another, so they cannot be read as they stand. The "
+                           "tables used here follow the rule the Remak's own "
+                           "count implies, which reproduces 10 of the 22 "
+                           "printed rows exactly."}
             ], key=lambda r: (CIPHER_DISPLAY_ORDER.index(r["Method"])
                               if r["Method"] in CIPHER_DISPLAY_ORDER
                               else len(CIPHER_DISPLAY_ORDER)))))
+        st.caption(
+            "The 231 Gates share one row above because they share one rule. "
+            "Each gate's own letter pairs are shown with its results."
+        )
 
         with st.expander("Boundary types"):
             st.dataframe(pd.DataFrame([
@@ -6481,7 +6699,18 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # and every possessive as &#x27; in the source.
                     f"{_h_m.escape(CIPHER_DISPLAY_NAMES.get(cipher, cipher), quote=False)}"
                     f"</h4>", unsafe_allow_html=True)
-                if CIPHER_BLURB.get(cipher):
+                # The gates get a compact block: 21 of them can be on screen at
+                # once, so a full-size heading and a paragraph of prose each
+                # would bury the results. The swap table IS the definition, so
+                # it goes inline under the number and the per-method blurb is
+                # suppressed — the family is explained once in the Guide.
+                if cipher in GATE_NUMBER and cipher != "Atbash":
+                    st.markdown(
+                        f"<p class='mblurb gateswap' style='font-size:.8rem;"
+                        f"opacity:.65;font-family:monospace;letter-spacing:.02em'>"
+                        f"{_h_m.escape(' '.join(a + b for a, b in _gate_pairs(GATE_NUMBER[cipher])), quote=False)}"
+                        f"</p>", unsafe_allow_html=True)
+                elif CIPHER_BLURB.get(cipher):
                     # Blurb goes UNDER its own heading. It used to print above,
                     # so every description sat between two methods and appeared
                     # to belong to the one before it. Rendered as markdown rather
@@ -7469,13 +7698,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
 
             @st.cache_data(show_spinner="Computing cross-method balance matrix…")
             def _xm_balance_matrix(_conn, corpus_key):
-                cols = ", ".join(
-                    f'SUM(CASE WHEN ABS(u1.{mx} - u2.{my}) <= 1 THEN 1 ELSE 0 END) '
-                    f'AS "{mx}_vs_{my}"'
-                    for mx in _BALANCE_COLS for my in _BALANCE_COLS
-                )
-                sql = (
-                    f"SELECT COUNT(*) AS total_verses, {cols} "
+                # ⚠️ Batched by row for the same reason as the cross-method
+                # matrix: SQLITE_MAX_COLUMN caps a result set at 2000 columns.
+                # 34 balance columns needed 1156 and fit; the 231 gates take
+                # this to 55, which needs 3025 and fails with "too many columns
+                # in result set". Each batch is one self-join pass.
+                _n = len(_BALANCE_COLS)
+                _rows_per_batch = max(1, 1800 // _n)
+                _where = (
                     "FROM units u1 JOIN units u2 "
                     "ON u1.book=u2.book AND u1.chapter=u2.chapter "
                     "AND u1.verse=u2.verse "
@@ -7483,10 +7713,21 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     "AND u2.boundary_type='SecondHalf' "
                     "AND u1.variant_track='Ksiv' AND u2.variant_track='Ksiv'"
                 )
-                row = pd.read_sql_query(sql, raw_conn(_conn)).iloc[0]
-                total = int(row["total_verses"]) or 1
-                data = [[int(row[f"{mx}_vs_{my}"]) / total for my in _BALANCE_COLS]
-                        for mx in _BALANCE_COLS]
+                total = int(pd.read_sql_query(
+                    f"SELECT COUNT(*) AS total_verses {_where}",
+                    raw_conn(_conn)).iloc[0]["total_verses"]) or 1
+                data = []
+                for _s in range(0, _n, _rows_per_batch):
+                    _batch = _BALANCE_COLS[_s:_s + _rows_per_batch]
+                    cols = ", ".join(
+                        f'SUM(CASE WHEN ABS(u1.{mx} - u2.{my}) <= 1 THEN 1 ELSE 0 END) '
+                        f'AS "{mx}_vs_{my}"'
+                        for mx in _batch for my in _BALANCE_COLS
+                    )
+                    row = pd.read_sql_query(
+                        f"SELECT {cols} {_where}", raw_conn(_conn)).iloc[0]
+                    data.extend([int(row[f"{mx}_vs_{my}"]) / total
+                                 for my in _BALANCE_COLS] for mx in _batch)
                 return pd.DataFrame(data, index=_BALANCE_COLS, columns=_BALANCE_COLS), total
 
             rate_df, total_verses = _xm_balance_matrix(conn, corpus_key)
