@@ -3,7 +3,7 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `1088128` (Atbach in two girsaos; 27-letter becomes the default)
+**Last code commit:** `39290d2` (relative PWA scope; app moves to /gematria on the local host)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
 **Last DB-affecting commit:** `1088128` — **rebuild `tanach.db` if you are older than this**
 **Handoff date:** 2026-08-12
@@ -11,10 +11,9 @@
 > ✅ **Everything in this document is pushed and verified live** on all four
 > targets unless explicitly marked otherwise.
 >
-> ⚠️ **EXCEPTION as of 2026-08-12:** the Shabbat 104a citation upgrades for
-> Atbash and Albam, and the removal of Yalkut Shimoni, are **committed to
-> `main` but NOT yet deployed**. Selftests pass. See "Citations: verify against
-> the primary text".
+> ⚠️ **The local Tailscale URL CHANGED on 2026-08-12** — the app now lives
+> under a `/gematria` path prefix and the `:8443` funnel is retired. Delete and
+> re-add any phone home-screen icons. See "Sharing a host with another app".
 >
 > **This file lives on the `docs` branch and is never deployed** — see "Docs are
 > off the deploy path" below. Editing it costs nothing; it used to cost a
@@ -1117,6 +1116,84 @@ an old database self-heals instead of failing on first search.
 - **Both calculations everywhere.** Three of seven `render_verse_detail` call
   sites never passed `query_info`, so their exports showed one side of a
   "these are equal" claim. All pass it now.
+
+---
+
+## ⚠️ Sharing a host with another app — the /gematria prefix (`39290d2`)
+
+On the local self-hosted deployment this app shares a hostname with an unrelated
+private application. Both are reached through one reverse proxy. The details of
+that other app are deliberately not recorded here; what follows is only what a
+future session needs to know about *this* app.
+
+**Symptom:** on a phone with both installed as PWAs, the home-screen icons were
+interchangeable — tapping one opened the other.
+
+**Cause was not ports.** Both apps listened on distinct ports and the proxy
+routed both correctly. The collision was in the **PWA manifests**: each declared
+`"scope": "/"`, so both claimed the whole hostname, and whichever installed last
+owned the claim. A port suffix does not separate installed-PWA identity the way
+it separates network origins.
+
+**Fix — serve this app under a path so it structurally cannot claim the root:**
+
+```
+tailscale funnel --bg --set-path=/gematria http://127.0.0.1:8501
+```
+
+The old `:8443` funnel is retired.
+
+### ⚠️ Do NOT set --server.baseUrlPath
+
+Tailscale's `funnel --set-path` **strips** the prefix before forwarding, so
+Streamlit receives `/` and must stay configured for `/`. Adding
+`--server.baseUrlPath gematria` applies the prefix twice and **every request
+404s**. This was tried first and had to be backed out. The comment in
+`Start_Gematria.vbs` says so; leave it there.
+
+`host/` is **gitignored**, so those launcher edits exist only on that PC — which
+is why the reasoning is recorded here.
+
+### ⚠️ A trailing slash is load-bearing under a path prefix
+
+Streamlit references its assets relatively (`./static/js/...`), so the trailing
+slash decides where they resolve:
+
+```
+/gematria/  -> ./static/js/... -> /gematria/static/js/...   correct
+/gematria   -> ./static/js/... -> /static/js/...            404 — blank page
+```
+
+Under a prefix, the slash-less form escapes the prefix entirely and can hit
+whatever else is served at the root. `_SLASH_REDIRECT_SNIPPET` fixes the URL in
+`<head>` before any asset resolves. It is narrow by design: skips paths already
+ending in `/`, paths with a file extension, and Streamlit's `_stcore` endpoints;
+preserves query and hash; uses `location.replace` so the bad URL leaves no
+history entry. No-op where the app is served at a root.
+
+### ⚠️ There are two Streamlit installs on the self-hosted PC
+
+The launcher runs the **system** Python; the repo also has a `.venv`. Each has
+its own `streamlit/static/index.html`, and `_inject_pwa_head()` patches only the
+one belonging to the interpreter that runs it. A head-tag change verified via the
+venv can appear to have failed when the launcher serves the unpatched system
+copy. Patch the interpreter the launcher actually uses, then restart.
+
+### The manifest is shared with Hugging Face
+
+`static/manifest.json` ships to HF/Streamlit Cloud too, where the app really does
+sit at the root. Absolute paths would break one host or the other, so `scope` and
+`start_url` are **relative** (`../../`), resolving against wherever the manifest
+is served:
+
+| served at | resolves to |
+|---|---|
+| `…/gematria/app/static/manifest.json` | `…/gematria/` |
+| `…hf.space/app/static/manifest.json` | `…hf.space/` |
+
+**Phones need the home-screen icons deleted and re-added** — a stale icon carries
+the manifest captured at install time, and that is the step that actually clears
+the bug.
 
 ---
 
