@@ -1023,8 +1023,13 @@ def nikud_partial_clause(cipher: str) -> str:
 # the app's own Guide sources are the test. Standard is the 29th middah
 # (סנהדרין ל״ח); Atbash is שֵׁשַׁךְ=בָּבֶל in ירמיהו, explicit in סנהדרין כ״ב, and
 # its pairs are worked in שבת ק״ד ע״א; Atbach is R' Chiya in סוכה נ״ב; Albam is
-# given whole in that same שבת ק״ד sugya; the 27-letter sequence Gadol needs is
-# ספר יצירה ב׳:ב׳.
+# given whole in that same שבת ק״ד sugya; Gadol's 500-900 values are used by
+# Rashi on סוכה נ״ב, whose third tier of אטב"ח pairs only reaches a thousand if
+# the finals carry them.
+#
+# ⚠️ This used to cite ספר יצירה ב׳:ב׳ for "the 27-letter sequence Gadol needs".
+# That was wrong: ספר יצירה says עשרים ושתים אותיות in every verse of chapter 2
+# and never assigns numeric values to letters at all. Do not reinstate it.
 #
 # Siduri and AchasBeta used to sit in this group and do NOT belong: both are
 # פרדס רימונים (1548). Siduri's own Guide row concedes that letter-position
@@ -5985,8 +5990,8 @@ def run_app() -> None:
                  "Source": "חסידי אשכנז (12th–13th c.); brought in ספר גימטריאות, attributed to R' Yehuda haChassid (d. 1217). The Remak notes at פרדס רימונים שער ל׳ פרק ח׳ that מספר קטן is what most call this reduction — his own first method under that heading is מספר המעוגל, the wraparound."},
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
-                 "Rule": "Like Standard, but final forms carry 500–900: ך=500, ם=600, ן=700, ף=800, ץ=900.",
-                 "Source": "The sofios themselves are early — מנצפ\"ך צופים אמרום (מגילה ב׳ ע״ב), and אטב\"ח of R' Chiya (סוכה נ״ב ע״ב) needs the 500–900 tier for its pairs to reach a thousand. Set out systematically in שפתי ישנים (R' Shabsai Bass, 17th c.)."},
+                 "Rule": "Like Standard, but the five final letters carry their own higher values, from 500 up to 900: ך ם ן ף ץ",
+                 "Source": "Used by rishonim on the Atbach sugya, where the third tier of pairs only reaches a thousand if the finals carry these values. See Rashi there, and the systematic list of ר׳ שבתי באס: סוכה נב:, שפתי ישנים"},
                 {"Method": "KatanMispari",
                  "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
                  "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
