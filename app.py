@@ -5977,8 +5977,8 @@ def run_app() -> None:
             st.table(pd.DataFrame(sorted([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי (Mispar Hechrachi)",
-                 "Rule": "Values ⁦א=1⁩ … ⁦י=10⁩, ⁦כ=20⁩ … ⁦ק=100⁩ … ⁦ת=400⁩, added up. Finals ⁦ם ן ץ ף ך⁩ = ⁦מ נ צ פ כ⁩.",
-                 "Source": "Found throughout the gemara (⁦שבת ע.⁩, ⁦עירובין סה.⁩, ⁦נדרים לב.⁩, ⁦נזיר ה.⁩, ⁦מכות כג:⁩, ⁦נדה לח:⁩). Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק) in ⁦פרדס רימונים ל׳:ח׳⁩."},
+                 "Rule": "Values 1 = א … 10 = י, 20 = כ … 100 = ק … 400 = ת, added up. Finals ם ן ץ ף ך count as מ נ צ פ כ.",
+                 "Source": "Found throughout the gemara (שבת ע., עירובין סה., נדרים לב., נזיר ה., מכות כג:, נדה לח:). Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק) in פרדס רימונים ל׳:ח׳."},
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
