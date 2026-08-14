@@ -5991,7 +5991,7 @@ def run_app() -> None:
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Standard, but the five final letters (ך ם ן ף ץ) carry their own higher values, from 500 up to 900.",
-                 "Source": "Used by rishonim when calculating אטב"ח (see Rashi and the Aruch there): סוכה נב:"},
+                 "Source": "Used by rishonim when calculating אטב\"ח (see Rashi and the Aruch there): סוכה נב:"},
                 {"Method": "KatanMispari",
                  "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
                  "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
