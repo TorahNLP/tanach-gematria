@@ -982,6 +982,11 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
 for _k in range(1, 22):
     CIPHERS["Gate%02d" % _k] = GATE_FNS[_k]
 
+# Appended after the gates for the same append-only reason. The value is
+# assembled in compute_all_ciphers (milui letters + milui vowel names), so the
+# function here is the vowel half — matching how ImMiluiNekudot is registered.
+CIPHERS["MiluiImMiluiNekudot"] = g_milui_nekudot
+
 CIPHER_NAMES: List[str] = list(CIPHERS.keys())
 
 # The gate ciphers, in gate order — used for display grouping and the compact
@@ -993,7 +998,8 @@ GATE_NUMBER["Atbash"] = 22
 # The four methods that score vowel marks rather than letters. Defined here,
 # beside CIPHER_NAMES, because the search layer needs it long before the
 # breakdown helpers further down do.
-NIKUD_CIPHERS = ("HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot")
+NIKUD_CIPHERS = ("HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot",
+                 "MiluiImMiluiNekudot")
 
 
 def nikud_partial_clause(cipher: str) -> str:
@@ -1063,6 +1069,7 @@ _DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     "MiluiMaleh", "NeelAmMaleh", "EmtzaiyotMaleh", "Ofanim",
     # Vowel-mark — undefined without nikud.
     "HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot",
+    "MiluiImMiluiNekudot",
     # Kolel — the total plus a collective term.
     "KololEhad", "KololOtiyot",
 ]
@@ -1143,6 +1150,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "ImHaNekudot":      "Im HaNekudot — עם הנקודות",
     "MiluiNekudot":     "Milui HaNekudot — מילוי הנקודות",
     "ImMiluiNekudot":   "Im Milui HaNekudot — עם מילוי הנקודות",
+    "MiluiImMiluiNekudot": "Milui Im Milui HaNekudot — מילוי עם מילוי הנקודות",
     "MiluiMaleh":       "Milui Maleh — מילוי מלא",
     "NeelAmMaleh":     "Neelam Maleh — נעלם מלא",
     "EmtzaiyotMaleh":  "Emtzaiyot Maleh — אמצעיות מלא",
@@ -1224,6 +1232,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "ImHaNekudot":      "Standard values of the letters plus HaNekudot of their vowel marks.",
     "MiluiNekudot":     "Standard value of each vowel mark's Hebrew NAME: קמץ=230, פתח=488, סגול=99.",
     "ImMiluiNekudot":   "Standard values of the letters plus MiluiNekudot of their vowel marks.",
+    "MiluiImMiluiNekudot": "Both layers spelled out: each letter's full name plus each vowel mark's name. אָב = אלף+בית + קמץ.",
     "MiluiMaleh":       "Milui using Maleh (מלא) 3-letter spellings: כ=כאף=101, מ=מאם=81. Other letters unchanged.",
     "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
     "EmtzaiyotMaleh":   "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
@@ -1377,6 +1386,11 @@ def compute_all_ciphers(consonants: str, cantillated: str = "",
             result[name] = std_val + g_hanekudot(cantillated)
         elif name == "ImMiluiNekudot":
             result[name] = std_val + g_milui_nekudot(cantillated)
+        elif name == "MiluiImMiluiNekudot":
+            # Both layers SPELLED OUT: the letters filled to their names, plus
+            # the vowel marks filled to theirs. ImMiluiNekudot is the same idea
+            # with plain Standard letters, so this is its milui counterpart.
+            result[name] = g_milui(consonants) + g_milui_nekudot(cantillated)
         elif name in ("Achorayim",):
             result[name] = fn(word_src)
         else:
@@ -4451,6 +4465,14 @@ def run_selftest() -> None:
     assert CIPHERS["Gate07"]("אמת") == 95, CIPHERS["Gate07"]("אמת")
     print(f"  All 22 gates valid; family covers {len(_all_gate_pairs)} pairs  OK")
 
+    # Milui Im Milui HaNekudot: both layers spelled out. אָב = אלף(111) +
+    # בית(412) + קמץ(230) = 753. Pinned because the value is assembled in
+    # compute_all_ciphers rather than by the registered function alone, so a
+    # dispatch change could silently drop the letter half.
+    _mim = compute_all_ciphers("אב", "אָב", "אב")
+    assert _mim["MiluiImMiluiNekudot"] == 753, _mim["MiluiImMiluiNekudot"]
+    assert _mim["MiluiImMiluiNekudot"] == g_milui("אב") + g_milui_nekudot("אָב")
+
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -6005,6 +6027,10 @@ def run_app() -> None:
                  "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
                  "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
                  "Source": "Combines R' Yosef Gikatilla's מילוי הנקודות (גנת אגוז, 1274) with the Remak's עם הנקודות (פרדס רימונים, 1548). No single source gives this exact combination."},
+                {"Method": "MiluiImMiluiNekudot",
+                 "Hebrew": "מילוי עם מילוי הנקודות (Milui Im Milui HaNekudot)",
+                 "Rule": "Both layers spelled out: the gematria of each letter's full name, plus the gematria of each vowel mark's name. אָב = אלף(111)+בית(412) + קמץ(230) = 753. The same idea as עם מילוי הנקודות, but with the letters filled out instead of counted plainly.",
+                 "Source": "⚠️ No single classical source gives this combination. It pairs the Remak's letter מילוי (פרדס רימונים שער ל׳) with Gikatilla's מילוי הנקודות (גנת אגוז, 1274) — both attested individually, combined here as the מילוי counterpart of עם מילוי הנקודות, which is itself the same kind of combination."},
                 {"Method": "MiluiMaleh",
                  "Hebrew": "מילוי מלא (Milui Maleh — Full Filling)",
                  "Rule": "Like Milui, but uses the Maleh (מלא) 3-letter spellings for כ and מ: כ=כאף=101, מ=מאם=81. All other letter spellings are identical to standard Milui.",

@@ -44,8 +44,13 @@ print("all 22 gates: 11 pairs, 22 distinct letters, perfect involution ->", "PAS
 print()
 print("distinct pairs across the family : %d" % len(allpairs))
 print("C(22,2)                          : %d" % (22 * 21 // 2))
-print("every pair appears exactly once  :",
-      len(allpairs) == 231 and sum(len(gen(k)) for k in range(1, 23)) == 231)
+print("covers every possible pair       :", len(allpairs) == 231)
+# 22 gates x 11 pairs = 242 slots for 231 distinct pairs. The 11 extra are the
+# fixed-point pairs: in each gate the two letters left without a partner take
+# each other, and those 11 pairings recur elsewhere in the family. The Remak's
+# רל"א counts DISTINCT pairs, which is the 231 above.
+_slots = sum(len(gen(k)) for k in range(1, 23))
+print("pair slots (242 = 231 + 11 reprised fixed-point pairs) : %d" % _slots)
 print()
 
 # Which classical alphabets does the family contain?
