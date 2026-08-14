@@ -4870,14 +4870,22 @@ def run_app() -> None:
             "</style>",
             unsafe_allow_html=True)
 
-    # ⚠️ Bidi in the Guide table: a cell mixing English, Hebrew and digits is
-    # resolved as ONE run, so a number written straight after an RTL phrase gets
-    # pulled into it and reordered — `אלה=36` renders as `36=אלה`. CSS cannot fix
-    # this: `unicode-bidi:isolate` isolates a cell from its NEIGHBOURS, but the
-    # reordering happens INSIDE the cell text. It was tried and did not work.
-    # The fix is a U+200E LEFT-TO-RIGHT MARK immediately after each number,
-    # which terminates the RTL run at that point. Any new Guide row that puts a
-    # digit next to Hebrew needs one — see the Standard row for the pattern.
+    # ⚠️ Bidi in the Guide table. Two separate failures, both seen live:
+    #
+    #  1. A cell whose FIRST strong character is Hebrew resolves the whole
+    #     paragraph RTL, so an entire English sentence renders right-to-left.
+    #     Fix: start every cell with an English word.
+    #  2. `א=1` renders as `1=א`, because the digit joins the preceding RTL run.
+    #     Fix: wrap each pair in U+2066 LRI … U+2069 PDI, which isolates it so
+    #     it cannot merge with anything around it.
+    #
+    # Two things that do NOT work and should not be re-attempted:
+    #   - `unicode-bidi:isolate` in CSS — isolates a cell from its NEIGHBOURS,
+    #     but the reordering happens INSIDE the cell text.
+    #   - U+200E LRM *after* the number — by then the digit has already joined
+    #     the RTL run.
+    #
+    # See the Standard row for the pattern any new row should follow.
 
     def hide_uniform_track(df):
         """Drop the Track column unless these rows genuinely vary (see module fn)."""
@@ -5969,8 +5977,8 @@ def run_app() -> None:
             st.table(pd.DataFrame(sorted([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי (Mispar Hechrachi)",
-                 "Rule": "א=1‎ … י=10‎, כ=20‎ … ק=100‎ … ת=400‎, added up. ם ן ץ ף ך = מ נ צ פ כ.",
-                 "Source": "Found throughout the gemara: שבת ע׳ ע״א, עירובין ס״ה ע״א, נדרים ל״ב ע״א, נזיר ה׳ ע״א, מכות כ״ג ע״ב, נדה ל״ח ע״ב. Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק), פרדס רימונים ל׳:ח׳."},
+                 "Rule": "Values ⁦א=1⁩ … ⁦י=10⁩, ⁦כ=20⁩ … ⁦ק=100⁩ … ⁦ת=400⁩, added up. Finals ⁦ם ן ץ ף ך⁩ = ⁦מ נ צ פ כ⁩.",
+                 "Source": "Found throughout the gemara (שבת ע׳ ע״א, עירובין ס״ה ע״א, נדרים ל״ב ע״א, נזיר ה׳ ע״א, מכות כ״ג ע״ב, נדה ל״ח ע״ב). Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק) in פרדס רימונים ל׳:ח׳."},
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
