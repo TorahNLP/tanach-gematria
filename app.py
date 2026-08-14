@@ -4870,21 +4870,14 @@ def run_app() -> None:
             "</style>",
             unsafe_allow_html=True)
 
-    # ⚠️ Bidi isolation for every table cell. Guide rows mix English, Hebrew and
-    # digits in one cell, and the bidi algorithm resolves the whole cell as a
-    # single run: digits or `=` sitting next to an RTL phrase get pulled INTO it
-    # and reordered, so `אליעזר=318` can render as `318=אליעזר` and a citation
-    # like `נדרים ל״ב ע״א` can have its parts swapped. `isolate` makes each cell
-    # resolve on its own, which fixes the whole table at once rather than
-    # needing every row hand-tuned. The method headings solve the same problem a
-    # different way — by keeping digits off the Hebrew line entirely.
-    st.markdown(
-        "<style>"
-        "[data-testid='stTable'] td,[data-testid='stTable'] th,"
-        "[data-testid='stDataFrame'] td,[data-testid='stDataFrame'] th"
-        "{unicode-bidi:isolate;}"
-        "</style>",
-        unsafe_allow_html=True)
+    # ⚠️ Bidi in the Guide table: a cell mixing English, Hebrew and digits is
+    # resolved as ONE run, so a number written straight after an RTL phrase gets
+    # pulled into it and reordered — `אלה=36` renders as `36=אלה`. CSS cannot fix
+    # this: `unicode-bidi:isolate` isolates a cell from its NEIGHBOURS, but the
+    # reordering happens INSIDE the cell text. It was tried and did not work.
+    # The fix is a U+200E LEFT-TO-RIGHT MARK immediately after each number,
+    # which terminates the RTL run at that point. Any new Guide row that puts a
+    # digit next to Hebrew needs one — see the Standard row for the pattern.
 
     def hide_uniform_track(df):
         """Drop the Track column unless these rows genuinely vary (see module fn)."""
@@ -5976,12 +5969,8 @@ def run_app() -> None:
             st.table(pd.DataFrame(sorted([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי (Mispar Hechrachi)",
-                 "Rule": "א=1 … י=10, כ=20 … ק=100 … ת=400, added up. ם ן ץ ף ך = מ נ צ פ כ.",
-                 "Source": "נדרים ל\"ב ע\"א: אליעזר=318, עקב=172. Named מספר הכרחי by the רמ\"ק, פרדס רימונים ל׳:ח׳."},
-                {"Method": "Standard",
-                 "Hebrew": "מספר הכרחי / ישר (Mispar Hechrachi)",
-                 "Rule": "Standard values: א=1 … י=10, כ=20 … ק=100 … ת=400. Finals = same as base form.",
-                 "Source": "The 29th of the ל\"ב middos of R' Eliezer ben Yose ha-Gelili (c. 200 CE) — a baraita, cited as such by Rashi and the Ramban. נדרים ל\"ב ע\"א: שְׁמֹנָה עָשָׂר וּשְׁלֹשׁ מֵאוֹת — אֱלִיעֶזֶר הוּא, דְּחוּשְׁבָּנֵיהּ הָכִי הָוֵי. The term גימטריאות appears in אבות ג׳:י״ח."},
+                 "Rule": "א=1‎ … י=10‎, כ=20‎ … ק=100‎ … ת=400‎, added up. ם ן ץ ף ך = מ נ צ פ כ.",
+                 "Source": "שבת ע׳ ע״א: אלה=36‎. נדרים ל״ב ע״א: אליעזר=318‎, עקב=172‎. נזיר ה׳ ע״א: יהיה=30‎. Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק), פרדס רימונים ל׳:ח׳."},
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
