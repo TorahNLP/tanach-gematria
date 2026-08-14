@@ -5978,7 +5978,7 @@ def run_app() -> None:
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי (Mispar Hechrachi)",
                  "Rule": "Values ⁦א=1⁩ … ⁦י=10⁩, ⁦כ=20⁩ … ⁦ק=100⁩ … ⁦ת=400⁩, added up. Finals ⁦ם ן ץ ף ך⁩ = ⁦מ נ צ פ כ⁩.",
-                 "Source": "Found throughout the gemara (שבת ע׳ ע״א, עירובין ס״ה ע״א, נדרים ל״ב ע״א, נזיר ה׳ ע״א, מכות כ״ג ע״ב, נדה ל״ח ע״ב). Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק) in פרדס רימונים ל׳:ח׳."},
+                 "Source": "Found throughout the gemara (⁦שבת ע.⁩, ⁦עירובין סה.⁩, ⁦נדרים לב.⁩, ⁦נזיר ה.⁩, ⁦מכות כג:⁩, ⁦נדה לח:⁩). Named מספר הכרחי by ר׳ משה קורדובירו (רמ\"ק) in ⁦פרדס רימונים ל׳:ח׳⁩."},
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
