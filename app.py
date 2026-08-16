@@ -102,6 +102,15 @@ ALBAM_MAP = {ALEFBET[i]: ALEFBET[(i + 11) % 22] for i in range(22)}
 AVGAD_MAP = {ALEFBET[i]: ALEFBET[(i + 1) % 22] for i in range(22)}
 
 # Agdat (אגד"ת): +2 Caesar shift  (Alef->Gimel, ..., Tav wraps -> Bet).
+#
+# ⚠️ Do NOT cite פרדס רימונים ל׳:ה׳ for either shift cipher. That chapter has a
+# line "אג דת הש ור..." which looks like אגד"ת but is the THIRD of the 22
+# alphabets of the רל"א שערים -- a PAIRING (א↔ג, ד↔ת, ה↔ש), not a rotation.
+# Same four letters, different parsing. A fabricated "Gate 22" citation for
+# Agdat was removed in Pass 1 for exactly this confusion.
+#
+# The shifts and the gates are different constructions: 22 directed rotations
+# would give 462 maps, while the gates are 231 = C(22,2) unordered pairs.
 AGDAT_MAP: Dict[str, str] = {ALEFBET[i]: ALEFBET[(i + 2) % 22] for i in range(22)}
 
 # Achbi (א"כ ב"י): split the 22 letters into two halves of 11 and reverse each
@@ -480,6 +489,27 @@ def g_gadol(s: str) -> int:
 
 def g_siduri(s: str) -> int:
     """Mispar Siduri - ordinal value (Alef=1 .. Tav=22)."""
+    # ⚠️ NO CLASSICAL SOURCE. Searched under six names — סדורי, סידורי,
+    # כסדרן, סדר האותיות, מנין האותיות, מספר האותיות — across ~523,000
+    # characters of primary text: פרדס רימונים שער ל׳ complete (29k), סודי
+    # רזיא of the Rokeach (147k), ספר הרוקח (200k), ציצים ופרחים of the יעב"ץ
+    # complete (148k), plus Sefaria full-text. Not attested anywhere.
+    #
+    # What the near-misses actually are, so they are not re-found and
+    # misread: ספר הרוקח's four "סידורי" are all בסידורי הספרדים/התימנים, the
+    # plural of siddur in a modern editor's footnotes; סודי רזיא's one
+    # "מספר האותיות" means adding the letter COUNT to a total, closer to
+    # KololOtiyot. On Sefaria the term appears only in 19th-20th c. works
+    # (Malbim, Torah Temimah) as the GRAMMATICAL "ordinal number", contrasted
+    # with מספר פשוט.
+    #
+    # Claimed sources that were checked and failed: Baal HaTurim ordinal
+    # examples (the actual text on סלם gives seven derashos, all standard
+    # gematria on 130); פרדס רימונים (word absent from the whole shaar);
+    # "implicit in שבת קד." (that daf has three PAIRING ciphers, no ordinal
+    # counting). Arithmetic matching is not attestation — יהי אור=52, סלם=40
+    # and ציץ=46 all compute correctly here and none of them is in the source
+    # they were attributed to.
     return sum(ORDINAL.get(_normalize_final(c), 0) for c in s)
 
 
@@ -616,6 +646,16 @@ def g_hameugal(s: str) -> int:
     ⚠️ NOT the same as our Katan. He notes that "many call" the letter-wise
     reduction מספר קטן — that is Katan; this is his #1 under that heading.
     """
+    # ⚠️ NAME COLLISION with Katan, and it runs the other way from what you
+    # would guess. פרדס רימונים ל׳:ח׳ lists THIS method first and remarks
+    # ורבים כנו מספר זה בשם מספר קטן — "many call THIS one מספר קטן". His
+    # examples (ממאה יעשה א׳, ומשלש מאות ג׳) are the reduction applied to the
+    # TOTAL, with his worked case חמשה פעמים רי"ו שעולים אנכ"י (5x216=1080 ->
+    # 81). Our Katan reduces each LETTER instead, and the two differ on every
+    # word: שלום is 16 by Katan and 376 here.
+    #
+    # So do NOT cite פרדס רימונים for Katan — the רמ"ק is describing this
+    # method under that name, not the per-letter one.
     total = g_absolute(s)
     return total % 1000 + total // 1000
 
@@ -880,6 +920,30 @@ def g_achas_beta(s: str) -> int:
 
     Source: Pardes Rimonim (R. Moshe Cordovero), Sha'ar 30.
     """
+    # ⚠️ OPEN QUESTION, parked for the Guide review. What ת does here is OUR
+    # reconstruction, not any source's ruling, and the two printed sources
+    # disagree with each other and with us:
+    #
+    #   Gemara/Rashi (שבת קד.)  אח"ס בט"ע גי"ף דכ"ץ הל"ק  ומרז"ן  ש"ת
+    #   פרדס רימונים ל׳:ה׳       אחס בטע גיף דכץ הלק ומר  זנש"ת
+    #   this engine              7 clean 3-cycles, ת left over, maps to itself
+    #
+    # Neither printed form is a cipher rule: both are groupings for READING.
+    # The Gemara never performs a swap — Rashi says דכ"ץ is נוטריקון (דכים
+    # כנים צדיקים), and every group is read as word-initials. So the sugya
+    # fixes the GROUPS and says nothing about direction of traversal or about
+    # ת's cipher behaviour. (Steinsaltz's בחילוף ה"א בחי"ת on הל"ק is the
+    # ordinary guttural interchange, not this cipher.)
+    #
+    # The argument for uniform 3-cycles is Rashi's אלפא ביתא היא אצל א"ת ב"ש
+    # וכולן סדורות בספר יצירה — i.e. a systematic alphabet. But 22 is not
+    # divisible by 3, so SOME remainder handling is forced and the sources
+    # simply do not legislate it.
+    #
+    # Joshua wants to decide this deliberately, and also to look at whether
+    # other 3-groupings are hinted at (with the odd letter standalone, or the
+    # last group made 4). ⚠️ Changing the map changes stored values and needs
+    # a DB rebuild.
     return _temurah_value(s, ACHAS_BETA_MAP)
 
 
@@ -1019,23 +1083,30 @@ def nikud_partial_clause(cipher: str) -> str:
     """
     return " AND nikud_partial = 0" if cipher in NIKUD_CIPHERS else ""
 
-# ⚠️ Attested in Tanach, Chazal or ספר יצירה — the genuinely early methods, and
-# the app's own Guide sources are the test. Standard is the 29th middah
-# (סנהדרין ל״ח); Atbash is שֵׁשַׁךְ=בָּבֶל in ירמיהו, explicit in סנהדרין כ״ב, and
-# its pairs are worked in שבת ק״ד ע״א; Atbach is R' Chiya in סוכה נ״ב; Albam is
-# given whole in that same שבת ק״ד sugya; Gadol's 500-900 values are used by
-# Rashi on סוכה נ״ב, whose third tier of אטב"ח pairs only reaches a thousand if
-# the finals carry them.
+# ⚠️ Attested in Tanach or Chazal — the genuinely early methods, and the app's
+# own Guide sources are the test. Standard is used throughout the gemara;
+# Atbash is שֵׁשַׁךְ=בָּבֶל in ירמיהו; Gadol's 500-900 values are used by rishonim
+# calculating אטב"ח in סוכה נב:; Atbach is ר׳ חייא in סוכה נב:.
 #
-# ⚠️ This used to cite ספר יצירה ב׳:ב׳ for "the 27-letter sequence Gadol needs".
-# That was wrong: ספר יצירה says עשרים ושתים אותיות in every verse of chapter 2
-# and never assigns numeric values to letters at all. Do not reinstate it.
+# שבת קד. is the key page: the children's derashos there work THREE of these
+# ciphers in one sugya — Atbash (104a:10-11), Achas Beta (104a:12) and Albam
+# (104a:13) — each matching our implementation exactly.
 #
-# Siduri and AchasBeta used to sit in this group and do NOT belong: both are
-# פרדס רימונים (1548). Siduri's own Guide row concedes that letter-position
-# counting is only "implicit" in Chazal, which is plausibility, not attestation.
+# ⚠️ Two corrections that were verified against the primary texts, so do not
+# reinstate either: this used to cite ספר יצירה ב׳:ב׳ for "the 27-letter
+# sequence Gadol needs" (ספר יצירה says עשרים ושתים אותיות in every verse of
+# chapter 2 and never assigns numeric values at all), and it used to place
+# AchasBeta outside this group as פרדס רימונים provenance (it is on שבת קד.,
+# some 1,300 years earlier).
+#
+# Siduri is deliberately NOT here: its own Guide row concedes that
+# letter-position counting is only "implicit" in Chazal, which is
+# plausibility, not attestation.
 TALMUD_CIPHERS: List[str] = [
-    "Standard", "Gadol", "Atbash", "Albam", "Atbach",
+    "Standard", "Gadol", "Atbash", "Albam", "AchasBeta",
+    # The two Atbach girsaos sit together: they are one method with a disputed
+    # letter count, and splitting them put twelve unrelated rows between them.
+    "Atbach", "AtbachMaharshal",
 ]
 
 # Later than Chazal but in common use, so they still lead the rest. Katan is
@@ -1062,11 +1133,10 @@ BASIC_CIPHERS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS
 _DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     # Core values — the remaining whole-number methods.
     "KatanMispari", "Mispari", "MispariHaGadol",
-    # Substitution — the rest of the letter-swap ciphers. AchasBeta sits here
-    # rather than in the lead group: it is פרדס רימונים (1548), the same
-    # provenance as Avgad's neighbours, not Talmudic.
-    "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar", "AchasBeta",
-    "AtbachMaharshal",
+    # Substitution — the rest of the letter-swap ciphers. Atbash, Albam,
+    # Achas Beta and both Atbach girsaos are in the lead group instead: the
+    # first three are all given in the one sugya at שבת קד.
+    "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar",
     # Positional — value depends on where the letter sits.
     "ReverseOrdinal", "Ribua", "Kidmi", "Achorayim", "HaMerubahKlali",
     # Letter-name — the Milui family and its Maleh variants.
@@ -1163,7 +1233,7 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Albam":           "Albam — אלב\"ם",
     "Achbi":           "Achbi — אכב\"י",
     "Atbach":          "Atbach — אטב\"ח",
-    "AtbachMaharshal": "Atbach (22) — אטב\"ח בכ\"ב אותיות",
+    "AtbachMaharshal": "Atbach (Rabbeinu Chananel) — אטב\"ח דרבינו חננאל",
     "Avgad":           "Avgad — אבג\"ד",
     "Agdat":           "Agdat — אגד\"ת",
     "ReverseAvgad":    "Reverse Avgad — אבג\"ד הפוך",
@@ -1210,28 +1280,28 @@ for _k in range(1, 22):
 # worked example only where the rule is hard to picture without one. Every
 # number in these strings is verified against the implementation.
 CIPHER_BLURB: Dict[str, str] = {
-    "Standard":        "Standard values — א=1, ב=2 … י=10, כ=20 … ת=400. Summed.",
-    "Katan":           "Reduced values — drop trailing zeros (ק→1, מ→4), then sum.",
+    "Standard":        "Sum of the traditional letter values. Final letters count as their base letters.",
+    "Katan":           "Reduced values: drop trailing zeros (ק→1, מ→4), then sum.",
     "Gadol":           "Like Standard but finals count higher: ך=500 … ץ=900.",
     "Siduri":          "Ordinal position: א=1, ב=2 … ת=22. Sequence, not Standard value.",
     "ReverseOrdinal":  "Reverse ordinal: ת=1, ש=2 … א=22.",
     "Ribua":           "Square each letter's Standard value, then sum: דוד = 4²+6²+4² = 68.",
     "HaMerubahKlali":  "Sum the Standard values first, then square the total: דוד = 14² = 196. "
-                       "It always finds the same matches as Standard — its use is in Cross-method matches.",
+                       "It always finds the same matches as Standard; its use is in Cross-method matches.",
     "Kidmi":           "Cumulative sum of Standard values: each letter = Σ Standard values from א up to it. א=1, ב=3, ג=6 … ת=1495.",
     "KatanMispari":    "Sum all Standard values first; then reduce to a single digital root.",
     # "Lurianic" was the last source name left, but it is doing real work here:
     # it says WHICH spelling table, and אלף vs אלפ is a different value. Kept as
     # a plain statement of the spelling used rather than as an attribution.
     "Milui":           "Spell each letter's full name and sum those letters: א=אלף=111, ד=דלת=434.",
-    "Neelam":          "Like Milui but drop the first letter of each name — only the hidden remainder.",
+    "Neelam":          "Like Milui but drop the first letter of each name, leaving only the hidden remainder.",
     "Emtzaiyot":       "Middle letter: Standard value of the second letter of each Milui name (2-letter spellings). אלף→ל=30, בית→י=10 …",
     "Ofanim":          "Replace each letter with the last letter of its Milui name, take Standard value.",
     # The vowel-mark four. The full value tables are in the Guide; here just say
     # what is counted and what is not — the old versions listed all nine marks
     # and all three chatafim inline, which is a table pretending to be a
     # sentence. The dagesh note stays: it is the one thing readers query.
-    "HaNekudot":        "Counts the vowel marks by shape — each dot=10, each line=6. "
+    "HaNekudot":        "Counts the vowel marks by shape: each dot=10, each line=6. "
                         "Kamatz=16, Patah=6, Segol=30. The dagesh is not a vowel and scores 0; "
                         "consonants and ta'amim count 0 too.",
     "ImHaNekudot":      "Standard values of the letters plus HaNekudot of their vowel marks.",
@@ -1242,24 +1312,24 @@ CIPHER_BLURB: Dict[str, str] = {
     "NeelAmMaleh":      "Neelam using Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Other letters unchanged.",
     "EmtzaiyotMaleh":   "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
-    "Albam":           "Swap each letter with the one 11 places on: א↔ל, ב↔מ … then Standard values.",
+    "Albam":           "Split the 22 letters into two halves of 11 and swap across: א↔ל, ב↔מ … then Standard values.",
     "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
     # ⚠️ ה↔נ is the part readers query — it looks like a bug without the note.
     "Atbach":          "Pairs summing to 10, 100 and 1000: א↔ט, ב↔ח · י↔צ, כ↔פ · "
                        "ק↔ץ, ר↔ף, ש↔ן, ת↔ם, the finals valued 500–900. ה and נ "
                        "have no partner in their tier so they take each other; "
                        "ך is left over.",
-    "AtbachMaharshal": "The 22-letter list of Rabbeinu Chananel: the hundreds "
+    "AtbachMaharshal": "The 22-letter list of רבינו חננאל: the hundreds "
                        "pair to 500 (ק↔ת, ר↔ש) and a final form counts as "
                        "its base letter. ה and נ still take each other.",
     "Avgad":           "Each letter moves on one: א→ב … and ת wraps round to א. Then Standard values.",
     "Agdat":           "Each letter moves on two: א→ג … and ת wraps round to ב. Then Standard values.",
     "ReverseAvgad":    "Each letter moves back one: ב→א … and א wraps round to ת. Then Standard values.",
-    "AyakBachar":      "Three rows of nine — units, tens, hundreds — each letter moving to the next row: א→י→ק→א, ב→כ→ר→ב …",
+    "AyakBachar":      "Three rows of nine (units, tens, hundreds), each letter moving to the next row: א→י→ק→א, ב→כ→ר→ב …",
     # ⚠️ "ת is unchanged" put an English clause directly after a Hebrew letter,
     # and the RTL run swallowed the boundary — it read as if the clause attached
     # to ס-ש. Naming the letter LAST keeps the sentence ending in LTR text.
-    "AchasBeta":       "Three groups of seven — א-ז, ח-נ, ס-ש — each letter moving to the next group. ת stands outside and never changes.",
+    "AchasBeta":       "Three groups of seven (א-ז, ח-נ, ס-ש), each letter moving to the next group. ת stands outside and never changes.",
     "Achorayim":       "Write the word out progressively and sum the rows: חבד = 8 + (8+2) + (8+2+4) = 32. Resets per word.",
     "HaMeugal":        "Sum as Standard, then count thousands as units: 1080 becomes 80 + 1 = 81.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum that word: י=10→עשרה=575.",
@@ -5968,6 +6038,64 @@ def run_app() -> None:
             "Talmudic or later."
         )
 
+        def _guide_table(rows):
+            """Render the Guide table with every Hebrew run bidi-isolated.
+
+            ⚠️ st.table escapes HTML, so a cell mixing English, Hebrew and
+            punctuation lays out as ONE bidi paragraph: a dot or colon at a
+            Hebrew/Latin boundary drifts to the wrong end, so `נדה לח:` renders
+            as `:נדה לח` and citation lists come out shuffled.
+
+            SIX text-level fixes were tried and all failed, verified against
+            real browser screenshots (the DOM string does NOT show the
+            reordering, so a text assertion proves nothing): trailing U+200E
+            LRM, U+2066/U+2069 isolates, number-first "1 = א", CSS
+            unicode-bidi:isolate on the cell, reordering the citation list, and
+            describing values in prose.
+
+            What works: wrap each Hebrew run in <span dir="rtl"> with
+            white-space:nowrap. The nowrap matters -- an RTL span that WRAPS
+            across lines is split visually and the order breaks again. Needs
+            escape=False, hence rendering the frame here rather than st.table.
+
+            Automatic, so all 38 rows are covered and any new row is too.
+            """
+            import html as _h
+            # A Hebrew run plus the punctuation INSIDE it (gershayim, daf
+            # dot/colon). A space joins the run only when Hebrew follows --
+            # swallowing the spaces that separate Hebrew from English would glue
+            # the words together. Commas are excluded so each citation in a list
+            # becomes its own span.
+            _heb = re.compile(
+                "[֐-׿]"
+                "(?:[֐-׿׳״\"'’.:]"
+                "|[ ](?=[֐-׿]))*")
+
+            def _wrap(val):
+                out, last = [], 0
+                for mm in _heb.finditer(val):
+                    a, b = mm.span()
+                    out.append(_h.escape(val[last:a]))
+                    out.append('<span dir="rtl">%s</span>' % _h.escape(val[a:b]))
+                    last = b
+                out.append(_h.escape(val[last:]))
+                return "".join(out)
+
+            df = pd.DataFrame(rows)
+            for col in ("Hebrew", "Rule", "Source"):
+                if col in df.columns:
+                    df[col] = df[col].map(_wrap)
+            st.markdown(
+                "<style>.gtbl span[dir=rtl]{white-space:nowrap}"
+                ".gtbl table{width:100%;border-collapse:collapse}"
+                ".gtbl td,.gtbl th{padding:6px 10px;vertical-align:top;"
+                "border-bottom:1px solid rgba(128,128,128,.25);text-align:left}"
+                "</style>"
+                '<div class="gtbl">'
+                + df.to_html(escape=False, index=False, border=0)
+                + "</div>",
+                unsafe_allow_html=True)
+
         with st.expander(f"The {N_CIPHERS} gematria methods"):
             st.caption(
                 f"These {N_CIPHERS} are the methods implemented here, not a complete "
@@ -5979,7 +6107,7 @@ def run_app() -> None:
             # Atbash at row 21; sorting here keeps the Guide in step with every
             # other list in the app automatically, so adding a method in any
             # position still lands it in the right place.
-            st.table(pd.DataFrame(sorted([
+            _guide_table(sorted([
                 {"Method": "Standard",
                  "Hebrew": "מספר הכרחי (Mispar Hechrachi)",
                  "Rule": "Sum of the traditional letter values. Final letters are the same as their base letters: ם ן ץ ף ך = מ נ צ פ כ",
@@ -5987,7 +6115,7 @@ def run_app() -> None:
                 {"Method": "Katan",
                  "Hebrew": "מספר קטן (Mispar Katan)",
                  "Rule": "Reduce each letter to its significant digit (drop trailing zeros: ק=1, מ=4), then sum.",
-                 "Source": "חסידי אשכנז (12th–13th c.); brought in ספר גימטריאות, attributed to R' Yehuda haChassid (d. 1217). The Remak notes at פרדס רימונים שער ל׳ פרק ח׳ that מספר קטן is what most call this reduction — his own first method under that heading is מספר המעוגל, the wraparound."},
+                 "Source": "ספר גימטריאות, מחסידי אשכנז"},
                 {"Method": "Gadol",
                  "Hebrew": "מספר גדול (Mispar Gadol)",
                  "Rule": "Like Standard, but the five final letters (ך ם ן ף ץ) carry their own higher values, from 500 up to 900.",
@@ -5995,76 +6123,76 @@ def run_app() -> None:
                 {"Method": "KatanMispari",
                  "Hebrew": "קטן מספרי (Mispar Katan Mispari)",
                  "Rule": "Sum all Standard values first; then iteratively reduce the grand total to a single digit (digital root). Differs from Katan, which reduces each letter before summing.",
-                 "Source": "Brought in פרדס רימונים (שער ל׳)."},
+                 "Source": ""},
                 {"Method": "Siduri",
                  "Hebrew": "מספר סידורי (Mispar Siduri)",
-                 "Rule": "Ordinal position: א=1, ב=2 … ת=22. Sequence, not standard value.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳), the Remak (1548). Letter-position counting is already implicit in שבת ק״ד ע״א."},
+                 "Rule": "Count letters by their position in the alphabet, first through twenty-second, and sum. Sequence, not standard value.",
+                 "Source": ""},
                 {"Method": "ReverseOrdinal",
                  "Hebrew": "מספר אחור סידורי (Reverse Ordinal)",
-                 "Rule": "Reverse alphabetical index: ת=1, ש=2, ר=3 … א=22. The inverse of Siduri.",
-                 "Source": "חסידי אשכנז (12th–13th c.); brought in ספר רזיאל המלאך."},
+                 "Rule": "Count letters by position from the end of the alphabet, ת first through א twenty-second, and sum.",
+                 "Source": ""},
                 {"Method": "Ribua",
                  "Hebrew": "מספר מרובע / פרטי (Mispar Meruba Prati)",
-                 "Rule": "Square each individual letter's Standard value, then sum all squares (Σ vᵢ² — per letter, not the total squared).",
-                 "Source": "Used widely by the בעל הטורים (R' Yaakov ben Asher, 14th c.) in his peirush on the Torah. Also in פרדס רימונים (שער ל׳)."},
+                 "Rule": "Square each individual letter's Standard value, then sum all squares (Σ vᵢ², per letter, not the total squared).",
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר המרובע הפרטי. משמש הרבה בבעל הטורים"},
                 {"Method": "HaMerubahKlali",
                  "Hebrew": "מספר המרובע הכללי (Mispar HaMerubah HaKlali)",
                  "Rule": "The entire Standard sum squared as one integer: (Σv)². Unlike Ribua, which squares per letter. "
                          "Searching it alone returns the same matches as Standard; its use is in Cross-method matches.",
-                 "Source": "פרדס רימונים ל׳:ה׳ — אחס בטע גיף דכץ הלק ומר … זנשת — matching this implementation."},
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר המרובע הכללי"},
                 {"Method": "Kidmi",
                  "Hebrew": "מספר קדמי (Mispar Kidmi / HaKadmon)",
                  "Rule": "Cumulative prefix sum of Standard values: each letter's value = Σ Standard values from א up to and including it. א=1, ב=3, ג=6, ד=10 … ת=1495.",
-                 "Source": "Laid out in פרדס רימונים (שער ל׳, פרק ח׳) by the Remak (1548)."},
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר הקדמי"},
                 {"Method": "Milui",
                  "Hebrew": "מילוי / מספר שמי (Mispar Milui)",
                  "Rule": "Spell each letter's full name as a Hebrew word, then sum Standard values of all spelling letters. א=אלף=111, ב=בית=412, ח=חית=418 …",
-                 "Source": "Used in the Zoharic ספרא דצניעותא. פרדס רימונים, שער ל׳ (the Remak, 1548)."},
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר שמיי. מובא בספרא דצניעותא"},
                 {"Method": "Neelam",
-                 "Hebrew": "נעלם (Mispar Neelam — Hidden)",
-                 "Rule": "Like Milui, but drop the first letter of each spelling — only the hidden remainder counts. א→לף=110, ח→ית=410 …",
-                 "Source": "פרדס רימונים (שער הגימטריאות, שער ל׳, the Remak, 1548)."},
+                 "Hebrew": "נעלם (Mispar Neelam, Hidden)",
+                 "Rule": "Like Milui, but drop the first letter of each spelling, only the hidden remainder counts. א→לף=110, ח→ית=410 …",
+                 "Source": ""},
                 {"Method": "Emtzaiyot",
-                 "Hebrew": "אמצעיות (Emtzaiyot — Middle Letters)",
-                 "Rule": "Standard value of the second letter of each letter's Milui name. Uses the 2-letter spellings of the Arizal: אלף→ל=30, בית→י=10. ה (הא) and פ (פא) have two-letter names, so the second letter is also the last — for these the value matches Ofanim.",
-                 "Source": "The Arizal's letter-name spellings; brought in ספר רזיאל המלאך."},
+                 "Hebrew": "אמצעיות (Emtzaiyot, Middle Letters)",
+                 "Rule": "Standard value of the second letter of each letter's Milui name. Uses the 2-letter spellings of the Arizal: אלף→ל=30, בית→י=10. ה (הא) and פ (פא) have two-letter names, so the second letter is also the last, for these the value matches Ofanim.",
+                 "Source": ""},
                 {"Method": "Ofanim",
-                 "Hebrew": "אופנים (Ofanim — Wheels)",
+                 "Hebrew": "אופנים (Ofanim, Wheels)",
                  "Rule": "Replace each letter with the final letter of its Milui name spelling, take Standard value.",
-                 "Source": "ספר רזיאל המלאך."},
+                 "Source": ""},
                 {"Method": "HaNekudot",
                  "Hebrew": "מספר הנקודות (Mispar HaNekudot)",
                  "Rule": "Each vowel mark scored by its shape: every dot=10, every line=6. Sheva=20, Patah=6, Kamatz=16, Hiriq=10, Tsere=20, Segol=30, Holam=10, Kubutz=30, Shuruk=10. The chatafim are a sheva plus their base vowel: chataf patah=26, chataf kamatz=36, chataf segol=50. The dagesh, taamim and the shin/sin dot are not nekudos and score 0.",
-                 "Source": "תיקוני הזהר תיקון ע׳: a dot is a yud, a line is a vav (נקודה איהי י׳, וקוא איהו ו׳). The shapes of the nekudos are in פרדס רימונים שער כ״ח (שער הנקודות) פרק א׳, where the Remak names the chatafim as שבא קמץ, שבא פתח, שבא סגול. עץ חיים שער ה׳ excludes the dagesh: דגש ורפה אינם לא טעמים ולא נקודות ולא תגין."},
+                 "Source": "תיקוני הזהר תיקון ע׳, נקודה איהי י׳ וקוא איהו ו׳. צורות הנקודות בפרדס רימונים כ״ח:א׳. עץ חיים שער ה׳ ממעט את הדגש"},
                 {"Method": "ImHaNekudot",
-                 "Hebrew": "עם הנקודות (Im HaNekudot — With the Vowels)",
+                 "Hebrew": "עם הנקודות (Im HaNekudot, With the Vowels)",
                  "Rule": "Standard gematria of the consonants plus HaNekudot value of the vowel marks. Combines consonant totals with vowel-mark geometric values in a single sum.",
-                 "Source": "פרדס רימונים (the Remak, 1548), שער הגימטריאות (שער ל׳), פרק ח׳."},
+                 "Source": "Combination of Standard and מספר הנקודות. פרדס רימונים ל׳:ח׳"},
                 {"Method": "MiluiNekudot",
                  "Hebrew": "מילוי הנקודות (Mispar Milui HaNekudot)",
-                 "Rule": "Standard gematria of each vowel mark's Hebrew name. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. The chatafim are named as the Remak names them, a sheva with their base vowel: חטף פתח=791, חטף קמץ=533, חטף סגול=402.",
-                 "Source": "גנת אגוז (1274), from the מקובל ר׳ יוסף ג׳יקטיליה — better known as the שערי אורה — in the section on the sod of the nekudos. The spellings used here are the Remak's in פרדס רימונים שער כ״ח."},
+                 "Rule": "Standard gematria of each vowel mark's Hebrew name. שבא=303, חירק=318, צירי=310, סגול=99, פתח=488, קמץ=230, חולם=84, קובוץ=204, שורק=606. The chatafim are named as the רמ\"ק names them, a sheva with their base vowel: חטף פתח=791, חטף קמץ=533, חטף סגול=402.",
+                 "Source": "גנת אגוז לר׳ יוסף ג׳יקטיליה, בעל שערי אורה. האיותים כאן כרמ״ק בפרדס רימונים שער כ״ח"},
                 {"Method": "ImMiluiNekudot",
                  "Hebrew": "עם מילוי הנקודות (Im Milui HaNekudot)",
                  "Rule": "Standard gematria of the consonants plus Milui HaNekudot (vowel-mark name values). Combines the two layers: consonant totals + gematria of each vowel mark's name.",
-                 "Source": "Combines the מילוי הנקודות of גנת אגוז (1274) with the Remak's עם הנקודות (פרדס רימונים, 1548). No single source gives this exact combination."},
+                 "Source": "Combination of Standard and מילוי הנקודות"},
                 {"Method": "MiluiImMiluiNekudot",
                  "Hebrew": "מילוי עם מילוי הנקודות (Milui Im Milui HaNekudot)",
                  "Rule": "Both layers spelled out: the gematria of each letter's full name, plus the gematria of each vowel mark's name. אָב = אלף(111)+בית(412) + קמץ(230) = 753. The same idea as עם מילוי הנקודות, but with the letters filled out instead of counted plainly.",
-                 "Source": "⚠️ No single classical source gives this combination. It pairs the Remak's letter מילוי (פרדס רימונים שער ל׳) with the מילוי הנקודות of גנת אגוז (1274) — both attested individually, combined here as the מילוי counterpart of עם מילוי הנקודות, which is itself the same kind of combination."},
+                 "Source": "Combination of מילוי and מילוי הנקודות"},
                 {"Method": "MiluiMaleh",
-                 "Hebrew": "מילוי מלא (Milui Maleh — Full Filling)",
+                 "Hebrew": "מילוי מלא (Milui Maleh, Full Filling)",
                  "Rule": "Like Milui, but uses the Maleh (מלא) 3-letter spellings for כ and מ: כ=כאף=101, מ=מאם=81. All other letter spellings are identical to standard Milui.",
-                 "Source": "kisvei haAri (cf. שער הכוונות) and Sephardic sources, following the scribal tradition of כתיב מלא and כתיב חסר."},
+                 "Source": "כתבי האר״י, עיין שער הכוונות"},
                 {"Method": "NeelAmMaleh",
-                 "Hebrew": "נעלם מלא (Neelam Maleh — Full Hidden)",
+                 "Hebrew": "נעלם מלא (Neelam Maleh, Full Hidden)",
                  "Rule": "Like Neelam, but with Maleh 3-letter spellings: כ→אף=81, מ→אם=41. Reveals an additional Alef hidden inside each of these letters.",
-                 "Source": "The maleh spellings of מילוי מלא (kisvei haAri) applied to the נעלם."},
+                 "Source": "כתבי האר״י, שיטת המילוי מלא"},
                 {"Method": "EmtzaiyotMaleh",
-                 "Hebrew": "אמצעיות מלא (Emtzaiyot Maleh — Full Middle)",
+                 "Hebrew": "אמצעיות מלא (Emtzaiyot Maleh, Full Middle)",
                  "Rule": "Like Emtzaiyot, but with Maleh 3-letter spellings. Both כ (כאף) and מ (מאם) now yield א=1 as their inner letter, fully distinct from their Ofanim value. אלף→ל=30, בית→י=10, כאף→א=1, מאם→א=1.",
-                 "Source": "The maleh spellings of מילוי מלא (kisvei haAri) applied to אמצעיות."},
+                 "Source": "כתבי האר״י, שיטת המילוי מלא"},
                 {"Method": "Atbash",
                  "Hebrew": "אתב\"ש (At-Bash)",
                  "Rule": "Mirror the alphabet, then take Standard values of the swapped letters: א↔ת, ב↔ש, ג↔ר",
@@ -6072,92 +6200,81 @@ def run_app() -> None:
                 {"Method": "Albam",
                  "Hebrew": "אלב\"ם (Al-Bam)",
                  "Rule": "Split the 22 letters into two halves of 11 and swap across: א↔ל, ב↔מ, ג↔נ …",
-                 "Source": "שבת ק״ד ע״א gives the whole cipher in the children’s derashah: א״ל ב״ם ג״ן ד״ס — להיכן אוליכן, לגן הדס; ה״ע ו״ף … ז״ץ ח״ק … ט״ר י״ש כ״ת. All eleven pairs match this implementation exactly. Tabulated at פרדס רימונים ל׳:ה׳."},
+                 "Source": "שבת קד. פרדס רימונים ל׳:ה׳"},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
                  "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
-                 "Source": "Set out as a grid in ספר רזיאל המלאך; brought by the Radal on פרקי דרבי אליעזר."},
+                 "Source": ""},
 
                 {"Method": "Atbach",
-                 "Hebrew": "מספר אטב\"ח (Mispar Atbach) — בכ\"ז אותיות",
-                 "Rule": "Each letter is replaced by the one completing its tier to 10, 100 or 1000: א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ץ, ר↔ף, ש↔ן, ת↔ם, the final forms valued 500–900. ה and נ are left with no partner in their own tier, so they take each other. ⚠️ ך is left over too, and the sources do not settle what it does — the Maharsha calls all three mutually interchangeable but demonstrates only ה↔נ, while the Maharshal objects that ך is stranded. It is scored as itself here.",
-                 "Source": "From R' Chiya (late 2nd/early 3rd c. CE): בְּאַטְבַּ\"ח שֶׁל רַבִּי חִיָּיא, קוֹרִין לְסָהֲדָה מָנוֹן — סוכה נ״ב ע״ב. The 27-letter tiers are set out in ספר הערוך (ערך אטבח): אט בח גז דו יצ כפ לע מס קץ רף שן תם, כת שלישית אלף אלף, ישארו ה נ ך שאין לה זוגות — and this is what is printed in our Rashi. The Maharsha (חדושי אגדות שם) reads the same way. ⚠️ On the sugya’s own word this yields סהדש rather than סהדה, since the final ן is a 700-letter paired with ש. The Maharsha raises exactly that and leaves it צריך עיון; the Aruch LaNer answers that the verse’s word is סהדה and the ן of מנון is only how a נ is written at a word’s end. See the 22-letter row for the other girsa."},
+                 "Hebrew": "אטב\"ח (Atbach)",
+                 "Rule": "Each letter pairs with the one completing its tier to 10, 100 or 1000: א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ץ, ר↔ף, ש↔ן, ת↔ם. ה and נ have no partner in their tier and take each other; ך is left over and scored as itself.",
+                 "Source": "סוכה נב:, אטב\"ח של ר׳ חייא. עיין רש\"י, ספר הערוך ערך אטבח, ומהרש\"א שם"},
 
                 {"Method": "AtbachMaharshal",
-                 "Hebrew": "מספר אטב\"ח (Mispar Atbach) — בכ\"ב אותיות",
-                 "Rule": "The same tiers on 22 letters only: a final form counts as its base letter, so the hundreds have just four members and pair to 500 — א↔ט, ב↔ח, ג↔ז, ד↔ו · י↔צ, כ↔פ, ל↔ע, מ↔ס · ק↔ת, ר↔ש. That leaves ה and נ as the only unpaired letters in the whole alphabet, and they take each other. Reproduces the sugya directly: מנון → סהדה.",
-                 "Source": "רבינו חננאל על סוכה נב: א\"ט ב\"ח ג\"ז ד\"ו י\"צ כ\"ף ל\"ע מ\"ס ק\"ת ר\"ש — no sofios, the hundreds pairing to five hundred. The Maharshal (חכמת שלמה שם) holds the same list is Rashi’s girsa בספרים מדויקים, and that the 27-letter version printed in our Rashi is the Aruch’s explanation rather than his."},
+                 "Hebrew": "אטב\"ח דרבינו חננאל (Atbach, Rabbeinu Chananel)",
+                 "Rule": "The same as אטב\"ח but without the final letters. ה and נ are the only unpaired letters and are interchanged.",
+                 "Source": "סוכה נב:, עיין רבינו חננאל ומהרש\"ל בחכמת שלמה שם"},
                 {"Method": "Avgad",
                  "Hebrew": "אבג\"ד (Av-Gad / Abgad)",
-                 "Rule": "+1 cyclic shift: א→ב, ב→ג … ת→א. Then Standard values of the shifted letters. Also known as Mispar Ha'Ahari (next-letter value).",
-                 "Source": "Brought in טעם זקנים (R' Eliezer Ashkenazi). ⚠️ Not verified against the sefer — טעם זקנים is not available in the corpus searched here. The one-place shift is distinct from the אלפא ביתא הישר at פרדס רימונים ל׳:ה׳, which pairs letters (א↔ב, ג↔ד) rather than rotating them."},
+                 "Rule": "Each letter moves on one: א→ב, ב→ג, and ת wraps round to א. Then Standard values.",
+                 "Source": "טעם זקנים לר׳ אליעזר אשכנזי. Note: not verified here"},
                 {"Method": "Agdat",
                  "Hebrew": "אגד\"ת (Ag-Dat)",
-                 "Rule": "+2 cyclic shift: א→ג, ב→ד … ש→א, ת→ב. Then Standard values of the shifted letters.",
-                 "Source": "The two-place shift, companion to אבג\"ד. ⚠️ No source located for it under this name. פרדס רימונים ל׳:ה׳ has an אג דת line, but that is the third of the רל״א gates — a pairing cipher (א↔ג, ד↔ת), not this rotation."},
+                 "Rule": "Each letter moves on two: א→ג, ב→ד, and ש, ת wrap round to א, ב. Then Standard values.",
+                 "Source": ""},
                 {"Method": "ReverseAvgad",
                  "Hebrew": "אבג\"ד הפוך (Reverse Avgad)",
-                 "Rule": "−1 cyclic shift: Bet→Alef, Gimel→Bet … Alef wraps to Tav. Opposite of Avgad.",
-                 "Source": "R' Eliezer Ashkenazi, טעם זקנים."},
+                 "Rule": "Each letter moves back one: ב→א, ג→ב, and א wraps round to ת. Then Standard values.",
+                 "Source": "טעם זקנים לר׳ אליעזר אשכנזי. Note: not verified here"},
                 {"Method": "AyakBachar",
                  "Hebrew": "אי\"ק בכ\"ר (Ayak Bachar)",
                  "Rule": "3×9 cyclic rotation across units/tens/hundreds columns: א→י→ק→א, ב→כ→ר→ב … ט→צ→ץ→ט.",
-                 "Source": "תיקוני הזהר (תיקון כ״א). The grid is set out at פרדס רימונים ל׳:ה׳ — איק בכר גלש דמת הנך וסם זען חפף טצץ — and matches this implementation exactly."},
+                 "Source": "תיקוני הזהר תיקון כ״א. הרשימה בפרדס רימונים ל׳:ה׳"},
                 {"Method": "AchasBeta",
                  "Hebrew": "אח\"ס בט\"ע (Achas Beta)",
                  "Rule": "22 letters in three blocks of 7/7/7 cycle positionally; ת stands outside and is invariant.",
-                 "Source": "פרדס רימונים (the Remak, שער ל׳)."},
+                 "Source": "שבת קד. עיין גם פרדס רימונים ל׳:ה׳ וספר רזיאל המלאך"},
                 {"Method": "Achorayim",
                  "Hebrew": "מספר האחוריים (Mispar HaAchorayim)",
-                 "Rule": "Write the word out progressively — א, אב, אבג … — and sum the rows. חבד = 8 + (8+2) + (8+2+4) = 32. Resets at each word boundary.",
-                 "Source": "ספר עץ חיים ל״ד:ב׳ gives the אחוריים of the Havayah as ע״ב: י=10, יה=15, יהו=21, יהוה=26, together 72. שער הפסוקים (וישלח) counts the letters of the filled אחוריים as ק״ב for the four Havayot and ע״ח for three אהי״ה, ק״פ together — which this same expansion reproduces exactly."},
+                 "Rule": "Write the word out progressively, א, אב, אבג …, and sum the rows. חבד = 8 + (8+2) + (8+2+4) = 32. Resets at each word boundary.",
+                 "Source": "ספר עץ חיים ל״ד:ב׳, אחוריים דהויה. עיין שער הפסוקים וישלח"},
                 {"Method": "HaMeugal",
                  "Hebrew": "מספר המעוגל הכללי (Mispar HaMeugal HaKlali)",
-                 "Rule": "Sum as Standard, then count thousands as units — \"the turning of the wheel\". 1080 becomes 80 + 1 = 81. Distinct from מספר קטן, which reduces each letter before summing.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) פרק ח׳ §1 — the Remak's own first method: 'בחזרת הגלגל ר\"ל שהאלפים אינם נחשבים אלא כאחדים כגון חמשה פעמים רי\"ו שעולים אנכ\"י'. He records that many call this מספר קטן, and that the Rashbi calls it חשבן זעיר דחנוך."},
+                 "Rule": "Sum as Standard, then count thousands as units, \"the turning of the wheel\". 1080 becomes 80 + 1 = 81. Distinct from מספר קטן, which reduces each letter before summing.",
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר המעוגל הכללי, הראשון שברשימת הרמ״ק"},
                 {"Method": "Mispari",
                  "Hebrew": "מספר המספריי (Mispar HaMispari)",
-                 "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words. י=10→עשרה=575; ה=5→חמשה=353; א=1→אחד=13. Follows the Remak's own masculine spellings.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §8 — the Remak (1548)."},
+                 "Rule": "Spell each letter's Standard value as a Hebrew number-word, then sum the values of those words: י=10→עשרה=575; ה=5→חמשה=353. Uses the masculine spellings.",
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר המספריי"},
                 {"Method": "MispariHaGadol",
                  "Hebrew": "מספריי הגדול (Mispar HaMispari HaGadol)",
-                 "Rule": "Spell each letter's MILUI total as a Hebrew number-word, then sum those words' values. י→יוד=20→עשרים=620; א→אלף=111→מאה ואחד עשר.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §9 — the Remak (1548): 'יו\"ד במילואו עשרים, ועשרים בגימט' כתר'. He brings it on a single letter as a remez, and spells only that one number, so the compound spellings here are reconstructed."},
+                 "Rule": "Spell each letter's Milui total as a Hebrew number-word, then sum those words' values: י→יוד=20→עשרים=620. The compound number-words are reconstructed.",
+                 "Source": "פרדס רימונים ל׳:ח׳, מספריי הגדול"},
                 {"Method": "KololEhad",
-                 "Hebrew": "כולל (Kolel — Word)",
+                 "Hebrew": "כולל (Kolel, Word)",
                  "Rule": "Standard total + 1. The word counted as one additional unit. Standard ±1 adjustment to link words differing by one.",
-                 "Source": "בעל הטורים (R' Yaakov ben Asher, 14th c.). Defined in פרדס רימונים, שער הגימטריאות (שער ל׳) §4 as the second half of מספר מוספי — 'או המלה עצמה', or the word itself."},
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר מוספי. משמש הרבה בבעל הטורים"},
                 {"Method": "KololOtiyot",
-                 "Hebrew": "כולל אותיות (Kolel — Letters / Mispar Musafi)",
+                 "Hebrew": "כולל אותיות (Kolel, Letters / Mispar Musafi)",
                  "Rule": "Standard total + letter count. Each letter adds 1 beyond its gematria value. Also called Mispar Musafi.",
-                 "Source": "פרדס רימונים, שער הגימטריאות (שער ל׳) §4, the Remak (1548): 'מספר מוספי הוא שמוסיפין האותיות מן המלה על המספר או המלה עצמה'."},
+                 "Source": "פרדס רימונים ל׳:ח׳, מספר מוספי"},
                 # ONE row for all 21 gates. They share a single rule and a
                 # single source, so 21 near-identical rows would bury the named
                 # methods without adding anything. Atbash keeps its own row
                 # above: it is the one gate with independent standing in Tanach
                 # and Shas, and readers look for it by name, not as "gate 22".
-                {"Method": "Gate01",
+                {"Method": "The 231 Gates",
                  "Hebrew": "כ\"ב אלפא ביתות / רל\"א שערים (the 231 Gates)",
                  "Rule": "22 alphabets, each pairing the letters up a different "
                          "way. Every letter swaps with its partner, then the "
                          "values are added as usual. Each gate's own pairs are "
-                         "shown beside it. Listed here as Gate 1 – Gate 21; "
+                         "shown beside it. Listed here as Gate 1 - Gate 21; "
                          "Gate 22 is Atbash, which has its own row above.",
-                 "Source": "ספר יצירה ב׳:ד׳ — the 22 letters are set in a wheel "
-                           "of רל\"א שערים, 231 gates. All 22 alphabets are "
-                           "printed at פרדס רימונים ל׳:ה׳, and the Remak "
-                           "explains the number: רל\"א שערים מפני שהם רל\"א "
-                           "זוגות — because they make 231 pairs, which is every "
-                           "possible pairing of two letters. ⚠️ 12 of the 22 "
-                           "printed tables have letters garbled in the "
-                           "typesetting — they repeat one letter and drop "
-                           "another, so they cannot be read as they stand. The "
-                           "tables used here follow the rule the Remak's own "
-                           "count implies, which reproduces 10 of the 22 "
-                           "printed rows exactly."}
+                 "Source": "ספר יצירה ב׳:ד׳, כ\"ב אותיות קבועות בגלגל ברל\"א שערים. הרשימה בפרדס רימונים ל׳:ה׳"}
             ], key=lambda r: (CIPHER_DISPLAY_ORDER.index(r["Method"])
                               if r["Method"] in CIPHER_DISPLAY_ORDER
-                              else len(CIPHER_DISPLAY_ORDER)))))
+                              else len(CIPHER_DISPLAY_ORDER))))
         st.caption(
             "The 231 Gates share one row above because they share one rule. "
             "Each gate's own letter pairs are shown with its results."

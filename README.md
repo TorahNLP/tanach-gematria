@@ -60,6 +60,60 @@ This application is licensed under
 
 Detail that belongs with the source rather than in the app's Guide.
 
+**A blank Source means the hunt is still open, not that the method is
+invented.** Every citation in the Guide has been checked against the primary
+text, and where a claimed source turned out not to say what was attributed to
+it, the citation was removed rather than softened. Eight rows currently stand
+blank:
+
+| method | position |
+|---|---|
+| מספר סידורי, קטן מספרי, אחור סידורי | Real and standard in modern tables, but the name is not in the rishonim or in Pardes Rimonim. `מספר סידורי` is a 19th-century *grammatical* term (ordinal number, contrasted with `מספר יסודי`); its gematria sense is later. Searched under fifteen phrasings across ~523,000 characters of primary text. |
+| אגד"ת | The +2 shift. Its original citation, "Pardes Rimonim Gate 22", was checked and שער כ״ב contains no `אגדת`. No source has been located under any name. Note the `אג דת` line at ל׳:ה׳ is the third of the 231 gates — a *pairing*, not a rotation. |
+| אכב"י | A standard temurah that appears in traditional lists. Both cited sources were read and neither supports it: ספר רזיאל המלאך prints no cipher grids at all (not even for Atbash, which it demonstrably uses), and the Radal hit was a signature line. |
+| נעלם, אמצעיות, אופנים | Classical methods whose sources could not be reached. Pardes Rimonim's `נעלם`, `אמצעית` and `אופן` are ordinary words in unrelated passages, not these methods. |
+
+The likeliest place for the missing attestations is material outside the corpora
+searchable here — 18th–20th century kabbalistic lexicons and gematria manuals.
+Specific untested leads: קהלת יעקב (Yolles), תורה שלמה vol. 17 (Kasher, 1956),
+גנת אגוז (HebrewBooks 9423), and טעם זקנים.
+
+**Verification standard.** Correct arithmetic is not attestation. Several claims
+checked during this work computed exactly right and were still misattributed —
+`סלם`=40 ordinally is arithmetically true but the Baal HaTurim gives seven
+derashos there, all standard gematria on 130. Every source line here was
+confirmed by reading the cited text, not by reproducing the number.
+
+**The 231 Gates are generated from the rule, not transcribed from the print.**
+Sefer Yetzirah 2:4 fixes the 22 letters in a wheel of רל"א שערים, and Pardes
+Rimonim ל׳:ה׳ prints all 22 alphabets. The Remak gives the reason for the
+number: רל"א שערים מפני שהם רל"א זוגות — 231 *pairs*, which is exactly C(22,2),
+every possible pairing of two letters from 22. That count is also why these are
+pairings rather than shifts: 22 directed rotations would give 462.
+
+The rule recovered from it: gate *k* pairs the letters whose alphabet positions
+sum to *k*−1, counting round the 22; the two letters left without a partner take
+each other.
+
+⚠️ **12 of the 22 printed tables in the edition used are garbled**, so the app
+generates the tables from the rule instead. This is demonstrable rather than a
+preference: a valid alphabet uses each of the 22 letters exactly once, and every
+disagreeing row **repeats a letter and drops another** — row 2 prints two ח and
+no ט, row 13 has three duplicates and three absences. Such a row cannot be read
+as it stands. The substitutions are Rashi-script letter confusions (כ↔נ, ג↔נ,
+ח↔ט, ס↔כ, ג↔ר).
+
+The rule reproduces 10 of the 22 printed rows **exactly**, agrees on 217 of 242
+pairs, and yields exactly 231 distinct pairs — matching the Remak's own count.
+Gate 22 turns out to be Atbash, which keeps its own name and column, so the app
+ships 21 gate methods rather than 22. Albam is *not* in the family: it is a +11
+shift, so its position sums run 11, 13, 15 … rather than staying constant.
+
+The derivation scripts and the raw Pardes Rimonim text are in `research/gates/`,
+so the reconstruction can be re-run and audited rather than taken on trust. A
+cleaner printed edition would let the 12 corrected rows be checked against a
+second witness; that has not been done.
+
 **Mispar HaMispari follows the Remak's own orthography.** Pardes Rimonim, Gate 30
 §8 gives two worked totals — yud → עשרה = 575 and heh → חמשה = 353 — and only the
 masculine spellings (עשרה, חמשה, שלשים) reproduce them. Online calculators
