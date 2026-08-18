@@ -69,9 +69,17 @@ blank:
 | method | position |
 |---|---|
 | מספר סידורי, קטן מספרי, אחור סידורי | Real and standard in modern tables, but the name is not in the rishonim or in Pardes Rimonim. `מספר סידורי` is a 19th-century *grammatical* term (ordinal number, contrasted with `מספר יסודי`); its gematria sense is later. Searched under fifteen phrasings across ~523,000 characters of primary text. |
-| אגד"ת | The +2 shift. Its original citation, "Pardes Rimonim Gate 22", was checked and שער כ״ב contains no `אגדת`. No source has been located under any name. Note the `אג דת` line at ל׳:ה׳ is the third of the 231 gates — a *pairing*, not a rotation. |
 | אכב"י | A standard temurah that appears in traditional lists. Both cited sources were read and neither supports it: ספר רזיאל המלאך prints no cipher grids at all (not even for Atbash, which it demonstrably uses), and the Radal hit was a signature line. |
 | נעלם, אמצעיות, אופנים | Classical methods whose sources could not be reached. Pardes Rimonim's `נעלם`, `אמצעית` and `אופן` are ordinary words in unrelated passages, not these methods. |
+
+**אגד"ת, the +2 shift, has been removed from the method list.** Its original
+citation, "Pardes Rimonim Gate 22", was checked and שער כ״ב contains no `אגדת`;
+the `אג דת` line at ל׳:ה׳ is the third of the 231 gates, a *pairing* rather than
+a rotation. The +1 shift is well attested — `כוזו במוכסז כוזו` on the mezuzah,
+and the Arizal deriving `בוכ"ו` from `אהיה` `בחילוף אלפא ביתא דאבג"ד` — and −1
+is attested too, `טדהד` in בן יהוידע and שער רוח הקודש. Nothing comparable
+turned up for +2. The map, function and self-tests are retained, so it can be
+reinstated the moment a source appears.
 
 The likeliest place for the missing attestations is material outside the corpora
 searchable here — 18th–20th century kabbalistic lexicons and gematria manuals.

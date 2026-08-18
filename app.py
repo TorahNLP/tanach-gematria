@@ -1026,12 +1026,14 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     # ── Word-structure ciphers ────────────────────────────────────────────────
     "Achorayim":       g_achorayim,         # Mispar HaAchorayim (progressive expansion)
     "HaMeugal":        g_hameugal,          # Mispar HaMeugal HaKlali (thousands as units)
-    # Agdat (+2) is deliberately ABSENT — see AGDAT_MAP. No source was found
-    # for a two-place shift under any name, and its original citation (פרדס
-    # רימונים "Gate 22") was checked and fabricated: שער כ״ב has no אגדת. The
-    # +1 shift is well attested (כוזו במוכסז כוזו) and -1 is too (טדהד), which
-    # makes the absence of +2 more striking rather than less. Function and
-    # tests are retained so it can be reinstated the moment a source turns up.
+    # Agdat (+2) is deliberately ABSENT — see AGDAT_MAP. Its original citation
+    # (פרדס רימונים "Gate 22") was checked and is fabricated: שער כ״ב has no
+    # אגדת. No source has been found for a two-place shift in what is
+    # searchable here — Sefaria, Hebrew Wikisource, and a few PDFs — which is
+    # a narrow slice that excludes most kabbalistic manuals, Chassidic
+    # seforim, manuscripts and undigitised print. NOT FOUND IS NOT ABSENT.
+    # Function, map and tests are retained so it can be reinstated the moment
+    # a source turns up.
     #
     # Mityashev is deliberately ABSENT from this table — see g_mityashev. The
     # function, its self-tests and its word-boundary plumbing are all retained
