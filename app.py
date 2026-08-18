@@ -1164,6 +1164,38 @@ CIPHER_DISPLAY_ORDER: List[str] = (
 APP_CIPHER_ORDER: List[str] = CIPHER_DISPLAY_ORDER
 
 
+# ⚠️ Wrap every Hebrew run in <span dir="rtl"> so mixed Hebrew/Latin text is
+# laid out correctly. Without it the bidi algorithm resolves the whole string as
+# one paragraph and any digit or punctuation next to Hebrew drifts: `ק→1, מ→4`
+# renders as `(4→מ ,1→ק)` and `ם ן ץ ף ך = מ נ צ פ כ` comes out reversed.
+#
+# Six text-level fixes were tried first and ALL failed, verified against real
+# browser screenshots (the DOM string does not show the reordering, so a text
+# assertion proves nothing): trailing U+200E, U+2066/U+2069 isolates,
+# number-first ordering, CSS unicode-bidi on the container, reordering lists,
+# and prose descriptions.
+#
+# white-space:nowrap on the span matters too -- an RTL span that WRAPS across
+# lines is split visually and the order breaks again. See .gtbl / .mblurb CSS.
+_HEB_RUN = re.compile(
+    "[֐-׿]"
+    "(?:[֐-׿׳״\"'’.:]"
+    "|[ ](?=[֐-׿]))*")
+
+
+def rtl_wrap(val: str) -> str:
+    """Escape `val` and isolate each Hebrew run for correct bidi layout."""
+    import html as _h
+    out, last = [], 0
+    for mm in _HEB_RUN.finditer(val):
+        a, b = mm.span()
+        out.append(_h.escape(val[last:a], quote=False))
+        out.append('<span dir="rtl">%s</span>' % _h.escape(val[a:b], quote=False))
+        last = b
+    out.append(_h.escape(val[last:], quote=False))
+    return "".join(out)
+
+
 def in_display_order(ciphers) -> List[str]:
     """Sort any cipher collection into CIPHER_DISPLAY_ORDER.
 
@@ -1322,9 +1354,9 @@ CIPHER_BLURB: Dict[str, str] = {
     "AtbachMaharshal": "The 22-letter list of רבינו חננאל: the hundreds "
                        "pair to 500 (ק↔ת, ר↔ש) and a final form counts as "
                        "its base letter. ה and נ still take each other.",
-    "Avgad":           "Each letter moves on one: א→ב … and ת wraps round to א. Then Standard values.",
-    "Agdat":           "Each letter moves on two: א→ג … and ת wraps round to ב. Then Standard values.",
-    "ReverseAvgad":    "Each letter moves back one: ב→א … and א wraps round to ת. Then Standard values.",
+    "Avgad":           "Each letter moves on one, א→ב, with ת wrapping round to א, then Standard values.",
+    "Agdat":           "Each letter moves on two, א→ג, with ת wrapping round to ב, then Standard values.",
+    "ReverseAvgad":    "Each letter moves back one, ב→א, with א wrapping round to ת, then Standard values.",
     "AyakBachar":      "Three rows of nine (units, tens, hundreds), each letter moving to the next row: א→י→ק→א, ב→כ→ר→ב …",
     # ⚠️ "ת is unchanged" put an English clause directly after a Hebrew letter,
     # and the RTL run swallowed the boundary — it read as if the clause attached
@@ -4922,7 +4954,7 @@ def run_app() -> None:
         # scroll. The blurb is pulled up under its heading and the gap to the
         # value is trimmed, keeping the grouping while cutting the total height.
         ".mhead{margin-bottom:.15rem !important;}"
-        ".mblurb{margin-top:0 !important;margin-bottom:0 !important;}"
+        ".mblurb{margin-top:0 !important;margin-bottom:0 !important;}.mblurb span[dir=rtl]{white-space:nowrap;}"
         ".mval{font-size:.95rem;margin:.55rem 0 .25rem;"
         "font-variant-numeric:tabular-nums;}"
         ".mval b{font-size:1.15rem;font-weight:700;}"
@@ -6060,26 +6092,7 @@ def run_app() -> None:
 
             Automatic, so all 38 rows are covered and any new row is too.
             """
-            import html as _h
-            # A Hebrew run plus the punctuation INSIDE it (gershayim, daf
-            # dot/colon). A space joins the run only when Hebrew follows --
-            # swallowing the spaces that separate Hebrew from English would glue
-            # the words together. Commas are excluded so each citation in a list
-            # becomes its own span.
-            _heb = re.compile(
-                "[֐-׿]"
-                "(?:[֐-׿׳״\"'’.:]"
-                "|[ ](?=[֐-׿]))*")
-
-            def _wrap(val):
-                out, last = [], 0
-                for mm in _heb.finditer(val):
-                    a, b = mm.span()
-                    out.append(_h.escape(val[last:a]))
-                    out.append('<span dir="rtl">%s</span>' % _h.escape(val[a:b]))
-                    last = b
-                out.append(_h.escape(val[last:]))
-                return "".join(out)
+            _wrap = rtl_wrap
 
             df = pd.DataFrame(rows)
             for col in ("Hebrew", "Rule", "Source"):
@@ -6883,7 +6896,7 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
                     # margins are what pushed it away from its heading.
                     st.markdown(
                         f"<p class='mblurb' style='font-size:.875rem;opacity:.7'>"
-                        f"{_h_m.escape(CIPHER_BLURB[cipher], quote=False)}</p>",
+                        f"{rtl_wrap(CIPHER_BLURB[cipher])}</p>",
                         unsafe_allow_html=True)
                 # Order: what the method IS (heading, then blurb), then what it
                 # FOUND. The value used to sit above the blurb in the same grey
