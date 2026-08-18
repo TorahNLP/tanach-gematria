@@ -1020,13 +1020,19 @@ CIPHERS: Dict[str, Callable[[str], int]] = {
     "Atbach":          g_atbah,                 # 27 letters, as printed in Rashi
     "AtbachMaharshal": g_atbach_maharshal,      # 22 letters, the Maharshal's girsa             # א"ט ב"ח sum-to-10/100/1000
     "Avgad":           g_avgad,             # א"ב ג"ד +1 shift
-    "Agdat":           g_agdat,             # אגד"ת +2 shift
     "ReverseAvgad":    g_reverse_avgad,     # Reverse Avgad −1 shift
     "AyakBachar":      g_ayak_bachar,       # אי"ק בכ"ר 3×9 cyclic rotation
     "AchasBeta":       g_achas_beta,        # אח"ס בט"ע 7/7/7 rotation (ת fixed)
     # ── Word-structure ciphers ────────────────────────────────────────────────
     "Achorayim":       g_achorayim,         # Mispar HaAchorayim (progressive expansion)
     "HaMeugal":        g_hameugal,          # Mispar HaMeugal HaKlali (thousands as units)
+    # Agdat (+2) is deliberately ABSENT — see AGDAT_MAP. No source was found
+    # for a two-place shift under any name, and its original citation (פרדס
+    # רימונים "Gate 22") was checked and fabricated: שער כ״ב has no אגדת. The
+    # +1 shift is well attested (כוזו במוכסז כוזו) and -1 is too (טדהד), which
+    # makes the absence of +2 more striking rather than less. Function and
+    # tests are retained so it can be reinstated the moment a source turns up.
+    #
     # Mityashev is deliberately ABSENT from this table — see g_mityashev. The
     # function, its self-tests and its word-boundary plumbing are all retained
     # so it can be reinstated the moment a source turns up; it simply is not
@@ -1136,7 +1142,7 @@ _DISPLAY_GROUPS: List[str] = TALMUD_CIPHERS + COMMON_CIPHERS + [
     # Substitution — the rest of the letter-swap ciphers. Atbash, Albam,
     # Achas Beta and both Atbach girsaos are in the lead group instead: the
     # first three are all given in the one sugya at שבת קד.
-    "Achbi", "Avgad", "Agdat", "ReverseAvgad", "AyakBachar",
+    "Achbi", "Avgad", "ReverseAvgad", "AyakBachar",
     # Positional — value depends on where the letter sits.
     "ReverseOrdinal", "Ribua", "Kidmi", "Achorayim", "HaMerubahKlali",
     # Letter-name — the Milui family and its Maleh variants.
@@ -1267,7 +1273,6 @@ CIPHER_DISPLAY_NAMES: Dict[str, str] = {
     "Atbach":          "Atbach — אטב\"ח",
     "AtbachMaharshal": "Atbach (Rabbeinu Chananel) — אטב\"ח דרבינו חננאל",
     "Avgad":           "Avgad — אבג\"ד",
-    "Agdat":           "Agdat — אגד\"ת",
     "ReverseAvgad":    "Reverse Avgad — אבג\"ד הפוך",
     "AyakBachar":      "Ayak Bachar — אי\"ק בכ\"ר",
     "AchasBeta":       "Achas Beta — אח\"ס בט\"ע",
@@ -1355,7 +1360,6 @@ CIPHER_BLURB: Dict[str, str] = {
                        "pair to 500 (ק↔ת, ר↔ש) and a final form counts as "
                        "its base letter. ה and נ still take each other.",
     "Avgad":           "Each letter moves on one, א→ב, with ת wrapping round to א, then Standard values.",
-    "Agdat":           "Each letter moves on two, א→ג, with ת wrapping round to ב, then Standard values.",
     "ReverseAvgad":    "Each letter moves back one, ב→א, with א wrapping round to ת, then Standard values.",
     "AyakBachar":      "Three rows of nine (units, tens, hundreds), each letter moving to the next row: א→י→ק→א, ב→כ→ר→ב …",
     # ⚠️ "ת is unchanged" put an English clause directly after a Hebrew letter,
@@ -6232,14 +6236,10 @@ def run_app() -> None:
                  "Hebrew": "אבג\"ד (Av-Gad / Abgad)",
                  "Rule": "Each letter moves on one, א→ב, with ת wrapping round to א, then Standard values.",
                  "Source": "כוזו במוכסז כוזו שעל המזוזה. עיין ראב״ד על ספר יצירה א׳:ב׳, מחזור ויטרי הלכות מזוזה, ושער הכוונות דרושי תפילת השחר"},
-                {"Method": "Agdat",
-                 "Hebrew": "אגד\"ת (Ag-Dat)",
-                 "Rule": "Each letter moves on two, א→ג, with ת wrapping round to ב, then Standard values.",
-                 "Source": ""},
                 {"Method": "ReverseAvgad",
                  "Hebrew": "אבג\"ד הפוך (Reverse Avgad)",
                  "Rule": "Each letter moves back one, ב→א, with א wrapping round to ת, then Standard values.",
-                 "Source": "טעם זקנים לר׳ אליעזר אשכנזי. Note: not verified here"},
+                 "Source": "טדהד, קודם אותיות השם. עיין בן יהוידע שבת קמה: ושער רוח הקודש"},
                 {"Method": "AyakBachar",
                  "Hebrew": "אי\"ק בכ\"ר (Ayak Bachar)",
                  "Rule": "3×9 cyclic rotation across units/tens/hundreds columns: א→י→ק→א, ב→כ→ר→ב … ט→צ→ץ→ט.",
