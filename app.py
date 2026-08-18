@@ -1362,7 +1362,7 @@ CIPHER_BLURB: Dict[str, str] = {
     # and the RTL run swallowed the boundary — it read as if the clause attached
     # to ס-ש. Naming the letter LAST keeps the sentence ending in LTR text.
     "AchasBeta":       "Three groups of seven (א-ז, ח-נ, ס-ש), each letter moving to the next group. ת stands outside and never changes.",
-    "Achorayim":       "Write the word out progressively and sum the rows: חבד = 8 + (8+2) + (8+2+4) = 32. Resets per word.",
+    "Achorayim":       "Write the word out progressively and sum the rows: אבג = 1 + (1+2) + (1+2+3) = 10. Resets per word.",
     "HaMeugal":        "Sum as Standard, then count thousands as units: 1080 becomes 80 + 1 = 81.",
     "Mispari":         "Spell each letter's Standard value as a Hebrew number-word, then sum that word: י=10→עשרה=575.",
     "MispariHaGadol":  "Spell each letter's Milui total as a Hebrew number-word, then sum that word: י→יוד=20→עשרים=620.",
@@ -6250,7 +6250,7 @@ def run_app() -> None:
                  "Source": "שבת קד. עיין גם פרדס רימונים ל׳:ה׳ וספר רזיאל המלאך"},
                 {"Method": "Achorayim",
                  "Hebrew": "מספר האחוריים (Mispar HaAchorayim)",
-                 "Rule": "Write the word out progressively, א, אב, אבג …, and sum the rows. חבד = 8 + (8+2) + (8+2+4) = 32. Resets at each word boundary.",
+                 "Rule": "Write the word out progressively and sum the rows: אבג = 1 + (1+2) + (1+2+3) = 10. Resets at each word boundary.",
                  "Source": "ספר עץ חיים ל״ד:ב׳, אחוריים דהויה. עיין שער הפסוקים וישלח"},
                 {"Method": "HaMeugal",
                  "Hebrew": "מספר המעוגל הכללי (Mispar HaMeugal HaKlali)",
