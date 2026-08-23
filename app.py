@@ -6250,7 +6250,7 @@ def run_app() -> None:
                  "Source": "שבת קד. פרדס רימונים ל׳:ה׳"},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
-                 "Rule": "Split into two halves of 11 and reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש … ו and פ have no partner in their own half and take each other. Applying אתב״ש then אלב״ם gives the same map.",
+                 "Rule": "Split into two halves of 11 and reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש … ו and פ have no partner in their own half and take each other. The same map results from אתב״ש followed by אלב״ם",
                  "Source": "This is the sum-10 alphabet, gate 11 of the רל״א שערים. See פרדס רימונים ל׳:ה׳"},
 
                 {"Method": "Atbach",
