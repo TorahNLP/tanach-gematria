@@ -6133,10 +6133,29 @@ def run_app() -> None:
                 if col in df.columns:
                     df[col] = df[col].map(_wrap)
             st.markdown(
+                # ⚠️ The table is far wider than a phone viewport (~1080px in
+                # a 364px column), so it MUST scroll inside its own box. Left
+                # to overflow it spills past the page edge, which reads as a
+                # stray vertical line drawn through the Rule column and cuts
+                # off the Source column entirely. table-layout:fixed plus
+                # min-width plus overflow-x:auto lets it SCROLL on a phone
+                # rather than squeeze four prose columns into 364px, which
+                # broke words mid-syllable (Stand/ard, Hechrac/hi).
+                #
+                # Borders are set explicitly to 0 first: pandas.to_html emits
+                # its own, and border=0 does not clear all of them.
                 "<style>.gtbl span[dir=rtl]{white-space:nowrap}"
-                ".gtbl table{width:100%;border-collapse:collapse}"
-                ".gtbl td,.gtbl th{padding:6px 10px;vertical-align:top;"
-                "border-bottom:1px solid rgba(128,128,128,.25);text-align:left}"
+                ".gtbl{overflow-x:auto;-webkit-overflow-scrolling:touch}"
+                ".gtbl table{border-collapse:collapse;border:0;"
+                "table-layout:fixed;width:100%;min-width:760px}"
+                ".gtbl td,.gtbl th{border:0;padding:6px 10px;"
+                "vertical-align:top;text-align:left}"
+                ".gtbl td:nth-child(1),.gtbl th:nth-child(1){width:14%}"
+                ".gtbl td:nth-child(2),.gtbl th:nth-child(2){width:20%}"
+                ".gtbl td:nth-child(3),.gtbl th:nth-child(3){width:33%}"
+                ".gtbl td:nth-child(4),.gtbl th:nth-child(4){width:33%}"
+                ".gtbl tbody tr{border-bottom:1px solid rgba(128,128,128,.25)}"
+                ".gtbl thead th{border-bottom:1px solid rgba(128,128,128,.45)}"
                 "</style>"
                 '<div class="gtbl">'
                 + df.to_html(escape=False, index=False, border=0)
