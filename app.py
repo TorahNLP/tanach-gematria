@@ -115,11 +115,26 @@ AGDAT_MAP: Dict[str, str] = {ALEFBET[i]: ALEFBET[(i + 2) % 22] for i in range(22
 
 # Achbi (א"כ ב"י): split the 22 letters into two halves of 11 and reverse each
 # half internally (Alef<->Kaf, Bet<->Yod, ... ; Lamed<->Tav, Mem<->Shin, ...).
+#
+# ⚠️ ו and פ pair with EACH OTHER, not with themselves. Reversing a run of ODD
+# length fixes its middle element, so the naive construction leaves ו (index 5
+# of the first half) and פ (index 16) mapping to themselves. That was the
+# behaviour here until it was checked against the source, and it is wrong.
+#
+# Achbi IS the constant-sum-10 alphabet, i.e. gate 11 of the רל"א שערים: ten of
+# its eleven pairs are identical to that gate. פרדס רימונים ל׳:ה׳ prints the two
+# partnerless letters AS A PAIR in 9 of the 11 gates that have them — אל, במ,
+# גנ, דס, הע, חק, טר, יש, כת. The only two that do not are gates 11 and 13, and
+# both are among the twelve rows whose print is garbled (gate 11 repeats ב and י
+# while omitting ו and כ). So the source is consistent: the leftovers join.
 ACHBI_MAP: Dict[str, str] = {}
 for i in range(11):                       # first half indices 0..10
     ACHBI_MAP[ALEFBET[i]] = ALEFBET[10 - i]
 for i in range(11, 22):                   # second half indices 11..21
     ACHBI_MAP[ALEFBET[i]] = ALEFBET[32 - i]
+# The two middles of the odd-length halves take each other.
+ACHBI_MAP[ALEFBET[5]] = ALEFBET[16]       # ו <-> פ
+ACHBI_MAP[ALEFBET[16]] = ALEFBET[5]
 
 # Atbah (א"ט ב"ח): pairwise substitution whose pairs sum to 10, 100 or 1000.
 #   units (sum 10):    Alef-Tet, Bet-Het, Gimel-Zayin, Dalet-Vav, He-He(self)
@@ -1352,7 +1367,7 @@ CIPHER_BLURB: Dict[str, str] = {
     "EmtzaiyotMaleh":   "Middle letter using Maleh 3-letter spellings. כ and מ both yield א=1 as their inner letter.",
     "Atbash":          "Mirror swap: א↔ת, ב↔ש … then Standard values.",
     "Albam":           "Split the 22 letters into two halves of 11 and swap across: א↔ל, ב↔מ … then Standard values.",
-    "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … Then Standard.",
+    "Achbi":           "Reverse each half of the alphabet: א↔כ, ב↔י … ל↔ת, מ↔ש … ו↔פ. Then Standard.",
     # ⚠️ ה↔נ is the part readers query — it looks like a bug without the note.
     "Atbach":          "Pairs summing to 10, 100 and 1000: א↔ט, ב↔ח · י↔צ, כ↔פ · "
                        "ק↔ץ, ר↔ף, ש↔ן, ת↔ם, the finals valued 500–900. ה and נ "
@@ -4586,6 +4601,19 @@ def run_selftest() -> None:
     assert _mim["MiluiImMiluiNekudot"] == 753, _mim["MiluiImMiluiNekudot"]
     assert _mim["MiluiImMiluiNekudot"] == g_milui("אב") + g_milui_nekudot("אָב")
 
+    # Achbi is the constant-sum-10 alphabet: identical to gate 11, and equal
+    # to Atbash followed by Albam. ⚠️ It once left ו and פ mapping to
+    # THEMSELVES -- reversing an odd-length run fixes its middle element -- and
+    # פרדס רימונים ל׳:ה׳ prints the two partnerless letters as a PAIR in 9 of
+    # the 11 gates that have them. Pinned so the fix cannot silently regress.
+    _ab = {k: v for k, v in ACHBI_MAP.items() if k in ALEFBET and v in ALEFBET}
+    _g11 = {k: v for k, v in GATE_MAPS[11].items() if k in ALEFBET and v in ALEFBET}
+    assert _ab == _g11, "Achbi must equal gate 11"
+    assert ACHBI_MAP["ו"] == "פ" and ACHBI_MAP["פ"] == "ו", "ו and פ must pair"
+    assert all(ACHBI_MAP[ACHBI_MAP[c]] == c for c in ALEFBET), "Achbi not an involution"
+    _comp = {c: ALBAM_MAP[ATBASH_MAP[c]] for c in ALEFBET}
+    assert all(_comp[c] == _ab[c] for c in ALEFBET if c not in "ופ"),         "Achbi should equal Atbash-then-Albam away from the fixed points"
+
     # Structural: every cipher must have a display name and blurb
     assert set(CIPHER_NAMES) == set(CIPHER_DISPLAY_NAMES) == set(CIPHER_BLURB), \
         "CIPHERS / CIPHER_DISPLAY_NAMES / CIPHER_BLURB keys out of sync"
@@ -6222,8 +6250,8 @@ def run_app() -> None:
                  "Source": "שבת קד. פרדס רימונים ל׳:ה׳"},
                 {"Method": "Achbi",
                  "Hebrew": "אכב\"י (Ach-Bi)",
-                 "Rule": "Split into two 11-letter groups, reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש …",
-                 "Source": ""},
+                 "Rule": "Split into two halves of 11 and reverse each internally: א↔כ, ב↔י … ל↔ת, מ↔ש … ו and פ have no partner in their own half and take each other. Applying אתב״ש then אלב״ם gives the same map.",
+                 "Source": "This is the sum-10 alphabet, gate 11 of the רל״א שערים. See פרדס רימונים ל׳:ה׳"},
 
                 {"Method": "Atbach",
                  "Hebrew": "אטב\"ח (Atbach)",
