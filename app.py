@@ -955,10 +955,24 @@ def g_achas_beta(s: str) -> int:
     # divisible by 3, so SOME remainder handling is forced and the sources
     # simply do not legislate it.
     #
-    # Joshua wants to decide this deliberately, and also to look at whether
-    # other 3-groupings are hinted at (with the odd letter standalone, or the
-    # last group made 4). ⚠️ Changing the map changes stored values and needs
-    # a DB rebuild.
+    # ⚠️ NEW EVIDENCE (not yet acted on). THREE sources print the tail as TWO
+    # groups rather than one, and none of the five leaves ת standing alone:
+    #
+    #   אור זרוע, אלפא ביתא א׳:ד׳   אחס בטע גיף דכץ הלק ומר  זן  שת
+    #   לשון חכמים ח״ב ב׳:ט״ו        אחס בטע גיפ דכצ הלק ומר  זנ  שת
+    #   לשון חכמים ח״ב מ״ט:י״ד       אחס בטע גיפ דכצ הלק ומר  זנ  שת
+    #   פרדס רימונים ל׳:ה׳            ... ומר  זנשת          (run together)
+    #   שבת קד.                      ... ומרזן  שת          (run together)
+    #   THIS ENGINE                  ... ומר  זנש  ת alone  <- unsupported
+    #
+    # לשון חכמים מ״ט:ס״ד also USES זנש"ת as a unit with a gematria: עולה גי׳
+    # שנות — verified, זנשת=757 and שנות=756 with the kolel. So the tail is a
+    # meaningful group, not a printing artefact.
+    #
+    # If ז"ן and ש"ת are PAIRS rather than 3-cycles, the cipher is not
+    # uniformly triadic and ז, נ, ש, ת all map differently from what is
+    # computed here. ⚠️ Changing the map changes stored values and needs a DB
+    # rebuild, so this is left for Joshua to decide.
     return _temurah_value(s, ACHAS_BETA_MAP)
 
 
