@@ -3,10 +3,11 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
 **Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
-**Last code commit:** `40ca9bf` (the 231 gates — 21 new methods, 57 total)
+**Last code commit:** `7e32569` (Achas Beta tail evidence, comments only)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
-**Last DB-affecting commit:** `8bc855a` — **rebuild `tanach.db` if you are older than this**
-**Handoff date:** 2026-08-12
+**Last DB-affecting commit:** `9e553ab` — **rebuild `tanach.db` if you are older than this**
+**Handoff date:** 2026-08-18
+**Method count: 57** (58 built, then `Agdat` cut)
 
 > ✅ **Everything in this document is pushed and verified live** on all four
 > targets unless explicitly marked otherwise.
@@ -37,10 +38,17 @@
 >   (word-range spans) and the cascading-select polish remain.
 > - Variants-toggle redesign, `TODO(site)` on cleaned-consonants — both still
 >   deferred.
-> - **231 gates** — ✅ SHIPPED. 21 new methods (57 total), DB rebuilt, live on
->   all four targets. See "The 231 gates" below.
-> - **`Agdat` (+2 shift)** — no source found, its one citation proven
->   fabricated. Decision parked until 231 ships. See "Open: the +2 shift".
+> - **231 gates** — ✅ SHIPPED. 21 new methods, DB rebuilt, live on all four
+>   targets. See "The 231 gates" below.
+> - **`Agdat` (+2 shift)** — ✅ CUT. Its citation was fabricated and no source
+>   was found. Map, function and tests retained so it can return.
+> - **Guide & Sources** — ✅ all 38 rows reviewed against the primary texts.
+>   Six פרדס רימונים citations were wrong. Seven rows now have a BLANK source;
+>   the README explains the standing.
+> - **Achas Beta `ת`** — ⚠️ STILL OPEN, and now has evidence. Five witnesses
+>   and NONE leaves ת alone the way this engine does. See "Achas Beta" below.
+> - **Method grouping in the picker** — still deferred. 57 entries is a long
+>   list.
 > - **Source research** — `RESEARCH_LOG.md` on this branch has the full
 >   per-claim verification record and the two traps that yield wrong results.
 
@@ -1287,32 +1295,22 @@ Guide. Verified verbatim, not yet in the app.
 
 ---
 
-## Open: the +2 shift (`Agdat`) — PARKED, and 231 has now shipped
+## `Agdat` (+2 shift) — CUT (`6811ccd`, `0603b76`)
 
-**No source found after four attempts.** Do not re-litigate without new evidence:
+Removed from `CIPHERS`, following the Mityashev precedent: the map, function
+and self-tests stay so it can be reinstated the moment a source turns up, but
+it is no longer offered as a method.
 
-1. Sefaria search for `אגד"ת` / `אג"דת` → **zero hits**, while controls `אבג"ד`
-   and `אלב"ם` return many. The search works; the name is not in the corpus.
-2. The PR `ב״ג ד״ה` quote that would have sourced it is fabricated (above).
-3. `אג דת הש ור` in PR 30:5 is **real but is not a shift** — it is the third of
-   the 22 alphabets of the רל״א שערים, a *pairing* (א↔ג, ד↔ת, ה↔ש). Same
-   letters, different parsing. **Do not accept this as a +2 source.**
-4. Abulafia (`חיי העולם הבא`, `גן נעול`) — **unverifiable**, not on Sefaria, and
-   the labels are internally broken: `+3` given as `גדה״ו`, four letters for a
-   three-step shift, and `ג→ד` is a +1 step. Already dropped in Pass 1.
+It was the only cipher whose citation was outright **fabricated** — פרדס
+רימונים "Gate 22" was checked and שער כ״ב has no `אגדת`. The `אג דת` line at
+ל׳:ה׳ is the third of the 231 gates, a *pairing* rather than a rotation.
 
-**The asymmetry is the argument.** `Avgad` (+1) is easy to source (טעם זקנים,
-R' Eliezer Ashkenazi). If ordinal shifts were a classical family, +2 would not
-be invisible while +1 is not.
+⚠️ **NOT FOUND IS NOT ABSENT.** The removal rests on the fabricated citation,
+not on a proof of non-existence. What was searched — Sefaria, Hebrew
+Wikisource and a few PDFs — is a narrow slice.
 
-Also settled: **231 cannot mean shifts.** Directed maps give 462; the Remak's
-`רל"א שערים מפני שהם רל"א זוגות` counts *pairs* = C(22,2) = 231. The gates
-cannot be retrofitted as a +2 source.
-
-**Decision deferred by Joshua to after the 231 work.** Options: cut, keep
-flagged as a modern extension with no classical source, or leave parked.
-Recommendation on file: **cut** — it is the only one of the 35 resting on a
-citation proven invented.
+For contrast, +1 and −1 are both well attested (`כוזו במוכסז כוזו`, `טדהד`),
+which is what makes a +2 worth looking for rather than assuming away.
 
 ---
 
@@ -1379,6 +1377,119 @@ the same treatment** — the failure is a hard error, not a slowdown.
 
 The 12 corrected rows rest on the rule alone. A cleaner printed edition would
 let them be checked against a second witness.
+
+---
+
+## Guide & Sources — all 38 rows reviewed (`f39e7f5` … `7e32569`, 2026-08-18)
+
+Every citation was checked by READING the cited text. Where a claimed source
+turned out not to say what was attributed to it, the citation was removed
+rather than softened.
+
+**Six פרדס רימונים citations were wrong.** The רמ״ק's list at ל׳:ח׳ names
+exactly nine methods — מעוגל, קדמי, הכרחי, מוספי, מרובע כללי, מרובע פרטי,
+שמיי, מספריי, מספריי הגדול. Gadol, Siduri and קטן מספרי are not among them.
+Neelam, Emtzaiyot and Ofanim matched only on ordinary words: `נעלם` is
+"hidden" in a nekudot passage, `אמצעית` is "in the middle", `אופן` is "in a
+manner". **Check any PR citation against the text before trusting it.**
+
+**Sources upgraded:** Standard now leads with the gemara (six mesechtos), not
+the ל״ב מידות baraita, which says "gematria" without saying which system;
+Atbash with the navi (שֵׁשַׁךְ / בָּבֶל, both words in ירמיהו נא:מא); AchasBeta moved
+to שבת קד. where the sugya gives it, and into the Talmud-attested group.
+
+**Avgad became sourced** from Joshua's find: `כוזו במוכסז כוזו` on the mezuzah
+is the +1 shift, verified in both directions. ראב״ד on ספר יצירה א׳:ב׳ states
+the equivalence; שער הכוונות derives שם בוכ״ו from אהיה `בחילוף אלפא ביתא
+דאבג״ד`. **ReverseAvgad too**: בן יהוידע on שבת קמה: writes `קודם אותיות
+הוי״ה [טדהד=22]`, and שער רוח הקודש lists the pair `טדהד כוזו`.
+
+### Seven blank sources — the hunt is open, not abandoned
+
+`Siduri`, `KatanMispari`, `ReverseOrdinal`, `Neelam`, `Emtzaiyot`, `Ofanim`,
+`Achbi`. The README carries the standing and the untested leads (קהלת יעקב,
+תורה שלמה vol. 17, גנת אגוז HebrewBooks 9423, טעם זקנים). A blank means the
+search has not reached the right corpus — Sefaria, Wikisource and a few PDFs
+exclude most kabbalistic manuals, Chassidic seforim and undigitised print.
+
+⚠️ **Correct arithmetic is NOT attestation.** Several claims computed exactly
+right and were still misattributed: `סלם`=40 ordinally is true, but the Baal
+HaTurim gives seven derashos there, all standard gematria on 130.
+
+---
+
+## ⚠️ Achbi was leaving two letters unmatched (`9e553ab`) — DB rebuild
+
+`ו` and `פ` mapped to THEMSELVES. Reversing a run of ODD length fixes its
+middle element, so "two halves of 11, reversed" strands index 5 and index 16.
+Nothing chose that and nothing documented it — unlike the equivalent case in
+Atbach, where Rashi is quoted at length.
+
+**Achbi IS gate 11** of the רל״א שערים (the constant-sum-10 alphabet), and
+equals **אתב״ש followed by אלב״ם** — Joshua's observation, verified. All three
+constructions land on the same map and strand the same two letters.
+
+The source settles it: פרדס רימונים ל׳:ה׳ prints the two partnerless letters
+**as a pair** in 9 of the 11 gates that have them. The only two exceptions,
+gates 11 and 13, are among the twelve garbled rows.
+
+That identity plausibly explains why the NAME is so thinly attested: the other
+named alphabets get 15 Sefaria hits each, Achbi none. It is not an independent
+cipher. Selftest now pins the identity three ways.
+
+---
+
+## ⚠️ Achas Beta: the `ת` question is OPEN, with evidence
+
+This engine computes seven clean 3-cycles with **ת standing alone**. **No
+source does that.** Five witnesses:
+
+| source | tail |
+|---|---|
+| אור זרוע, אלפא ביתא א׳:ד׳ (rishon) | `ומר · זן · שת` |
+| לשון חכמים ח״ב ב׳:ט״ו | `ומר · זנ · שת` |
+| לשון חכמים ח״ב מ״ט:י״ד | `ומר · זנ · שת` |
+| פרדס רימונים ל׳:ה׳ | `ומר · זנשת` (run together) |
+| שבת קד. | `ומרזן · שת` (run together) |
+| **this engine** | `ומר · זנש · ת alone` ← unsupported |
+
+לשון חכמים מ״ט:ס״ד uses `זנש״ת` as a unit with a gematria, `עולה גי׳ שנות` —
+verified: `זנשת`=757, `שנות`=756 with the kolel.
+
+⚠️ **The gemara never spells out the cipher's structure.** It reads each group
+as NOTARIKON for the drasha and never performs a substitution — Rashi says
+`דכ״ץ נוטריקון דכים כנים צדיקים`. The one hard fact it gives is that ש and ת
+are together, since the drasha needs `שֵׁת`.
+
+**Not acted on.** If `ז״ן` and `ש״ת` are PAIRS rather than 3-cycles then the
+cipher is not uniformly triadic and ז, נ, ש, ת all map differently — which no
+source states either. Changing the map needs a DB rebuild. Joshua's call.
+
+---
+
+## ⚠️ Bidi: the Guide and the blurbs both needed fixing
+
+Mixed Hebrew/Latin text is laid out as ONE bidi paragraph, so a digit or
+punctuation mark next to Hebrew drifts: `ק→1, מ→4` rendered as `(4→מ ,1→ק)`,
+and `אלה=36` as `36=אלה`. **24 of 37 blurbs were affected.**
+
+`rtl_wrap()` is now a module-level helper used by BOTH surfaces: it escapes the
+text and isolates each Hebrew run in `<span dir="rtl">`, with `white-space:
+nowrap` so a wrapped span is not split visually.
+
+**Six text-level fixes were tried first and ALL failed** — trailing U+200E,
+U+2066/U+2069 isolates, number-first ordering, CSS `unicode-bidi` on the
+container, reordering lists, prose descriptions. Do not re-attempt them.
+
+⚠️ **Verify by SCREENSHOT, never by reading the DOM string.** `inner_text`
+returns the source order; the reordering happens in the layout engine. Four
+fixes "passed" a text assertion and failed on screen. Playwright + Chromium are
+installed; `scratchpad/check.py` shoots individual Guide rows.
+
+**The Guide table also overflowed** (`408c020`): 1077px wide inside a 364px
+column with `overflow-x:visible`, so it spilled past the page edge — which read
+as a stray vertical line through the Rule column and hid the Source column.
+Now `overflow-x:auto` plus `min-width`, so it scrolls in its own box.
 
 ---
 
@@ -1485,6 +1596,30 @@ real submit. Type with `type()`, then click the submit button — no Enter requi
 **Always re-verify live after deploy.** Local pass ≠ deployed pass; the pin reduces
 that gap but the app-view DOM differences that broke CSS tab hiding were only ever
 visible in production.
+
+---
+
+## Session Log (2026-08-12 → 08-18, newest first)
+
+- `7e32569` Achas Beta tail evidence recorded (comments only, no map change)
+- `408c020` Guide table scrolls in its own box instead of overflowing
+- `d0448b1`, `9e553ab` **Achbi fixed**: ו↔פ, sourced as gate 11 — DB rebuilt
+- `0603b76`, `6811ccd` **Agdat cut**; ReverseAvgad sourced from בן יהוידע
+- `dcb6793` **Avgad sourced** from `כוזו במוכסז כוזו` (Joshua's find)
+- `15f6428` אבג replaces חבד as the Achorayim example
+- `2a88b4e` **Blurb bidi fixed**; one shared `rtl_wrap()` for both surfaces
+- `f39e7f5` **All 38 Guide rows reviewed**; six bad PR citations removed
+- `1631ccd` Milui Im Milui HaNekudot added as a method
+- `8bc855a`, `40ca9bf` **231 gates shipped**, 21 new methods
+
+⚠️ **GitHub auth broke mid-session** and four commits sat unpushed. Two
+accounts are in the keyring — `TorahNLP` (this project) and `Joshua-LPR`
+(business). The TorahNLP token had expired. Fixed by regenerating that token;
+**do not let a re-login select Joshua-LPR.**
+
+⚠️ **A commit was amended after it had been pushed to Hugging Face**, which
+diverged the history. Recovered as a normal follow-up commit rather than
+force-pushing over published work. Do not amend anything already pushed.
 
 ---
 
