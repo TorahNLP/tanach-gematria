@@ -16,32 +16,32 @@ and ties in Hebrew dates.
 
 ## Verdict: doable, but the AI is the easy part
 
-Three things decide whether this works, and none of them is the model:
+Two things decide whether this works: ranking, and keeping the model away from facts.
 
-1. **Span search is too slow to run many times.** Measured on the self-hosted PC
-   (i7-12700, no GPU), 2026-09-29:
-   - one value across all 57 methods, whole units: **0.3 s**
-   - one value, one method, word spans up to 6: **~11 s**
+**Search speed is not a blocker.** Measured on the self-hosted PC (i7-12700, no
+GPU), 2026-09-29: one value across all 57 methods, over the fixed units, takes
+**0.3 s**. Free word spans take **~11 s** per method per value, but **Joshua
+ruled spans low priority (2026-09-29)**. A random run of words is the least
+likely place to find a coherent match, which is why the engine is built on the
+fixed units in the first place: verse, the half verse at the אתנחתא, and the
+segments at זקף and the other divisions. Occasion Search searches **fixed units
+only**. Spans stay out, or at most behind an explicit opt-in, and a faster span
+index is parked until someone asks for it.
 
-   A baby search could easily need 30 name forms × 57 methods. Run span by span,
-   that is hours. It has to become a batched scan: prefix sums per method with
-   numpy, all target values checked in one pass. Expected cost is roughly a
-   second for everything. This is engineering, not research.
-
-2. **Ranking is the real problem.** One value across all methods returns
+1. **Ranking is the real problem.** One value across all methods returns
    **~2,400 rows** (613: 2,448; 1,234: 2,310). Multiply by the permutations and
    there are hundreds of thousands of "matches", and with enough methods any name
    matches something. The value of the feature is choosing the few worth showing
    and being honest about why. See "Ranking".
 
-3. **The model must never compute a value or state a source.** This project has
+2. **The model must never compute a value or state a source.** This project has
    already had a fabricated citation (`Agdat`) and misattributed ones (six פרדס
    רימונים rows). A small model will invent both. The engine computes every
    number; every method explanation and citation is pasted in by code from the
    Guide data. The model only chats, gathers details and chooses which tools to
    call.
 
-Given (3), most of the value is in a deterministic layer that works with no AI at
+Given (2), most of the value is in a deterministic layer that works with no AI at
 all. So build that first.
 
 ## On the method-variant problem (Achas Beta, Atbach)
@@ -55,6 +55,33 @@ engine can carry the witnessed tails as named variants instead of choosing one.
 That data-model change also helps the ordinary picker, where method grouping is
 still a deferred item.
 
+## Occasions (draft list, 2026-09-29, not yet confirmed by Joshua)
+
+Every occasion is built from the same few blocks: **people with roles**, **one or
+more dates**, and **optional text**. An occasion is configuration: which fields
+it shows, which name forms it generates by default, and which date signals it
+uses. It is not new code.
+
+| Occasion | People | Dates / extras | Default name form |
+|---|---|---|---|
+| Birth · bris · simchas bas · naming | child; father; mother; who the child is named after; surname | birth (after sunset?); bris/naming date; that week's parsha | `x בן/בת y` |
+| Pidyon haben | child; father | day 31 | `x בן y` |
+| Upsherin / chalakah | child; parents | 3rd birthday | `x בן y` |
+| Bar / bat mitzvah | child; parents; grandparents | Hebrew birthday; parsha | `x בן/בת y` |
+| Engagement · wedding · sheva brachos | chosson; kallah; both sets of parents; surnames | vort/tenaim date; wedding date; parsha | each alone; `x ו־y` together |
+| Anniversary | couple | wedding date; years | couple together |
+| Yahrzeit · hesped · matzeivah | the niftar; father; spouse | date of passing; yahrzeit | `x בן/בת y` (father) |
+| Refuah shleimah / tefillah | the person; mother | — | `x בן/בת z` (mother) |
+| Siyum | the one making it; the masechta/sefer | date | name + masechta name |
+| Chanukas habayis / new business / dedication | family or business name | date; street number | name alone |
+| Birthday | person; parents | Hebrew birthday | `x בן/בת y` |
+| Conversion (Hebrew name) | new name | date | `x בן/בת אברהם אבינו` |
+| Name pasuk (end of Shemoneh Esrei) | one name | — | first/last letter rule, not gematria |
+
+The default name forms follow common custom (mother's name for tefillah,
+father's for a matzeivah or an aliyah). **Joshua decides these**; they are
+starting points, not rulings.
+
 ## Architecture
 
 ```
@@ -65,7 +92,7 @@ occasion layer (pure Python, no Streamlit)
    ├─ name resolution: bare/English → pointed Hebrew (existing nikud tool + index)
    ├─ permutation generator
    ├─ Hebrew date layer
-   ├─ batched search (new span index)
+   ├─ batched search over fixed units (verse, אתנחתא, זקף …)
    ├─ ranking
    └─ templated explanations (from Guide/method data)
    ▼
@@ -77,14 +104,13 @@ The "basic vs esoteric" depth control already exists in effect: `TALMUD_CIPHERS`
 
 ## Phases
 
-### Phase 0: engine API and fast spans
+### Phase 0: engine API
 - Pull the search code the new layer needs into functions importable without
   Streamlit. They must stay the same functions the site calls, not copies, so
   the two cannot drift.
-- Batched span index: for each method, word values → prefix sums → every span of
-  length 2..N checked against a *set* of targets in one pass. Verify it gives the
-  same rows as `span_search` on a sample of values and methods before anything
-  uses it.
+- Batch the fixed-unit search: every name form's value in one query per method
+  tier rather than one query per value.
+- ~~Fast span index~~: parked. Spans are low priority (see Verdict).
 - Keep the thread-local connection rule (see HANDOFF "Never share a sqlite
   connection").
 
@@ -146,7 +172,7 @@ surname, dates, depth (Talmud-attested / common / all).
 
 Score each hit on:
 - **Method tier:** Talmud-attested > common > the rest > gates.
-- **Unit:** whole verse > half verse > short span > long span. Exact > kolel.
+- **Unit:** whole verse > half verse > smaller fixed segment. Exact > kolel.
 - **Name form:** full natural form > partial > unusual combination.
 - **Agreement:** the same verse hit by several forms or methods ranks up.
 - **Context:** the week's parsha for a birth or wedding date; famous or
