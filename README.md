@@ -187,10 +187,9 @@ internal-balance detector likewise flags half-verses equal within ±1 as
 
 ## Developer documentation
 
-Docs live on the **`docs` branch**, not here — HuggingFace rebuilds and restarts
-the Space on any push to `main`, so doc-only edits used to cost a few minutes of
-downtime. `HANDOFF.md` (read first), `BUILD.md` and `CLAUDE_CODE_TASKS.md` are
-there. Check them out beside the code with:
+Docs live on the **`docs` branch**, not here. A commit on `main` restarts the
+self-hosted app, so doc-only edits stay off it. `HANDOFF.md` (read first),
+`BUILD.md` and `CLAUDE_CODE_TASKS.md` are there. Check them out beside the code with:
 
 ```bash
 git worktree add ../tanakh-docs docs
