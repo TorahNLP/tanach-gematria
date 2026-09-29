@@ -1,16 +1,19 @@
 # Tanakh Gematria Engine — Session Handoff
 
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
-**Live URL (site):** https://huggingface.co/spaces/TorahNLP/tanach-gematria
-**Live URL (app / PWA install):** https://torahnlp-tanach-gematria.hf.space/?view=app
+**Live URL (the ONE deployment, since 2026-09-29):** https://joshua.tail0b28c4.ts.net/gematria/ (app / PWA: `?view=app`)
+**Source of record:** GitHub `TorahNLP/tanach-gematria`, branch `main`
 **Last code commit:** `7e32569` (Achas Beta tail evidence, comments only)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
 **Last DB-affecting commit:** `9e553ab` — **rebuild `tanach.db` if you are older than this**
 **Handoff date:** 2026-08-18 (corrected 2026-09-29: Nikud tool status, method count, funnel URL)
 **Method count: 57** (58 built, then `Agdat` cut)
 
-> ✅ **Everything in this document is pushed and verified live** on all four
-> targets unless explicitly marked otherwise.
+> 🔁 **2026-09-29: ONE deployment now.** The self-hosted Tailscale copy is the
+> only maintained version, matched to GitHub `main`. Hugging Face is paused,
+> Streamlit Cloud is being deleted, and the GitHub Pages loader is retired. See
+> "Deployment" and "Retired deployments". Older sections that mention "all four
+> targets" or HF are history.
 >
 > ⚠️ **The local Tailscale URL CHANGED on 2026-08-12** — the app now lives
 > under a `/gematria` path prefix and the `:8443` funnel is retired. Delete and
@@ -62,10 +65,11 @@
 A single-file Streamlit app (`app.py`) serving a gematria analysis engine over the
 full Tanakh (23,206 cantillated Masoretic verses, corpus from Sefaria). The corpus
 loads into an in-memory SQLite database on startup via `@st.cache_resource`, with a
-pre-built `tanach.db` baked into the Docker image for fast cold starts. Deployed on
-HuggingFace Spaces (`sdk: docker`); push to `main` auto-deploys (~2–3 min rebuild).
+pre-built `tanach.db` for fast cold starts. Self-hosted on Joshua's PC and served
+through Tailscale Funnel; a commit on `main` restarts it automatically (see
+"Deployment"). Until 2026-09-29 it was also on HuggingFace Spaces (`sdk: docker`).
 
-**34 ciphers** in families: Direct-value, Substitution (temurah), Name-expansion
+**34 ciphers** (57 today; this paragraph dates from 2026-07) in families: Direct-value, Substitution (temurah), Name-expansion
 (Milui/Neelam/Emtzaiyot ± Maleh), Positional, Vowel-mark (nikud), Combined,
 Sequential/Kolel.
 
@@ -117,7 +121,7 @@ Deliberately minimal, phone-first:
   ever picked up *brand-new* snippets, never edits to an existing one — an
   already-patched venv kept serving stale loader CSS. Un-delimited blocks from
   older releases are stripped first, so there is exactly one of each.
-- **Install must happen from the direct `.hf.space` URL** — the huggingface.co
+- *(HF, retired 2026-09-29)* **Install must happen from the direct `.hf.space` URL** — the huggingface.co
   Spaces page iframes the app, so the manifest never reaches the top-level page
   and `?view=app` added there does NOT propagate into the iframe. This caused a
   false "app view is broken" alarm once; check the URL first.
@@ -249,14 +253,15 @@ entered `BUILDING`.
 ```bash
 git worktree add ../tanakh-docs docs   # one-time, if missing
 cd ../tanakh-docs                      # edit docs here
-git add -A && git commit -m "..." && git push space docs   # no rebuild
+git add -A && git commit -m "..." && git push origin docs   # restarts nothing
 ```
 
-`README.md` stays on `main` — it carries the Space's YAML config and is required
-there. It points at this branch.
+**Still worth it after HF's retirement:** a commit on `main` in the served
+directory now restarts the app (post-commit hook), and a commit on `docs` in this
+worktree does not. So docs stay here.
 
-**Corollary worth remembering:** a 500 in the first minutes after *any* push to
-`main` is the restart window, not a symptom. Don't debug it; wait.
+`README.md` stays on `main`. Its YAML front-matter is the retired Space's config,
+kept in case HF is ever revived; it is harmless elsewhere.
 
 ---
 
@@ -1190,9 +1195,10 @@ one belonging to the interpreter that runs it. A head-tag change verified via th
 venv can appear to have failed when the launcher serves the unpatched system
 copy. Patch the interpreter the launcher actually uses, then restart.
 
-### The manifest is shared with Hugging Face
+### The manifest is shared with Hugging Face (history; HF retired 2026-09-29)
 
-`static/manifest.json` ships to HF/Streamlit Cloud too, where the app really does
+The relative paths below still work on the one remaining host; keep them so a
+revived root-hosted deployment would work too. `static/manifest.json` shipped to HF/Streamlit Cloud too, where the app really does
 sit at the root. Absolute paths would break one host or the other, so `scope` and
 `start_url` are **relative** (`../../`), resolving against wherever the manifest
 is served:
@@ -1531,7 +1537,7 @@ The ONNX-model fallback in the original design was **not** built.
 | `streamlit` pinned to `1.58.0` | Pinned deliberately (`3f1e329`): the loader icon and app-view layout target internal test ids (`stStatusWidget`, `stSidebarCollapsedControl`). Upgrade only with a live re-verify of both. |
 | Local `.venv` needs `plotly` | Installed 2026-07-19. Worth knowing why it matters: without it the Tab 4 import aborts the whole script run, so **every tab shows the traceback** and no site-view verification is possible. If a fresh venv shows errors on all tabs, check this first. |
 | ~~`use_container_width`~~ | Done (`8f7b636`): all 29 sites use `width="stretch"`. The removal date had already passed; only the 1.58.0 pin was keeping it alive, so an upgrade would have broken every table and chart at once. |
-| **First-load 500, fine on refresh** | **Reproduced 2026-07-19, and it is not app-side.** Right after a rebuild: request 1 hung 108s then returned HTTP 500 with a 3,038-byte body; request 2 returned 200 in 29ms. That body is HuggingFace's error page, not our 3,148-byte `index.html` — which is why no code of ours can intercept it. Causes: the Space is `cpu-basic` with a 48h sleep timer (cold wake ≈10s), and any rebuild restarts the container. Build is confirmed healthy: `builddb` ran 100.4s at image-build time, boot is ~10s, run logs clean. Only real mitigations are a keep-warm ping or a service worker; **Joshua declined the service worker** — it would install resident code on every visitor's device. |
+| *(HF only — retired 2026-09-29)* **First-load 500, fine on refresh** | **Reproduced 2026-07-19, and it is not app-side.** Right after a rebuild: request 1 hung 108s then returned HTTP 500 with a 3,038-byte body; request 2 returned 200 in 29ms. That body is HuggingFace's error page, not our 3,148-byte `index.html` — which is why no code of ours can intercept it. Causes: the Space is `cpu-basic` with a 48h sleep timer (cold wake ≈10s), and any rebuild restarts the container. Build is confirmed healthy: `builddb` ran 100.4s at image-build time, boot is ~10s, run logs clean. Only real mitigations are a keep-warm ping or a service worker; **Joshua declined the service worker** — it would install resident code on every visitor's device. |
 | ⚠️ **Stripping cantillation with a RANGE eats the nikud** | `[֑-ֽ]` looks like "the te'amim" but U+05B0–U+05BC are the NIKUD, so that range silently returns bare consonants and every vowel-mark measurement comes out zero. **This cost real time twice in one session.** Strip an explicit set: `range(0x0591,0x05B0)` plus `05BD 05BF 05C0 05C3 05C4 05C5 05C6`. |
 | ⚠️ **`tanach.db` holds NO pointed text** | `text_display` is bare consonants; the nikud lives only in `tanach_corpus.jsonl`. Anything needing vocalized text must index the JSONL, not the DB. The old auto-nikud plan assumed the DB had it. |
 | ⚠️ **Double-quoted SQL string literals** | `WHERE boundary_type="Verse"` is read by SQLite as an IDENTIFIER, not a string, and silently returns ZERO rows. It produced a wrong "0 verses lack a SecondHalf" measurement that was believed until a reviewer contradicted it. Always single-quote. |
@@ -1562,7 +1568,7 @@ The ONNX-model fallback in the original design was **not** built.
 | `tanach_corpus.jsonl` | Corpus data (committed) |
 | `tanach_english.jsonl` | Translation, display only (committed) |
 | `tanach.db` | SQLite cache (generated; gitignored) |
-| `Dockerfile` | HF Spaces build; builddb step bakes DB + head patch |
+| `Dockerfile` | Retired HF Spaces build (builddb step bakes DB + head patch). Kept for a possible revival; unused by the self-hosted copy |
 | `requirements.txt` | **streamlit pinned** — see gotchas |
 | `BUILD.md` | Build/deploy notes |
 
@@ -1570,43 +1576,76 @@ The ONNX-model fallback in the original design was **not** built.
 
 ## Deployment
 
+**ONE deployment (since 2026-09-29): the self-hosted copy on Joshua's PC, served
+by Tailscale Funnel at `https://joshua.tail0b28c4.ts.net/gematria/`** (trailing
+slash matters). GitHub `origin` is the source of record. There are no mirrors
+to keep in step any more.
+
 ```bash
 cd "C:\Users\joshu.AKIVA\Desktop\tanakh-gematria"
-git add <files> && git commit -m "..." && git push   # → HF rebuild ~2–3 min
+git add <files> && git commit -m "..."   # on main → app restarts automatically
+git push origin main                     # keep GitHub matched
 ```
 
-**There are FOUR live targets. `git push` only updates two of them.**
+**Auto-restart.** `host/Start_Gematria.vbs` runs Streamlit on the *served
+directory itself*, and a running process keeps what it loaded at startup
+(caches, the patched `index.html` head). So `.git/hooks/post-commit` and
+`post-merge` call `host/restart_gematria.ps1` whenever `main` moves **in the
+served directory**. It stops whatever is on 8501, relaunches, waits for HTTP 200
+and logs to `host/restart.log` ("up on <sha>" or "FAILED"). Commits on other
+branches or in other worktrees do nothing. Tested 2026-09-29: back up in ~5 s.
 
-| Target | How it updates |
-|---|---|
-| HF Space (production) | `git push space main` → rebuild ~2–3 min |
-| GitHub | `git push origin main` |
-| **Streamlit Cloud** | deploys from GitHub automatically |
-| **Local Streamlit over Tailscale Funnel** | **does NOT update on push** |
+⚠️ **Develop new features in a separate worktree, not the served directory.**
+Streamlit re-reads `app.py` for new sessions, so half-finished edits in the
+served directory can reach the live app before any commit. Use
+`git worktree add ../tanakh-dev -b <feature>`, then merge into `main` in the
+served directory when it is ready; the merge fires the restart.
 
-The local one runs `host/Start_Gematria.vbs` against the *working directory
-itself*, so files update on commit but the **running process keeps serving the
-code it imported at startup**. It must be restarted:
+⚠️ **`tanach.db` changes still need a rebuild by hand** before the restart:
+`python app.py builddb` in the served directory (system Python, the one the
+launcher uses; see "two Streamlit installs").
 
-```powershell
-Stop-Process -Id <pid listening on 8501> -Force
-Start-Process wscript.exe -ArgumentList '"...\host\Start_Gematria.vbs"' -WindowStyle Hidden
-```
+`host/` and `.git/hooks/` are **not in git**, so the launcher, watchdog, restart
+script and hooks exist only on that PC. If the PC is rebuilt, recreate them
+from this section.
 
-`host/gematria_watchdog.ps1` only relaunches when port 8501 is **down**, so it
-will never restart a healthy-but-stale process. Funnel maps the path
-**`/gematria`** → `127.0.0.1:8501`. The public URL is
-`https://joshua.tail0b28c4.ts.net/gematria/`, and the trailing slash matters.
-The old `:8443` funnel is retired, and other paths on that host are unrelated
-apps. **This is the copy Joshua actually uses day to day**, so restart it after
-every code push.
-
-Remote `space` → https://huggingface.co/spaces/TorahNLP/tanach-gematria, branch `main`.
-HF API status: `GET https://huggingface.co/api/spaces/TorahNLP/tanach-gematria`
-(runtime.stage). Run logs (SSE, needs HF token — git credential helper has one):
-`/api/spaces/TorahNLP/tanach-gematria/logs/run`.
+`host/gematria_watchdog.ps1` (scheduled task) relaunches only when 8501 is
+**down**, e.g. after a reboot. Funnel maps the path `/gematria` →
+`127.0.0.1:8501`; other paths on that host are unrelated apps.
 
 ---
+
+## Retired deployments (2026-09-29)
+
+Recorded in case they are ever revisited (Joshua: "unlikely").
+
+**Hugging Face Space `TorahNLP/tanach-gematria`: PAUSED**, not deleted. It is
+frozen at `7e32569`. Unpause from the Space's settings page. The `space` git
+remote remains for fetching, but its **push URL is deliberately set to
+`RETIRED-2026-09-29-see-HANDOFF`** so a push fails loudly. Restore with
+`git remote set-url --push space https://huggingface.co/spaces/TorahNLP/tanach-gematria`.
+The HF history was identical to GitHub (the same 245 commits, and no Space
+discussions), so nothing was lost. The build was `Dockerfile` + README
+front-matter (`sdk: docker`), with `builddb` baking the DB at image build.
+cpu-basic with a 48 h sleep, which is the cause of the "first load 500" gotcha.
+
+**Streamlit Community Cloud: `https://tanach-gematria.streamlit.app` (being
+deleted by Joshua, 2026-09-29).** Deployed from GitHub `main` automatically,
+main file `app.py`, Python from `runtime.txt` (`python-3.12`). Its quirk: it
+reused a stale prebuilt `tanach.db` across deploys, which is why
+`_build_connection` self-heals a DB missing a queried column (`b08c1e4`). To
+recreate: share.streamlit.io → Create app → repo `TorahNLP/tanach-gematria`,
+branch `main`, file `app.py`. `runtime.txt` is kept in `main` for that reason.
+
+**GitHub Pages loader `https://torahnlp.github.io/tanach-gematria/` (branch
+`gh-pages`).** This was a friendly gate and PWA-install shell that iframed the
+Streamlit Cloud app (`…streamlit.app/~/+/?view=app`), waiting for a
+`gem-app-ready` message before revealing it. With Streamlit Cloud gone it would show
+a dead frame, so it is being unpublished (repo Settings → Pages). The branch is kept.
+**Not repointed at the Tailscale copy on purpose:** that copy has its own PWA
+install, and a second public front door is one more thing to maintain. The
+local `gh-loader-ready`, `gh-pages-fix2`, `gh-pages-update` branches and the
+untracked `loader-page/` folder are leftovers of that work.
 
 ## Verification Pattern
 

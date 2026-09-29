@@ -1,11 +1,11 @@
 # Tanach Gematria — developer docs
 
-Documentation branch for [TorahNLP/tanach-gematria](https://huggingface.co/spaces/TorahNLP/tanach-gematria).
+Documentation branch for [TorahNLP/tanach-gematria](https://github.com/TorahNLP/tanach-gematria).
 
-**This branch is never deployed.** The Space builds `main`; pushing here does not
-rebuild or restart the running app. That is the whole point of the split — doc
-edits used to cost a production outage, because HuggingFace rebuilds on any push
-to the tracked branch regardless of what changed.
+**This branch is never deployed.** Only a commit on `main` in the served
+directory restarts the app (post-commit hook); committing or pushing here
+restarts nothing. The split began when HuggingFace, since retired, rebuilt
+production on every push, including doc-only ones.
 
 | File | What it is |
 |------|------------|
@@ -23,7 +23,7 @@ git worktree add ../tanakh-docs docs
 
 cd ../tanakh-docs      # edit HANDOFF.md etc. here
 git add -A && git commit -m "..."
-git push space docs    # no rebuild, no downtime
+git push origin docs   # restarts nothing
 ```
 
-Code changes still go through `main` in the main checkout, and those *do* deploy.
+Code changes go through `main` in the main checkout, and those *do* deploy (the app restarts on commit).

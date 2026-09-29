@@ -1,7 +1,7 @@
 # Plan — the 231 gates (כ״ב אלפא ביתות)  ✅ COMPLETE
 
 > **Shipped 2026-08-12** in `8bc855a` / `40ca9bf`: 21 new methods, 57 total,
-> DB rebuilt, live on all four targets. Kept as the record of what was decided
+> DB rebuilt, live on all four targets (as of 2026-08; since 2026-09-29 there is one). Kept as the record of what was decided
 > and why. The shipped state is summarised in `HANDOFF.md`.
 
 Written 2026-08-12, after the research phase closed. Research is **done and

@@ -1,6 +1,6 @@
 # Tanakh Gematria Engine — Build Reference
 
-**Live site:** https://huggingface.co/spaces/TorahNLP/tanach-gematria
+**Live site:** https://joshua.tail0b28c4.ts.net/gematria/ (self-hosted, the one maintained deployment since 2026-09-29; see HANDOFF.md "Deployment")
 **License:** CC BY-NC 4.0
 **Stack:** Python 3.12 · Streamlit · SQLite (in-memory) · Plotly · Pandas
 
@@ -242,25 +242,18 @@ Run `python app.py selftest` after **any** engine change. It verifies Genesis 1:
 
 ## Deployment
 
-### Hugging Face Spaces (current live host)
+### Self-hosted (the one deployment, since 2026-09-29)
 
-The app is live at `https://huggingface.co/spaces/TorahNLP/tanach-gematria`.
-Pushes to the `space` remote redeploy automatically:
+Streamlit on Joshua's PC, published through Tailscale Funnel at
+`https://joshua.tail0b28c4.ts.net/gematria/`. A commit on `main` in the served
+directory restarts it automatically; push to GitHub `origin` to keep the source
+of record matched. The full procedure is in HANDOFF.md "Deployment".
 
-```bash
-git remote add space https://huggingface.co/spaces/TorahNLP/tanach-gematria
-git push space main
-```
+### Retired hosts
 
-The Space reads `requirements.txt` directly. The `README.md` front-matter sets `sdk: streamlit` and `app_file: app.py`.
-
-### Streamlit Community Cloud (alternative)
-
-1. Push to a public GitHub repo.
-2. Go to **share.streamlit.io** → sign in with GitHub → **Create app**.
-3. Pick the repo, branch `main`, main file `app.py`. Click **Deploy**.
-
-Free tier apps sleep after inactivity; first visitor clicks once to wake (~30s).
+Hugging Face Spaces (paused) and Streamlit Community Cloud (deleted) were both
+retired on 2026-09-29. How they were set up, and how to revive them, is in
+HANDOFF.md "Retired deployments".
 
 ---
 

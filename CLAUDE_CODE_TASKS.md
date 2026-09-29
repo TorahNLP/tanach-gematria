@@ -1,3 +1,7 @@
+> 🗄️ **HISTORICAL (noted 2026-09-29).** This is the original build brief from June 2026.
+> Its deploy phases (Streamlit Cloud, Hugging Face) are obsolete: both hosts are
+> retired and the app is self-hosted. For how to deploy now, read HANDOFF.md "Deployment".
+
 # Claude Code — Task Brief: test & deploy the Tanach Gematria Engine
 
 Hand this whole file to Claude Code (it's in the project root next to `app.py`).
