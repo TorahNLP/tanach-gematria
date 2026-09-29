@@ -1,7 +1,10 @@
-# Plan: Occasion Search + AI assistant
+# Plan: Occasion Search (AI assistant optional, later)
 
-**Status:** proposal, 2026-09-29. Nothing built. Needs Joshua's decisions (bottom).
-**Scope:** a new page. Existing pages are unchanged.
+**Status:** approved in outline, 2026-09-29. Nothing built. **Build the form
+first** (Joshua: "this may be most of what we need"). The AI chat is Phase 3,
+and may never be needed.
+**Scope:** a new page on the Tailscale copy, the one maintained deployment
+(see "Deployment change" below). Existing pages are unchanged.
 
 ## The idea (Joshua, 2026-09-29)
 
@@ -55,7 +58,7 @@ engine can carry the witnessed tails as named variants instead of choosing one.
 That data-model change also helps the ordinary picker, where method grouping is
 still a deferred item.
 
-## Occasions (draft list, 2026-09-29, not yet confirmed by Joshua)
+## Occasions (list approved by Joshua 2026-09-29)
 
 Every occasion is built from the same few blocks: **people with roles**, **one or
 more dates**, and **optional text**. An occasion is configuration: which fields
@@ -64,11 +67,11 @@ uses. It is not new code.
 
 | Occasion | People | Dates / extras | Default name form |
 |---|---|---|---|
-| Birth · bris · simchas bas · naming | child; father; mother; who the child is named after; surname | birth (after sunset?); bris/naming date; that week's parsha | `x בן/בת y` |
+| Birth · bris | child; father; mother; who the child is named after; surname | birth (after sunset?); bris date; that week's parsha + haftara | `x בן/בת y` |
 | Pidyon haben | child; father | day 31 | `x בן y` |
 | Upsherin / chalakah | child; parents | 3rd birthday | `x בן y` |
-| Bar / bat mitzvah | child; parents; grandparents | Hebrew birthday; parsha | `x בן/בת y` |
-| Engagement · wedding · sheva brachos | chosson; kallah; both sets of parents; surnames | vort/tenaim date; wedding date; parsha | each alone; `x ו־y` together |
+| Bar / bat mitzvah | child; parents; grandparents | Hebrew birthday; **parsha + haftara** | `x בן/בת y` |
+| Engagement · wedding · sheva brachos | chosson; kallah; both sets of parents; surnames | vort/tenaim date; wedding date; parsha + haftara | each alone; `x ו־y` together |
 | Anniversary | couple | wedding date; years | couple together |
 | Yahrzeit · hesped · matzeivah | the niftar; father; spouse | date of passing; yahrzeit | `x בן/בת y` (father) |
 | Refuah shleimah / tefillah | the person; mother | — | `x בן/בת z` (mother) |
@@ -80,7 +83,42 @@ uses. It is not new code.
 
 The default name forms follow common custom (mother's name for tefillah,
 father's for a matzeivah or an aliyah). **Joshua decides these**; they are
-starting points, not rulings.
+starting points, not rulings. Simchas bas and "naming" were dropped at
+Joshua's request, since "birth" covers them.
+
+## Cross-method matching is core (Joshua, 2026-09-29)
+
+Name under method A = verse under method B (for example Standard → Atbash) is
+one of the most common kinds of gematria match, and it is tedious in the app
+today: Tab 1's "🔀 Cross-method matches" gives a count matrix
+(`_xm_count_matrix`) that has to be drilled into cell by cell. Occasion Search
+runs cross-method pairs as a first-class search:
+- Each name form is valued under every method in the chosen depth, and each
+  value is searched against the verses' values under every method in that
+  depth. The existing batched matrix query already does 57×57 in ~1.5 s.
+- **Pair tiers** for ranking: same method, then the classic pairs (Standard ↔
+  Atbash / Albam / Katan …), then both methods basic, then one basic, then
+  the rest. Which pairs count as "classic" is Joshua's call; a short
+  configurable list, not hard-coded.
+- The output names both sides plainly: "your name in Standard = this verse in
+  Atbash".
+
+## Parsha and haftara scopes
+
+For a birth, bar/bat mitzvah or wedding, search **within that week's parsha
+and haftara** as well as all of Tanach, and rank those hits up.
+⚠️ **The data is not there yet:**
+- The corpus has **no parsha field** (see `shape_result_columns`: the old
+  "Parsha" column held the book name on all 571,521 rows). Parsha verse ranges
+  need a static table (54 parshiyos plus the combined weeks), built once from
+  a known source and checked in.
+- **Haftaros differ by custom** (Ashkenaz / Sefard / Chabad / Teiman …), and
+  special Shabbosos replace the regular one (Rosh Chodesh, Machar Chodesh, the
+  four parshiyos, Shabbos Chanukah, Shuva …). Ask the user's custom and apply
+  the date's special-haftara rules; never silently default. Build and verify
+  the table against a primary source (a Chumash/luach), not memory.
+- Date → parsha needs Israel vs chutz la'aretz (the reading diverges after a
+  Yom Tov that falls on Shabbos). Ask.
 
 ## Architecture
 
@@ -184,9 +222,28 @@ rarer than it is.
 
 ## Decisions for Joshua
 
-1. **Build Phase 1 (form, no AI) first?** Recommended: it is most of the value,
-   it is testable, and it is exactly what the bot needs as tools.
-2. **Chat on the Tailscale copy only, at least at first?** Recommended.
-3. **English names:** a curated variants table (recommended) or model guesses?
+1. ✅ **Form first** (decided 2026-09-29). It may be all that is needed.
+2. ✅ **Tailscale is the one maintained deployment** (decided 2026-09-29). See
+   "Deployment change".
+3. ~~English names~~: **low priority** (Joshua, 2026-09-29): it was cited as a
+   perk of an AI, not a need for the target audience.
 4. **Which name forms count**, e.g. mother's name in `בן` forms (as for
    tefillah), surname, kinnuim? Your call on custom.
+5. **Which cross-method pairs are "classic"** for ranking?
+6. **Default haftara custom**, if any, and Israel vs chutz la'aretz default.
+
+## Future, separate project: Hebrew / yeshiva-facing UI
+
+Joshua is considering a Hebrew-first UI aimed at a yeshiva audience, possibly
+as a toggle the way Sefaria does it. **Not part of this project**, but Occasion
+Search should keep every user-facing string in one table from the start, so a
+Hebrew toggle later is a translation job, not a rewrite.
+
+## Deployment change (decided 2026-09-29)
+
+The Tailscale copy becomes the only maintained deployment, matched to GitHub
+`main`. Hugging Face and Streamlit Cloud stop being maintained. The GitHub
+Pages loader (`torahnlp.github.io/tanach-gematria/`) iframes the **Streamlit
+Cloud** app (`tanach-gematria.streamlit.app`), so it goes with it or must be
+repointed. HF history is **identical** to GitHub (same 245 commits on `main`,
+no Space discussions), so nothing needs saving from it.
