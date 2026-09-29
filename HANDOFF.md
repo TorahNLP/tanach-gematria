@@ -6,7 +6,7 @@
 **Last code commit:** `7e32569` (Achas Beta tail evidence, comments only)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
 **Last DB-affecting commit:** `9e553ab` — **rebuild `tanach.db` if you are older than this**
-**Handoff date:** 2026-08-18
+**Handoff date:** 2026-08-18 (corrected 2026-09-29: Nikud tool status, method count, funnel URL)
 **Method count: 57** (58 built, then `Agdat` cut)
 
 > ✅ **Everything in this document is pushed and verified live** on all four
@@ -31,9 +31,12 @@
 > basis" before touching any vowel-mark code.
 >
 > **Open, with plans written:**
-> - **Nikud tool** — `PLAN_nikud_tool.md`, this branch. Name lists generated
->   and agent-reviewed; `name_review/REVIEW_ME.csv` on `main` is waiting for
->   Joshua. Nothing built yet.
+>
+> **Shipped (was wrongly listed as open here until 2026-09-29):**
+> - **Nikud tool** — ✅ LIVE since `46b56ec` (2026-08-05), last touched
+>   `dc3b94c` (2026-08-11). See "Nikud tool" below.
+>
+> **Open:**
 > - **Verse-reference search** — `PLAN_verse_search.md`. Shipped, but items 4
 >   (word-range spans) and the cascading-select polish remain.
 > - Variants-toggle redesign, `TODO(site)` on cleaned-consonants — both still
@@ -92,7 +95,7 @@ Deliberately minimal, phone-first:
   `if tabN is not None:` with a two-space-indented `with` (avoids re-indenting
   ~300-line bodies). CSS hiding was tried first and failed — deployed Streamlit's
   DOM differs from local; don't reintroduce it.
-- **Method dropdown**: all 34 methods, ordered `APP_CIPHER_ORDER` = classical
+- **Method dropdown**: all methods (57 as of `7e32569`; the list was 34 when this was written), ordered `APP_CIPHER_ORDER` = classical
   (Talmud-attested) first: Standard, Katan, Gadol, Siduri, Atbash, Albam, Atbach,
   AchasBeta — then the rest. AchasBeta is classical (Shabbat 104a); AyakBachar was
   swapped out (its grid is later/kabbalistic).
@@ -1493,6 +1496,30 @@ Now `overflow-x:auto` plus `min-width`, so it scrolls in its own box.
 
 ---
 
+## Nikud tool — LIVE (`46b56ec` … `dc3b94c`, 2026-08-05 → 08-11)
+
+This is a separate page: `?view=app&page=nikud`, reached from the **"נִקּוּד Nikud
+tool"** button beside the title. In site view it is the last tab. You type a Hebrew
+word or phrase and get it back vocalized. Where a word has several attested
+pointings there is a per-word selectbox, and the result is shown in a copyable
+code block.
+
+**Lookup order:** Tanach corpus first, then `nikud_names.json` (the name index
+built by `build_name_index.py`, ~2,085 names including the Yiddish kinnuim), then
+`wiktionary_nikud.json` (built by `build_wiktionary_nikud.py`, lowest priority).
+The ONNX-model fallback in the original design was **not** built.
+
+**Behaviour worth knowing:**
+- `בן`/`בת` are read as name markers (`7820f60`).
+- The tool **never changes spelling**. 58 plene names were re-pointed rather
+  than respelled (`b4208d2`).
+- Gematria values are hidden while any word is still unvocalized (`318ee21`).
+- `name_review/` holds the generated lists and the validator. The `REVIEW_ME.csv`
+  rows were worked through in the 2026-08-06 run of index commits
+  (`427f7a6` … `dd45429`).
+
+---
+
 ## Known Issues / Gotchas
 
 | Item | Status |
@@ -1516,7 +1543,7 @@ Now `overflow-x:auto` plus `min-width`, so it scrolls in its own box.
 | **Ksiv/Kri: never re-derive the flag at a query site** | `nikud_partial` is set once at build time precisely so the thirteen query paths cannot drift. Add new paths by reusing the column, not by recomputing `has_unpointed_word`. |
 | Transliteration search | Not built. |
 | On-screen Hebrew keyboard | Still commented out (`_KBD_KEY`). |
-| Auto-nikud for typed input | **Plan written** — `PLAN_nikud_tool.md`, this branch. A separate page: type a word or phrase, get it back vocalized, edit any word from its attested options, copy out or jump to search. Name lists generated and agent-reviewed; `name_review/REVIEW_ME.csv` on `main` holds the 87 rows awaiting Joshua. **842 names need no review.** Nothing built yet. |
+| Auto-nikud for typed input | ✅ **Shipped** as the Nikud tool (`46b56ec` … `dc3b94c`). See its section. `PLAN_nikud_tool.md` is the original design. |
 | Name sources | CBS list (2,165 names, ⚠️ **UTF-16**) is the inventory; 729 are in Tanach and get nikud free. ⚠️ **Harkavy 1925 was checked and REJECTED** — 30% letter coverage, only 1 of 561 names fully pointed, and שָׂרה carries nothing but a sin dot, which the engine excludes. Do not retry it. |
 | ~~Word-span click-through~~ | Confirmed working by the user on 2026-07-19. |
 | **`/code-review high` catches gating bugs verification alone misses** | The print/verse-box work (`ea0b5e2`) was fully browser-verified before push — every check passed — but the review still found two real correctness bugs (both confirmed by an independent verifier, fixed in `90b6c04`). The pattern: an `if not app_view:` gate is easy to write when simplifying a *display* line, easy to miss when one of the lines it's hiding is actually a *warning*, not decoration. Worth a review pass after any display-gating change, not just a browser check. |
@@ -1567,8 +1594,12 @@ Start-Process wscript.exe -ArgumentList '"...\host\Start_Gematria.vbs"' -WindowS
 ```
 
 `host/gematria_watchdog.ps1` only relaunches when port 8501 is **down**, so it
-will never restart a healthy-but-stale process. Funnel maps port **8443** →
-`127.0.0.1:8501`; the bare hostname (no port) is a *different* app.
+will never restart a healthy-but-stale process. Funnel maps the path
+**`/gematria`** → `127.0.0.1:8501`. The public URL is
+`https://joshua.tail0b28c4.ts.net/gematria/`, and the trailing slash matters.
+The old `:8443` funnel is retired, and other paths on that host are unrelated
+apps. **This is the copy Joshua actually uses day to day**, so restart it after
+every code push.
 
 Remote `space` → https://huggingface.co/spaces/TorahNLP/tanach-gematria, branch `main`.
 HF API status: `GET https://huggingface.co/api/spaces/TorahNLP/tanach-gematria`
