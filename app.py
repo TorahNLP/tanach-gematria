@@ -3791,6 +3791,17 @@ OCCASIONS: Dict[str, Dict] = {
 }
 
 VERSE_TAGS_FILE = pathlib.Path(__file__).parent / "verse_tags.jsonl"
+# Human review of a tag sample (verse_tags_review.py builds it; the locked
+# ?page=tagreview page records Joshua's verdicts here).
+TAG_REVIEW_DIR = pathlib.Path(__file__).parent / "tag_review"
+
+
+def normalize_tag(r: Dict) -> Dict:
+    """A raw tag line → the validated shape the ranking uses. Unknown values (a
+    model straying from the vocabulary) are dropped rather than trusted."""
+    return {"tone": r.get("tone") if r.get("tone") in VERSE_TONES else "neutral",
+            "themes": [t for t in r.get("themes") or [] if t in VERSE_THEMES],
+            "jars_at": [k for k in r.get("jars_at") or [] if k in VERSE_FIT]}
 
 
 def load_verse_tags(path: pathlib.Path = VERSE_TAGS_FILE
@@ -3812,12 +3823,7 @@ def load_verse_tags(path: pathlib.Path = VERSE_TAGS_FILE
                 key = (r["book"], int(r["chapter"]), int(r["verse"]))
             except (ValueError, KeyError, TypeError):
                 continue
-            tone = r.get("tone") if r.get("tone") in VERSE_TONES else "neutral"
-            out[key] = {"tone": tone,
-                        "themes": [t for t in r.get("themes") or []
-                                   if t in VERSE_THEMES],
-                        "jars_at": [k for k in r.get("jars_at") or []
-                                    if k in VERSE_FIT]}
+            out[key] = normalize_tag(r)
     return out
 
 
@@ -6280,7 +6286,7 @@ def run_app() -> None:
     if app_view:
         tab2 = tab3 = tab4 = None
         _page = st.query_params.get("page")
-        if _page in ("guide", "nikud", "occasion"):
+        if _page in ("guide", "nikud", "occasion", "tagreview"):
             tab1 = None
             if st.button("← Back to Gematria Search"):
                 st.query_params["page"] = "search"
@@ -6288,8 +6294,9 @@ def run_app() -> None:
             tab_guide = st.container() if _page == "guide" else None
             tab_nikud = st.container() if _page == "nikud" else None
             tab_occ = st.container() if _page == "occasion" else None
+            tab_rev = st.container() if _page == "tagreview" else None
         else:
-            tab_guide = tab_nikud = tab_occ = None
+            tab_guide = tab_nikud = tab_occ = tab_rev = None
             _hd_l, _hd_r = st.columns([3, 1])
             with _hd_l:
                 st.title("Tanach Gematria Search")
@@ -6314,7 +6321,7 @@ def run_app() -> None:
             "4 · Macro Statistical Dashboard",
             "נִקּוּד Nikud tool",
         ])
-        tab_occ = None   # Occasion search is app-view only while it is WIP
+        tab_occ = tab_rev = None   # WIP pages are app-view only
 
     # ======================= NIKUD TOOL =================================
     # Type a word or phrase, get it back vocalized, edit any word from its
@@ -6517,19 +6524,29 @@ def run_app() -> None:
     # Names for an occasion in, ranked verse matches out. The engine is
     # SECTION 7b, built on search_value / count_value; this block only renders.
     # PIN-gated while unfinished (OCCASION_PIN, a soft lock, not security).
+    def _wip_unlocked() -> bool:
+        """The WIP PIN gate (OCCASION_PIN), shared by every locked page, so
+        one unlock covers them all for the session."""
+        if st.session_state.get("occ_unlocked"):
+            return True
+        _pin = st.text_input("PIN", type="password", key="occ_pin_in")
+        if _pin:
+            if _pin == OCCASION_PIN:
+                st.session_state["occ_unlocked"] = True
+                st.rerun()
+            st.error("Wrong PIN.")
+        return False
+
     if tab_occ is not None:
       with tab_occ:
         st.title("Occasion search")
         st.warning("🚧 **Work in progress.** Unfinished and locked; results "
                    "and their order will change.")
-        if not st.session_state.get("occ_unlocked"):
-            _pin = st.text_input("PIN", type="password", key="occ_pin_in")
-            if _pin:
-                if _pin == OCCASION_PIN:
-                    st.session_state["occ_unlocked"] = True
+        if _wip_unlocked():
+            if (TAG_REVIEW_DIR / "sample.jsonl").exists():
+                if st.button("🔎 Review verse tags"):
+                    st.query_params["page"] = "tagreview"
                     st.rerun()
-                st.error("Wrong PIN.")
-        else:
             _occ = st.selectbox("Occasion", list(OCCASIONS), key="occ_kind")
             _cfg = OCCASIONS[_occ]
             with st.form("occ_form"):
@@ -6661,6 +6678,82 @@ def run_app() -> None:
                                         "wcons": _f["wcons"],
                                         "label": _f["label"]},
                             query_method=_h0["QMethod"])
+
+    # ======================= TAG REVIEW (WIP) ===========================
+    # Joshua judges a random sample of the tagging model's calls, one verse at
+    # a time, before the hourly job is allowed to tag everything. Verdicts are
+    # appended to tag_review/results.csv; `verse_tags_review.py report`
+    # scores them. The verdict shown is occ_context_verdict itself, so he
+    # reviews exactly what the ranking would do.
+    if tab_rev is not None:
+      with tab_rev:
+        st.title("Review verse tags")
+        if _wip_unlocked():
+            import csv as _csv
+            _sp = TAG_REVIEW_DIR / "sample.jsonl"
+            _rp = TAG_REVIEW_DIR / "results.csv"
+            if not _sp.exists():
+                st.info("No review sample yet.")
+            else:
+                _sample = [json.loads(_l) for _l in
+                           _sp.read_text(encoding="utf-8").splitlines() if _l.strip()]
+                _rows = (list(_csv.DictReader(_rp.open(encoding="utf-8")))
+                         if _rp.exists() else [])
+                _done = {(_r["book"], int(_r["chapter"]), int(_r["verse"]))
+                         for _r in _rows}
+                st.progress(len(_done) / len(_sample),
+                            text=f"{len(_done)} of {len(_sample)} reviewed")
+                _todo = [_r for _r in _sample
+                         if (_r["book"], _r["chapter"], _r["verse"]) not in _done]
+                if not _todo:
+                    st.success("All reviewed. Thank you!")
+                else:
+                    st.caption("Is the model's call right, judged from the "
+                               "Torah's view? Mark **Wrong** if either line is "
+                               "clearly wrong, and say which in the note.")
+                    _r = _todo[0]
+                    _key = (_r["book"], _r["chapter"], _r["verse"])
+                    _v = verse_index.get(_key)
+                    st.markdown(f"### {_key[0]} {_key[1]}:{_key[2]}")
+                    if _v is not None:
+                        st.markdown('<div dir="rtl" style="font-size:1.3em">'
+                                    + rtl_wrap(strip_taamim(_v.text)) + "</div>",
+                                    unsafe_allow_html=True)
+                    _en = _english_index().get(_key)
+                    if _en:
+                        st.caption(_en)
+                    _tag = normalize_tag(_r)
+                    for _kind, _label in (("celebration", "a simcha (bris, wedding …)"),
+                                          ("memorial", "a yahrzeit / matzeivah")):
+                        _, _aside = occ_context_verdict(_tag, {"fit": _kind,
+                                                               "promote": []})
+                        st.markdown(f"**For {_label}:** "
+                                    + (f"🚫 SET ASIDE — {_aside[0]}" if _aside
+                                       else "✅ OK"))
+                    st.caption(f"Model's tone: {_tag['tone']} · themes: "
+                               f"{', '.join(_tag['themes']) or '—'}")
+                    _note = st.text_input("Note (optional)", key=f"rev_note_{_key}")
+                    _c1, _c2, _c3 = st.columns(3)
+                    _verdict = ("correct" if _c1.button("✅ Correct", key=f"rev_ok_{_key}")
+                                else "wrong" if _c2.button("❌ Wrong", key=f"rev_no_{_key}")
+                                else "unsure" if _c3.button("🤷 Unsure", key=f"rev_uns_{_key}")
+                                else None)
+                    if _verdict:
+                        _new = not _rp.exists()
+                        with _rp.open("a", newline="", encoding="utf-8") as _fh:
+                            _w = _csv.writer(_fh)
+                            if _new:
+                                _w.writerow(["book", "chapter", "verse", "verdict",
+                                             "note", "time"])
+                            _w.writerow([*_key, _verdict, _note,
+                                         pd.Timestamp.now().isoformat(timespec="seconds")])
+                        st.rerun()
+                if _rows and st.button("↩ Undo last answer"):
+                    with _rp.open("w", newline="", encoding="utf-8") as _fh:
+                        _w = _csv.DictWriter(_fh, fieldnames=list(_rows[0].keys()))
+                        _w.writeheader()
+                        _w.writerows(_rows[:-1])
+                    st.rerun()
 
     # ===================== TAB GUIDE: GUIDE & SOURCES ==================
     # Guarded: tab_guide is None on the app-view search page.

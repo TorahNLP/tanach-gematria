@@ -58,17 +58,26 @@ SYSTEM = (
     "Torah's eyes. What would jar at a simcha is what the Torah itself treats "
     "as sad or ominous: tzaraas and ritual impurity, curses and the "
     "tochacha, the Churban and exile, death and mourning, sin and its "
-    "consequences.\n\n"
+    "consequences. That includes the LAWS of tzaraas, zav, niddah and other "
+    "ritual impurity: they jar at a simcha even though they are mitzvos "
+    "written as law.\n\n"
     "Do not judge by single words: a verse mentioning death may be about its "
     "defeat; a verse in a sad book may be hopeful.\n\n"
     "jars_at — the kinds of occasion where reading or quoting this verse "
     "would JAR (feel wrong). Most verses jar nowhere: neutral narrative, "
-    "genealogies, mitzvos and the Mishkan's service are fine anywhere. List a "
+    "genealogies, most mitzvos and the Mishkan's service are fine anywhere "
+    "(the impurity laws above are the exception). List a "
     "kind only when the verse would genuinely be out of place there:\n"
     + "\n".join(f"- {k}: {d}" for k, d in app.VERSE_FIT.items()) +
     "\n\ntone — uplifting, neutral, or harsh, as the Torah sees it.\n\n"
     "themes — zero to three that the verse is actually about:\n"
     + "\n".join(f"- {k}: {d}" for k, d in app.VERSE_THEMES.items()))
+
+# Bump whenever SYSTEM changes, so tags made under older instructions can be
+# found and redone. 1 = pre-Torah-view; 2 = Torah view (2026-09-30, no field
+# on the line); 3 = + the impurity laws jar at a simcha (Flash-Lite kept
+# Vayikra 14:55 and 15:2 as "neutral law").
+PROMPT_VERSION = 3
 
 VERSE_LABEL = {
     "jars_at": {"type": "array",
@@ -83,7 +92,8 @@ def tag_record(book, chapter, verse, res: dict, model: str) -> dict:
     """One output line. The loader re-validates every field on read."""
     return {"book": book, "chapter": chapter, "verse": verse,
             "jars_at": res.get("jars_at", []), "tone": res.get("tone"),
-            "themes": (res.get("themes") or [])[:3], "model": model}
+            "themes": (res.get("themes") or [])[:3], "model": model,
+            "prompt": PROMPT_VERSION}
 
 
 def load_latest_models(path: str) -> dict:
@@ -452,6 +462,10 @@ def run_gemini(a, verses, english):
         by_ch = collections.OrderedDict()
         for v in verses:
             by_ch.setdefault((v.book, v.chapter), []).append(v)
+        if a.refs:      # e.g. a review sample: only these chapters
+            wanted = {tuple(r.rsplit(" ", 1)) for r in a.refs}
+            by_ch = collections.OrderedDict(
+                (k, vs) for k, vs in by_ch.items() if (k[0], str(k[1])) in wanted)
         rank = {b: i for i, b in enumerate(BOOK_PRIORITY)}
         done = load_done(a.out)
         latest = load_latest_models(a.out)
@@ -592,7 +606,7 @@ def main():
     ap.add_argument("--model", help="Ollama model name (ollama backend)")
     ap.add_argument("--out", default=str(app.VERSE_TAGS_FILE))
     ap.add_argument("--refs", nargs="*",
-                    help='ollama: limit to chapters, e.g. "Leviticus 14"')
+                    help='limit to chapters, e.g. "Leviticus 14"')
     ap.add_argument("--limit", type=int, default=0,
                     help="gemini: at most this many chapters this run")
     ap.add_argument("--stats", action="store_true",

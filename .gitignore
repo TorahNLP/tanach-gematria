@@ -24,3 +24,7 @@ verse_tags.state.json
 verse_tags.lock
 verse_tags_requests.csv
 verse_tags_check.csv
+tag_review/tags.log
+tag_review/tags.state.json
+tag_review/tags.lock
+tag_review/tags_requests.csv

@@ -1,0 +1,100 @@
+{"book": "II Samuel", "chapter": 13, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 26, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 34, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 12, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 30, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 13, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 25, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 37, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 39, "jars_at": [], "tone": "neutral", "themes": ["home", "technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 27, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 21, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 10, "jars_at": [], "tone": "harsh", "themes": ["faith", "curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 39, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["children", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 14, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["home", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 17, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["death", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 18, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 13, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 20, "jars_at": [], "tone": "harsh", "themes": ["death", "curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 17, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 30, "jars_at": [], "tone": "harsh", "themes": ["death", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 31, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 26, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 1, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 36, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 28, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 24, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 33, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 4, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 22, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 34, "jars_at": [], "tone": "harsh", "themes": ["death", "sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 29, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 16, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 2, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 27, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 25, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 8, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 28, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 10, "jars_at": [], "tone": "neutral", "themes": ["torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 21, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 32, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 2, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 12, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 13, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["hope", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 24, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 23, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 20, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}

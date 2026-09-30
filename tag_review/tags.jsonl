@@ -1,0 +1,651 @@
+{"book": "Genesis", "chapter": 40, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 3, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 4, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 5, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 6, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 12, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 14, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 16, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 17, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 18, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 19, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 20, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 21, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 22, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Genesis", "chapter": 40, "verse": 23, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 1, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 5, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 7, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "healing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 13, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 14, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 15, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 16, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 19, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 20, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith", "home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 22, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Exodus", "chapter": 20, "verse": 23, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 4, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 5, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 6, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 7, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 8, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 10, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 13, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 16, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 17, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 19, "jars_at": [], "tone": "neutral", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 20, "jars_at": [], "tone": "neutral", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 21, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 22, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 23, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 24, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 25, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 26, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 27, "jars_at": [], "tone": "neutral", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 28, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Deuteronomy", "chapter": 9, "verse": 29, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["home", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["healing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["healing", "faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["hope", "joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 8, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 9, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 10, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["faith", "healing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["joy", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 30, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "joy", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["joy", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 10, "jars_at": [], "tone": "harsh", "themes": ["affliction"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["affliction", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["affliction"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 13, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 15, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 16, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 19, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 20, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["faith", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 31, "verse": 25, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 15, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 16, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 18, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 19, "jars_at": [], "tone": "uplifting", "themes": ["healing", "hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 20, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["joy", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 33, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 2, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 3, "jars_at": [], "tone": "harsh", "themes": ["sin", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 5, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 6, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 7, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 8, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 10, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["joy", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 58, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["hope", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "healing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["hope", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 15, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith", "healing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 16, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "children"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 18, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 19, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 72, "verse": 20, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["torah", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["joy", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 6, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 7, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["joy", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 13, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 14, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 16, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 17, "jars_at": [], "tone": "harsh", "themes": ["curse", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 19, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 20, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 21, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 22, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 24, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 25, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 27, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 28, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 29, "jars_at": ["celebration"], "tone": "harsh", "themes": ["affliction", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 30, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 31, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 32, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 33, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 34, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 35, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 36, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 37, "jars_at": [], "tone": "harsh", "themes": ["sin", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 38, "jars_at": [], "tone": "harsh", "themes": ["sin", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 39, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 40, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 41, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 42, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 43, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 44, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 45, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 46, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 47, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 106, "verse": 48, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "joy", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith", "joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 15, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 16, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["healing", "faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 19, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 20, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 25, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 26, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 27, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 28, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Psalms", "chapter": 118, "verse": 29, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 1, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["faith", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 4, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["home", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["torah", "faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 7, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 8, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 13, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 15, "jars_at": [], "tone": "uplifting", "themes": ["faith", "torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 16, "jars_at": [], "tone": "uplifting", "themes": ["faith", "healing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 19, "jars_at": [], "tone": "neutral", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 20, "jars_at": [], "tone": "uplifting", "themes": ["home", "hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 23, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 33, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["healing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 1, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 2, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 3, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 6, "jars_at": ["celebration"], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Isaiah", "chapter": 50, "verse": 11, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 3, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 4, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 5, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["children", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 8, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 12, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 16, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 17, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 18, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 19, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 20, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["children", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["children", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Joshua", "chapter": 4, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 3, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 5, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 6, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 8, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 12, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 14, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 16, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 17, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 19, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 20, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 21, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 22, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 23, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 24, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 25, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 26, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 27, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 28, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 29, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 30, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 31, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 32, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 33, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 34, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 35, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 36, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 37, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 38, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 39, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 40, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 41, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 42, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 43, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 44, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 45, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 46, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 47, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Judges", "chapter": 20, "verse": 48, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 3, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 8, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 12, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 16, "jars_at": [], "tone": "harsh", "themes": ["violence", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 17, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 18, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 19, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 20, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 21, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 22, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 23, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 24, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 25, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 27, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 28, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 29, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 30, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 31, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 2, "verse": 32, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 3, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 4, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 5, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 6, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 8, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 11, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 12, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 13, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 14, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 15, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 16, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 17, "jars_at": ["celebration"], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 18, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 19, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 20, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 21, "jars_at": [], "tone": "harsh", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 22, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 23, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 24, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 25, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 26, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 27, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 28, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 29, "jars_at": ["celebration"], "tone": "harsh", "themes": ["violence", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 30, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 31, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 32, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 33, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 34, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 35, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 36, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 37, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 38, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "II Samuel", "chapter": 13, "verse": 39, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 2, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 6, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 8, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 10, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 13, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 16, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 17, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 19, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 20, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 21, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 22, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 24, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 25, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 27, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 28, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 29, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 30, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 31, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 32, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 33, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 7, "verse": 34, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 1, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 2, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["hope", "children"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 10, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 13, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 16, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 17, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 19, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 20, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 21, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 22, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 25, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 27, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 28, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 29, "jars_at": [], "tone": "uplifting", "themes": ["faith", "torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 30, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 31, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 32, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 33, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 34, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 35, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 36, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 37, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 38, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 39, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 23, "verse": 40, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["joy", "hope", "home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["hope", "home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["children", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["joy", "blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["joy", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 15, "jars_at": ["celebration"], "tone": "harsh", "themes": ["death", "children"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 16, "jars_at": [], "tone": "uplifting", "themes": ["hope", "children"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["hope", "children"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 18, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 19, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 20, "jars_at": [], "tone": "uplifting", "themes": ["children", "blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 21, "jars_at": [], "tone": "uplifting", "themes": ["hope", "home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 22, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 23, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope", "home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 24, "jars_at": [], "tone": "uplifting", "themes": ["home", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 25, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 26, "jars_at": [], "tone": "uplifting", "themes": ["hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 27, "jars_at": [], "tone": "uplifting", "themes": ["children", "blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 28, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 29, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 30, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 31, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 32, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 33, "jars_at": [], "tone": "uplifting", "themes": ["torah", "faith", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 34, "jars_at": [], "tone": "uplifting", "themes": ["faith", "hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 35, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 36, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 37, "jars_at": [], "tone": "uplifting", "themes": ["blessing", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 38, "jars_at": [], "tone": "uplifting", "themes": ["home", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 39, "jars_at": [], "tone": "neutral", "themes": ["home", "technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Jeremiah", "chapter": 31, "verse": 40, "jars_at": [], "tone": "uplifting", "themes": ["home", "hope"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 1, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 2, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 3, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 4, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 5, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 6, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 7, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 8, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 9, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 10, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 11, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 12, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 13, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 14, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 16, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 4, "verse": 17, "jars_at": ["celebration"], "tone": "harsh", "themes": ["curse", "sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 2, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 3, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 4, "jars_at": [], "tone": "harsh", "themes": ["faith", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 5, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 6, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 7, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 8, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 10, "jars_at": [], "tone": "harsh", "themes": ["faith", "curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["death"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 12, "jars_at": [], "tone": "harsh", "themes": ["death", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 15, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 16, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 17, "jars_at": [], "tone": "harsh", "themes": ["death", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 18, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 19, "jars_at": [], "tone": "harsh", "themes": ["death", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 20, "jars_at": [], "tone": "harsh", "themes": ["death", "curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 21, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 22, "jars_at": [], "tone": "harsh", "themes": ["faith", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 23, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 24, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 25, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 26, "jars_at": [], "tone": "harsh", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 27, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 28, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 29, "jars_at": [], "tone": "harsh", "themes": ["sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 30, "jars_at": [], "tone": "harsh", "themes": ["death", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 31, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 32, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 33, "jars_at": [], "tone": "harsh", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 34, "jars_at": [], "tone": "harsh", "themes": ["death", "sin", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 35, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 36, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ezekiel", "chapter": 21, "verse": 37, "jars_at": [], "tone": "harsh", "themes": ["death", "curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["hope", "joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 2, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 4, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 5, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 6, "jars_at": [], "tone": "neutral", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 7, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 8, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 9, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 10, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 11, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 12, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Nahum", "chapter": 2, "verse": 14, "jars_at": [], "tone": "harsh", "themes": ["curse", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 1, "jars_at": [], "tone": "neutral", "themes": ["faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 3, "jars_at": [], "tone": "neutral", "themes": ["sin"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 6, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": ["torah", "faith", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 9, "jars_at": [], "tone": "uplifting", "themes": ["hope", "faith"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Zechariah", "chapter": 3, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": ["hope", "blessing", "joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 1, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 2, "jars_at": [], "tone": "neutral", "themes": ["torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 3, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 4, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 5, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 6, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 7, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 8, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 10, "jars_at": [], "tone": "neutral", "themes": ["torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 11, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["torah"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 13, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 14, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 15, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 16, "jars_at": [], "tone": "harsh", "themes": ["curse"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 17, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 18, "jars_at": [], "tone": "neutral", "themes": ["home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 19, "jars_at": [], "tone": "uplifting", "themes": ["joy"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "Ecclesiastes", "chapter": 10, "verse": 20, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 1, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 2, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 3, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 4, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 5, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 6, "jars_at": [], "tone": "uplifting", "themes": ["faith", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 7, "jars_at": [], "tone": "uplifting", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 8, "jars_at": [], "tone": "uplifting", "themes": ["home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 9, "jars_at": [], "tone": "neutral", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 10, "jars_at": [], "tone": "uplifting", "themes": [], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 11, "jars_at": [], "tone": "uplifting", "themes": ["home"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 12, "jars_at": [], "tone": "uplifting", "themes": ["violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 13, "jars_at": [], "tone": "uplifting", "themes": ["faith", "violence"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 14, "jars_at": [], "tone": "uplifting", "themes": ["blessing"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 15, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 16, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
+{"book": "I Chronicles", "chapter": 18, "verse": 17, "jars_at": [], "tone": "neutral", "themes": ["technical"], "model": "gemini-flash-lite-latest", "prompt": 3}
