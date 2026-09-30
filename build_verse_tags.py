@@ -36,42 +36,61 @@ spec.loader.exec_module(app)
 
 OLLAMA = "http://127.0.0.1:11434/api/chat"
 
+# ⚠️ Everything fixed lives in SYSTEM, and the per-verse part comes last. The
+# model server reuses an already-processed prefix between calls, and on this
+# CPU-only PC re-reading the instructions for every verse was most of the cost.
 SYSTEM = (
     "You label verses of Tanach for a tool that suggests verses for Jewish "
-    "life-cycle occasions (a bris, a wedding, a yahrzeit). Judge what the "
-    "verse is ABOUT and how it would feel read aloud at such an occasion, "
-    "using the surrounding verses to understand it. Do not judge by single "
-    "words: a verse mentioning idols may be about destroying them; a verse in "
-    "a sad book may be hopeful. Answer only with JSON.")
+    "occasions. Judge what the verse is ABOUT and how it would feel read "
+    "aloud, using the surrounding verses to understand it. Do not judge by "
+    "single words: a verse mentioning idols may be about destroying them; a "
+    "verse mentioning death may be about its defeat; a verse in a sad book "
+    "may be hopeful. Answer only with JSON.\n\n"
+    "jars_at — the kinds of occasion where reading or quoting this verse "
+    "would JAR (feel wrong or unpleasant). Most verses jar nowhere: a "
+    "genealogy, a law or a neutral narrative is fine anywhere. List a kind "
+    "only when the verse would genuinely be out of place there:\n"
+    + "\n".join(f"- {k}: {d}" for k, d in app.VERSE_FIT.items()) +
+    "\n\ntone — uplifting, neutral, or harsh.\n\n"
+    "themes — zero to three that the verse is actually about:\n"
+    + "\n".join(f"- {k}: {d}" for k, d in app.VERSE_THEMES.items()))
 
 SCHEMA = {
     "type": "object",
     "properties": {
+        "jars_at": {"type": "array",
+                    "items": {"type": "string", "enum": list(app.VERSE_FIT)}},
         "tone": {"type": "string", "enum": list(app.VERSE_TONES)},
         "themes": {"type": "array",
                    "items": {"type": "string", "enum": list(app.VERSE_THEMES)}},
     },
-    "required": ["tone", "themes"],
+    "required": ["jars_at", "tone", "themes"],
 }
 
 
 def prompt_for(v, english, neighbours) -> str:
-    themes = "\n".join(f"- {k}: {d}" for k, d in app.VERSE_THEMES.items())
     context = "\n".join(f"  {b} {c}:{n} — {english.get((b, c, n), '')}"
                         for b, c, n in neighbours)
     return (
         f"Surrounding verses (context only):\n{context}\n\n"
         f"VERSE TO LABEL: {v.book} {v.chapter}:{v.verse}\n"
         f"Hebrew: {app.strip_taamim(v.text)}\n"
-        f"English: {english.get((v.book, v.chapter, v.verse), '(none)')}\n\n"
-        f"tone — uplifting, neutral, or harsh (harsh = unpleasant to read "
-        f"aloud at a happy occasion).\n"
-        f"themes — zero to three that the verse is actually about:\n{themes}")
+        f"English: {english.get((v.book, v.chapter, v.verse), '(none)')}")
+
+
+def neighbours_of(key, order, pos):
+    """Two verses before and one after, within the same chapter."""
+    i = pos[key]
+    return [order[j] for j in range(i - 2, i + 2)
+            if j != i and 0 <= j < len(order) and order[j][:2] == key[:2]]
 
 
 def ask(model: str, prompt: str) -> dict:
     body = json.dumps({
         "model": model, "stream": False, "format": SCHEMA,
+        # Reasoning ("thinking") models would spend minutes per verse on a
+        # one-line label; the schema-constrained answer needs none.
+        "think": False,
         "options": {"temperature": 0},
         "messages": [{"role": "system", "content": SYSTEM},
                      {"role": "user", "content": prompt}],
@@ -119,12 +138,8 @@ def main():
     t0 = time.time()
     with open(a.out, "a", encoding="utf-8") as out:
         for n, v in enumerate(todo, 1):
-            i = pos[(v.book, v.chapter, v.verse)]
-            # Two before, one after, within the same chapter.
-            neighbours = [order[j] for j in range(i - 2, i + 2)
-                          if j != i and 0 <= j < len(order)
-                          and order[j][:2] == (v.book, v.chapter)]
-            p = prompt_for(v, english, neighbours)
+            p = prompt_for(v, english,
+                           neighbours_of((v.book, v.chapter, v.verse), order, pos))
             if a.dry_run:
                 print("=" * 60 + "\n" + p)
                 continue
@@ -135,6 +150,7 @@ def main():
                 continue
             out.write(json.dumps({
                 "book": v.book, "chapter": v.chapter, "verse": v.verse,
+                "jars_at": res.get("jars_at", []),
                 "tone": res.get("tone"), "themes": res.get("themes", [])[:3],
                 "model": a.model}, ensure_ascii=False) + "\n")
             out.flush()

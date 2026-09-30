@@ -3714,25 +3714,36 @@ VERSE_THEMES: Dict[str, str] = {
 # "harsh" = unpleasant to read aloud at a happy occasion, whatever the theme.
 VERSE_TONES: Tuple[str, ...] = ("uplifting", "neutral", "harsh")
 
-# Occasion profiles: themes pushed UP, themes that set a verse ASIDE, and
-# whether a harsh tone is acceptable. Setting aside is not hiding: the page
-# lists set-aside matches separately, so a mistaken tag never silently removes
-# a good match.
-_JOYFUL_AVOID = ["death", "affliction", "curse", "sin", "violence"]
-_PROFILE_LIFE = {"promote": ["children", "blessing", "joy", "hope", "faith"],
-                 "avoid": _JOYFUL_AVOID, "harsh_ok": False}
-_PROFILE_TORAH = {"promote": ["torah", "blessing", "joy", "faith"],
-                  "avoid": _JOYFUL_AVOID, "harsh_ok": False}
-_PROFILE_WEDDING = {"promote": ["marriage", "joy", "blessing", "children", "hope"],
-                    "avoid": _JOYFUL_AVOID, "harsh_ok": False}
-_PROFILE_MOURNING = {"promote": ["hope", "faith", "torah", "death", "blessing"],
-                     "avoid": ["affliction", "curse", "sin", "violence"],
-                     "harsh_ok": False}
-_PROFILE_REFUAH = {"promote": ["healing", "hope", "faith", "blessing"],
-                   "avoid": ["death", "affliction", "curse", "sin", "violence"],
-                   "harsh_ok": False}
-_PROFILE_HOME = {"promote": ["home", "blessing", "joy"],
-                 "avoid": _JOYFUL_AVOID, "harsh_ok": False}
+# ⚠️ Suitability is the model's DIRECT judgment per kind of occasion, not
+# something derived from themes. The first bake-off (2026-09-30) derived it —
+# "any death theme sets aside" — and that set aside ישעיה כה:ח ("He will
+# swallow death forever") and קהלת ג:ב: the same over-breadth as keyword rules.
+# Themes are kept only to push GOOD matches up.
+#
+# ⚠️ Asked NEGATIVELY ("where would this jar?"), never "is it fitting?". Asked
+# positively, the model read "fitting" as "on-topic" and rejected יחזקאל לז:ה and
+# the bris verse itself (בראשית יז:יב) for a bris. Asked negatively, its default
+# of "nowhere" is the safe direction: setting aside stays the exception.
+VERSE_FIT: Dict[str, str] = {
+    "celebration": "a happy occasion: a bris, a wedding, a bar mitzvah, a "
+                   "siyum, a refuah shleimah",
+    "memorial": "a yahrzeit, a hesped, or a matzeivah inscription",
+}
+
+# Occasion profiles: which VERSE_FIT judgment applies, and which themes push a
+# match UP. Setting aside is not hiding: the page lists set-aside matches
+# separately, so a mistaken tag never silently removes a good match.
+_PROFILE_LIFE = {"fit": "celebration",
+                 "promote": ["children", "blessing", "joy", "hope", "faith"]}
+_PROFILE_TORAH = {"fit": "celebration",
+                  "promote": ["torah", "blessing", "joy", "faith"]}
+_PROFILE_WEDDING = {"fit": "celebration",
+                    "promote": ["marriage", "joy", "blessing", "children", "hope"]}
+_PROFILE_MOURNING = {"fit": "memorial",
+                     "promote": ["hope", "faith", "torah", "death", "blessing"]}
+_PROFILE_REFUAH = {"fit": "celebration",
+                   "promote": ["healing", "hope", "faith", "blessing"]}
+_PROFILE_HOME = {"fit": "celebration", "promote": ["home", "blessing", "joy"]}
 
 # Each occasion is configuration, not code: who is asked for, which parent the
 # default `בן/בת` form uses, any fixed extra forms, and its context profile.
@@ -3784,7 +3795,7 @@ VERSE_TAGS_FILE = pathlib.Path(__file__).parent / "verse_tags.jsonl"
 
 def load_verse_tags(path: pathlib.Path = VERSE_TAGS_FILE
                     ) -> Dict[Tuple[str, int, int], Dict]:
-    """Load context tags as {(book, chapter, verse): {"tone", "themes"}}.
+    """Load context tags as {(book, chapter, verse): {"tone", "themes", "jars_at"}}.
 
     Returns {} when the file is absent — a supported state: untagged verses
     are ranked on the numbers alone, exactly as before tags existed. Unknown
@@ -3804,7 +3815,9 @@ def load_verse_tags(path: pathlib.Path = VERSE_TAGS_FILE
             tone = r.get("tone") if r.get("tone") in VERSE_TONES else "neutral"
             out[key] = {"tone": tone,
                         "themes": [t for t in r.get("themes") or []
-                                   if t in VERSE_THEMES]}
+                                   if t in VERSE_THEMES],
+                        "jars_at": [k for k in r.get("jars_at") or []
+                                    if k in VERSE_FIT]}
     return out
 
 
@@ -3812,13 +3825,15 @@ def occ_context_verdict(tag: Optional[Dict], profile: Dict
                         ) -> Tuple[int, List[str]]:
     """(score adjustment, reasons to set aside) for one verse and occasion.
 
-    An untagged verse gets (0, []): no opinion, never a penalty.
+    An untagged verse gets (0, []): no opinion, never a penalty. The reason
+    names the verse's themes so the reader can see what the judgment was about.
     """
     if not tag:
         return 0, []
-    aside = [t for t in tag["themes"] if t in profile["avoid"]]
-    if tag["tone"] == "harsh" and not profile["harsh_ok"]:
-        aside.append("harsh tone")
+    aside = []
+    if profile["fit"] in tag.get("jars_at", []):
+        aside = [f"judged unsuitable for a {profile['fit']}"
+                 + (f" ({', '.join(tag['themes'])})" if tag["themes"] else "")]
     bonus = 15 * min(2, sum(t in profile["promote"] for t in tag["themes"]))
     bonus += 5 if tag["tone"] == "uplifting" else 0
     return bonus, aside
