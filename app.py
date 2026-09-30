@@ -3680,40 +3680,148 @@ def occ_method_tier(method: str) -> int:
     return 0 if method in GATE_CIPHER_NAMES else 1
 
 
+# ── Verse context: is a match APPROPRIATE for the occasion? ─────────────────
+# A bris result about צרעת is numerically fine and still wrong. Whether a verse
+# suits an occasion does not depend on the name searched, so every verse is
+# tagged ONCE, offline, and the page only reads the tags.
+#
+# ⚠️ Tags come from a model reading each verse in context (build_verse_tags.py),
+# NEVER from keyword or chapter-range rules. Joshua ruled those too broad
+# (2026-09-30): Eicha ends with השיבנו, and a verse about idols may be about
+# destroying them. Only a reading of the verse can tell.
+#
+# This list is the model's vocabulary AND the ranking's, so the two cannot
+# disagree about what a theme means. Descriptions are what the model is shown.
+VERSE_THEMES: Dict[str, str] = {
+    "children":   "birth, children, fertility, offspring",
+    "marriage":   "marriage, love, bride and groom, family",
+    "blessing":   "blessing, praise, thanksgiving",
+    "joy":        "joy, celebration, festivals, song",
+    "hope":       "comfort, hope, redemption, return, consolation",
+    "faith":      "trust in Hashem, prayer, closeness to Hashem",
+    "torah":      "Torah, mitzvos, wisdom, learning",
+    "healing":    "healing, recovery, long life",
+    "home":       "home, building, dedication, the Mishkan / Mikdash",
+    "death":      "death, burial, mourning",
+    "affliction": "disease, tzaraas, plague, bodily impurity or discharges",
+    "curse":      "curses, punishment, destruction, exile, rebuke",
+    "sin":        "sin, idolatry or immorality presented without condemnation "
+                  "(a verse about destroying idols is NOT this)",
+    "violence":   "war, killing, cruelty",
+    "technical":  "technical detail: measurements, sacrificial procedure, "
+                  "genealogies, census lists",
+}
+# "harsh" = unpleasant to read aloud at a happy occasion, whatever the theme.
+VERSE_TONES: Tuple[str, ...] = ("uplifting", "neutral", "harsh")
+
+# Occasion profiles: themes pushed UP, themes that set a verse ASIDE, and
+# whether a harsh tone is acceptable. Setting aside is not hiding: the page
+# lists set-aside matches separately, so a mistaken tag never silently removes
+# a good match.
+_JOYFUL_AVOID = ["death", "affliction", "curse", "sin", "violence"]
+_PROFILE_LIFE = {"promote": ["children", "blessing", "joy", "hope", "faith"],
+                 "avoid": _JOYFUL_AVOID, "harsh_ok": False}
+_PROFILE_TORAH = {"promote": ["torah", "blessing", "joy", "faith"],
+                  "avoid": _JOYFUL_AVOID, "harsh_ok": False}
+_PROFILE_WEDDING = {"promote": ["marriage", "joy", "blessing", "children", "hope"],
+                    "avoid": _JOYFUL_AVOID, "harsh_ok": False}
+_PROFILE_MOURNING = {"promote": ["hope", "faith", "torah", "death", "blessing"],
+                     "avoid": ["affliction", "curse", "sin", "violence"],
+                     "harsh_ok": False}
+_PROFILE_REFUAH = {"promote": ["healing", "hope", "faith", "blessing"],
+                   "avoid": ["death", "affliction", "curse", "sin", "violence"],
+                   "harsh_ok": False}
+_PROFILE_HOME = {"promote": ["home", "blessing", "joy"],
+                 "avoid": _JOYFUL_AVOID, "harsh_ok": False}
+
 # Each occasion is configuration, not code: who is asked for, which parent the
-# default `בן/בת` form uses, and any fixed extra forms. `gender` None means
-# "ask"; "m"/"f" fixes it (chosson / kallah). The defaults follow common custom —
-# mother's name for tefillah, father's elsewhere — and are Joshua's to change.
+# default `בן/בת` form uses, any fixed extra forms, and its context profile.
+# `gender` None means "ask"; "m"/"f" fixes it (chosson / kallah). The defaults
+# follow common custom — mother's name for tefillah, father's elsewhere — and
+# are Joshua's to change.
 OCCASIONS: Dict[str, Dict] = {
     "Birth · bris": {
-        "people": [("child", "Child", None)], "parent": "father"},
+        "people": [("child", "Child", None)], "parent": "father",
+        "context": _PROFILE_LIFE},
     "Pidyon haben": {
-        "people": [("child", "Child", "m")], "parent": "father"},
+        "people": [("child", "Child", "m")], "parent": "father",
+        "context": _PROFILE_LIFE},
     "Upsherin": {
-        "people": [("child", "Child", "m")], "parent": "father"},
+        "people": [("child", "Child", "m")], "parent": "father",
+        "context": _PROFILE_TORAH},
     "Bar / bat mitzvah": {
-        "people": [("child", "Child", None)], "parent": "father"},
+        "people": [("child", "Child", None)], "parent": "father",
+        "context": _PROFILE_TORAH},
     "Engagement · wedding · sheva brachos": {
         "people": [("chosson", "Chosson", "m"), ("kallah", "Kallah", "f")],
-        "parent": "father", "couple": True},
+        "parent": "father", "couple": True, "context": _PROFILE_WEDDING},
     "Anniversary": {
         "people": [("husband", "Husband", "m"), ("wife", "Wife", "f")],
-        "parent": "father", "couple": True},
+        "parent": "father", "couple": True, "context": _PROFILE_WEDDING},
     "Yahrzeit · hesped · matzeivah": {
-        "people": [("niftar", "The niftar", None)], "parent": "father"},
+        "people": [("niftar", "The niftar", None)], "parent": "father",
+        "context": _PROFILE_MOURNING},
     "Refuah shleimah · tefillah": {
-        "people": [("person", "The person", None)], "parent": "mother"},
+        "people": [("person", "The person", None)], "parent": "mother",
+        "context": _PROFILE_REFUAH},
     "Birthday": {
-        "people": [("person", "The person", None)], "parent": "father"},
+        "people": [("person", "The person", None)], "parent": "father",
+        "context": _PROFILE_LIFE},
     "Siyum": {
         "people": [("person", "Making the siyum", None)], "parent": "father",
-        "extra_label": "Masechta / sefer (Hebrew)"},
+        "extra_label": "Masechta / sefer (Hebrew)", "context": _PROFILE_TORAH},
     "Chanukas habayis · business · dedication": {
         "people": [], "parent": None,
-        "extra_label": "Family or business name (Hebrew)"},
+        "extra_label": "Family or business name (Hebrew)",
+        "context": _PROFILE_HOME},
     "Conversion (new Hebrew name)": {
-        "people": [("person", "New name", None)], "parent": "avraham"},
+        "people": [("person", "New name", None)], "parent": "avraham",
+        "context": _PROFILE_LIFE},
 }
+
+VERSE_TAGS_FILE = pathlib.Path(__file__).parent / "verse_tags.jsonl"
+
+
+def load_verse_tags(path: pathlib.Path = VERSE_TAGS_FILE
+                    ) -> Dict[Tuple[str, int, int], Dict]:
+    """Load context tags as {(book, chapter, verse): {"tone", "themes"}}.
+
+    Returns {} when the file is absent — a supported state: untagged verses
+    are ranked on the numbers alone, exactly as before tags existed. Unknown
+    themes or tones (a model straying from the vocabulary) are dropped rather
+    than trusted.
+    """
+    if not path.exists():
+        return {}
+    out: Dict[Tuple[str, int, int], Dict] = {}
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            try:
+                r = json.loads(line)
+                key = (r["book"], int(r["chapter"]), int(r["verse"]))
+            except (ValueError, KeyError, TypeError):
+                continue
+            tone = r.get("tone") if r.get("tone") in VERSE_TONES else "neutral"
+            out[key] = {"tone": tone,
+                        "themes": [t for t in r.get("themes") or []
+                                   if t in VERSE_THEMES]}
+    return out
+
+
+def occ_context_verdict(tag: Optional[Dict], profile: Dict
+                        ) -> Tuple[int, List[str]]:
+    """(score adjustment, reasons to set aside) for one verse and occasion.
+
+    An untagged verse gets (0, []): no opinion, never a penalty.
+    """
+    if not tag:
+        return 0, []
+    aside = [t for t in tag["themes"] if t in profile["avoid"]]
+    if tag["tone"] == "harsh" and not profile["harsh_ok"]:
+        aside.append("harsh tone")
+    bonus = 15 * min(2, sum(t in profile["promote"] for t in tag["themes"]))
+    bonus += 5 if tag["tone"] == "uplifting" else 0
+    return bonus, aside
 
 
 def _occ_form(label: str, raw: str, weight: int) -> Optional[Dict]:
@@ -3853,9 +3961,16 @@ def occasion_search(conn: sqlite3.Connection, forms: List[Dict],
     return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
 
 
-def occasion_rank(hits: pd.DataFrame, forms: List[Dict],
-                  top: int = 20) -> List[Dict]:
+def occasion_rank(hits: pd.DataFrame, forms: List[Dict], top: int = 20,
+                  tags: Optional[Dict] = None,
+                  profile: Optional[Dict] = None) -> Dict:
     """Score hits and group them by VERSE, best first.
+
+    Returns {"top": [...], "aside": [...], "n_aside": int, "n_tagged": int}.
+    With context `tags` and an occasion `profile`, a verse the tags mark as
+    unsuitable goes to "aside" instead of "top" (see occ_context_verdict), and
+    a suitable one is pushed up. Without tags, "aside" is empty and ranking is
+    on the numbers alone.
 
     Per hit: both methods' tiers (Chazal-attested highest), same method over
     cross-method, whole verse over smaller units, natural name form over an
@@ -3867,13 +3982,14 @@ def occasion_rank(hits: pd.DataFrame, forms: List[Dict],
     Vectorised: a common name produces thousands of hits, and a per-row Python
     loop here cost 12 s where the searches themselves took under 1 s.
     """
+    empty = {"top": [], "aside": [], "n_aside": 0, "n_tagged": 0}
     if hits.empty:
-        return []
+        return empty
     # A זקף / טפחא "phrase" can be a single word, which is a word match in
     # disguise — the kind this search leaves out as too common to mean much.
     hits = hits[hits["Text"].str.strip().str.contains(" ")]
     if hits.empty:
-        return []
+        return empty
     tier = {m: occ_method_tier(m) for m in CIPHER_NAMES}
     total = hits["Total"]
     h = hits.assign(
@@ -3889,19 +4005,34 @@ def occasion_rank(hits: pd.DataFrame, forms: List[Dict],
     n_hits = h.drop_duplicates(key + ["Form", "QMethod", "UMethod", "Text"]
                                ).groupby(key).size()
     best["Score"] = best["Score"] + (n_hits.reindex(best.index) - 1).clip(upper=3) * 3
-    best = best.sort_values("Score", ascending=False, kind="stable").head(top)
-    out = []
-    for (bk, ch, vs), row in best.iterrows():
-        sel = h[(h["Book"] == bk) & (h["Chapter"] == ch) & (h["Verse"] == vs)]
-        # Keyed on the unit's TEXT, not its id: a verse with no אתנחתא has a
-        # "first half" identical to the whole verse, and that is one match, not
-        # two. `h` is score-ordered, so the larger unit is the one kept.
-        sel = sel.drop_duplicates(["Form", "QMethod", "UMethod", "Text"])
-        out.append({"Book": bk, "Chapter": int(ch), "Verse": int(vs),
-                    "Score": float(row["Score"]),
-                    "Hits": sel.head(8).to_dict("records"),
-                    "HitCount": len(sel)})
-    return out
+    tags = tags or {}
+    verdicts = [occ_context_verdict(tags.get((b, int(c), int(v))), profile)
+                if profile else (0, []) for b, c, v in best.index]
+    best["Score"] = best["Score"] + [v[0] for v in verdicts]
+    best["Aside"] = [v[1] for v in verdicts]
+    best["Tag"] = [tags.get((b, int(c), int(v))) for b, c, v in best.index]
+    n_tagged = int(best["Tag"].notna().sum())
+    best = best.sort_values("Score", ascending=False, kind="stable")
+    is_aside = best["Aside"].map(bool)
+
+    def entries(frame):
+        out = []
+        for (bk, ch, vs), row in frame.iterrows():
+            sel = h[(h["Book"] == bk) & (h["Chapter"] == ch) & (h["Verse"] == vs)]
+            # Keyed on the unit's TEXT, not its id: a verse with no אתנחתא has a
+            # "first half" identical to the whole verse, and that is one match,
+            # not two. `h` is score-ordered, so the larger unit is the one kept.
+            sel = sel.drop_duplicates(["Form", "QMethod", "UMethod", "Text"])
+            out.append({"Book": bk, "Chapter": int(ch), "Verse": int(vs),
+                        "Score": float(row["Score"]),
+                        "Hits": sel.head(8).to_dict("records"),
+                        "HitCount": len(sel), "Tag": row["Tag"],
+                        "Aside": row["Aside"]})
+        return out
+
+    return {"top": entries(best[~is_aside].head(top)),
+            "aside": entries(best[is_aside].head(top)),
+            "n_aside": int(is_aside.sum()), "n_tagged": n_tagged}
 
 
 # ---------------------------------------------------------------------------
@@ -5351,7 +5482,9 @@ def run_app() -> None:
         hits = occasion_search(_conn, forms, OCC_DEPTHS[depth])
         n_verses = (0 if hits.empty else
                     len(hits[["Book", "Chapter", "Verse"]].drop_duplicates()))
-        return forms, occasion_rank(hits, forms, top), n_verses
+        ranked = occasion_rank(hits, forms, top, tags=_verse_tags_index(),
+                               profile=OCCASIONS[occasion].get("context"))
+        return forms, ranked, n_verses
 
     # Verse-mode lookups. These MUST be cached functions taking the connection
     # as `_conn`, not ad-hoc queries in the script body: an earlier version ran
@@ -5476,6 +5609,12 @@ def run_app() -> None:
     @st.cache_resource(show_spinner=False)
     def _english_index() -> Dict[Tuple[str, int, int], str]:
         return load_english()
+
+    # Same reasoning as the translation: one argument-free entry, loaded once.
+    # Restart the app after regenerating verse_tags.jsonl.
+    @st.cache_resource(show_spinner=False)
+    def _verse_tags_index() -> Dict[Tuple[str, int, int], Dict]:
+        return load_verse_tags()
 
     def verse_english(book, chapter, verse) -> str:
         """Translation for one verse, or "" when unavailable."""
@@ -6397,15 +6536,20 @@ def run_app() -> None:
 
             _res = st.session_state.get("occ_result")
             if _res:
-                _forms, _top, _n_verses = _res
+                _forms, _ranked, _n_verses = _res
+                _top, _aside = _ranked["top"], _ranked["aside"]
                 if not _forms:
                     st.info("Enter at least one name.")
-                elif not _top:
+                elif not _top and not _aside:
                     st.info("No matches in the fixed units (verse, half verse, "
-                            "זקף / טפחא phrase).")
+                            "zakef / tipcha phrase).")
                 else:
                     st.markdown(f"**{_n_verses:,} verses** have at least one "
                                 f"match; the best {len(_top)} are shown.")
+                    if not _verse_tags_index():
+                        st.caption("Context tags are not built yet, so results "
+                                   "are ranked on the numbers alone and nothing "
+                                   "is set aside as unsuitable.")
                     with st.expander("Name forms searched"):
                         for _f in _forms:
                             st.markdown(rtl_wrap(
@@ -6414,46 +6558,61 @@ def run_app() -> None:
                                 unsafe_allow_html=True)
                     _show_en = st.checkbox("Show translation", key="occ_en")
                     _en = _english_index() if _show_en else {}
-                    for _i, _u in enumerate(_top):
-                        _h0 = _u["Hits"][0]
-                        _txt = vocalize_result_text(pd.DataFrame([{
-                            "Book": _u["Book"], "Chapter": _u["Chapter"],
-                            "Verse": _u["Verse"], "Text": _h0["Text"],
-                            "Track": "Ksiv"}]), verse_index).iloc[0]["Text"]
-                        st.markdown(
-                            f"**{_i + 1}. {_u['Book']} {_u['Chapter']}:{_u['Verse']}**"
-                            f" · {OCC_UNIT_LABEL.get(_h0['Boundary'], _h0['Boundary'])}"
-                            f" · {_u['HitCount']} match"
-                            f"{'es' if _u['HitCount'] != 1 else ''}")
-                        st.markdown(f'<div dir="rtl" style="font-size:1.25em">'
-                                    f'{rtl_wrap(_txt)}</div>',
-                                    unsafe_allow_html=True)
-                        for _h in _u["Hits"][:3]:
-                            _f = _forms[_h["Form"]]
-                            # One shape for every line, same-method or cross,
-                            # with ONE Hebrew run (the name form): mixing more
-                            # Hebrew into an English line is what scrambled the
-                            # Guide's bidi. The unit is named on every line so
-                            # two phrases of one verse stay distinguishable.
-                            _q = CIPHER_DISPLAY_NAMES.get(_h["QMethod"], _h["QMethod"]).split(" — ")[0]
-                            _b = CIPHER_DISPLAY_NAMES.get(_h["UMethod"], _h["UMethod"]).split(" — ")[0]
-                            _line = (f"**{_h['Value']}** · {_f['label']} "
-                                     f"{rtl_wrap(_f['text'])} in {_q} = the "
-                                     f"{OCC_UNIT_LABEL.get(_h['Boundary'], _h['Boundary'])}"
-                                     f" in {_b} · {_h['Total']:,} units share this value")
-                            st.markdown("- " + _line, unsafe_allow_html=True)
-                        if _show_en:
-                            _t = _en.get((_u["Book"], _u["Chapter"], _u["Verse"]))
-                            if _t:
-                                st.caption(_t)
+
+                    def _occ_render(units, start=0):
+                        for _i, _u in enumerate(units, start):
+                            _h0 = _u["Hits"][0]
+                            _txt = vocalize_result_text(pd.DataFrame([{
+                                "Book": _u["Book"], "Chapter": _u["Chapter"],
+                                "Verse": _u["Verse"], "Text": _h0["Text"],
+                                "Track": "Ksiv"}]), verse_index).iloc[0]["Text"]
+                            st.markdown(
+                                f"**{_i + 1}. {_u['Book']} {_u['Chapter']}:{_u['Verse']}**"
+                                f" · {OCC_UNIT_LABEL.get(_h0['Boundary'], _h0['Boundary'])}"
+                                f" · {_u['HitCount']} match"
+                                f"{'es' if _u['HitCount'] != 1 else ''}")
+                            st.markdown(f'<div dir="rtl" style="font-size:1.25em">'
+                                        f'{rtl_wrap(_txt)}</div>',
+                                        unsafe_allow_html=True)
+                            if _u["Aside"]:
+                                st.caption("Set aside: " + ", ".join(_u["Aside"]))
+                            for _h in _u["Hits"][:3]:
+                                _f = _forms[_h["Form"]]
+                                # One shape for every line, same-method or cross,
+                                # with ONE Hebrew run (the name form): mixing more
+                                # Hebrew into an English line is what scrambled the
+                                # Guide's bidi. The unit is named on every line so
+                                # two phrases of one verse stay distinguishable.
+                                _q = CIPHER_DISPLAY_NAMES.get(_h["QMethod"], _h["QMethod"]).split(" — ")[0]
+                                _b = CIPHER_DISPLAY_NAMES.get(_h["UMethod"], _h["UMethod"]).split(" — ")[0]
+                                _line = (f"**{_h['Value']}** · {_f['label']} "
+                                         f"{rtl_wrap(_f['text'])} in {_q} = the "
+                                         f"{OCC_UNIT_LABEL.get(_h['Boundary'], _h['Boundary'])}"
+                                         f" in {_b} · {_h['Total']:,} units share this value")
+                                st.markdown("- " + _line, unsafe_allow_html=True)
+                            if _show_en:
+                                _t = _en.get((_u["Book"], _u["Chapter"], _u["Verse"]))
+                                if _t:
+                                    st.caption(_t)
+
+                    _occ_render(_top)
+                    if _ranked["n_aside"]:
+                        if st.checkbox(
+                                f"Show {_ranked['n_aside']:,} "
+                                f"{'match' if _ranked['n_aside'] == 1 else 'matches'} "
+                                f"set aside as unsuitable for {_occ}",
+                                key="occ_show_aside"):
+                            _occ_render(_aside, start=len(_top))
                     # Detail for ONE chosen result, rendered on demand: expander
                     # bodies run even when collapsed (HANDOFF "Performance").
+                    _shown = _top + (_aside if st.session_state.get("occ_show_aside")
+                                     else [])
                     _pick = st.selectbox(
                         "Show the full working for", ["—"] + [
                             f"{i + 1}. {u['Book']} {u['Chapter']}:{u['Verse']}"
-                            for i, u in enumerate(_top)], key="occ_pick")
+                            for i, u in enumerate(_shown)], key="occ_pick")
                     if _pick != "—":
-                        _u = _top[int(_pick.split(".")[0]) - 1]
+                        _u = _shown[int(_pick.split(".")[0]) - 1]
                         _h0 = _u["Hits"][0]
                         _f = _forms[_h0["Form"]]
                         st.markdown(f"**{_f['label']}** " + rtl_wrap(_f["text"]),
