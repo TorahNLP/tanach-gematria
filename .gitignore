@@ -23,3 +23,4 @@ verse_tags.log
 verse_tags.state.json
 verse_tags.lock
 verse_tags_requests.csv
+verse_tags_check.csv
