@@ -3,7 +3,7 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (the ONE deployment, since 2026-09-29):** https://joshua.tail0b28c4.ts.net/gematria/ (app / PWA: `?view=app`)
 **Source of record:** GitHub `TorahNLP/tanach-gematria`, branch `main`
-**Last code commit:** `14c4f2a` (Occasion search WIP + Tab 1 nikud-warning fix, 2026-09-29)
+**Last code commit:** `0e69512` (Occasion search context framework, 2026-09-30)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
 **Last DB-affecting commit:** `9e553ab` — **rebuild `tanach.db` if you are older than this**
 **Handoff date:** 2026-08-18 (corrected 2026-09-29: Nikud tool status, method count, funnel URL)
@@ -1561,6 +1561,23 @@ copying them.
   are slow because of the hit volume (400k rows), and the help text says so.
   Speed up by improving the SHARED search, never with a private copy.
 
+**Context framework (`0e69512`, 2026-09-30).** A bris result about צרעת is
+numerically right and still wrong. Each verse gets a **tone** (`VERSE_TONES`)
+and up to three **themes** (`VERSE_THEMES`) once, offline, in
+`verse_tags.jsonl`. Each occasion in `OCCASIONS` carries a `context` profile
+(promote / avoid / harsh_ok). Unsuitable verses are **set aside** into a
+separate list the user can open, with the reason shown; they are **never
+hidden**. Untagged verses are unaffected. **No tags file exists yet**, so the
+page says it is ranking on numbers alone.
+⚠️ **Tags come ONLY from a model reading the verse in context**
+(`build_verse_tags.py`: Hebrew + English + neighbouring verses, via a local
+Ollama server, resumable). **Never from keyword or chapter-range rules:**
+Joshua ruled those too broad (Eicha ends with השיבנו; a verse about idols may
+be about destroying them). No model runtime is installed yet; that needs
+Joshua's OK. Run a sample (`--refs "Leviticus 14" "Lamentations 5"`) and
+spot-check it before a full run. Restart the app after writing the file (the
+tags are cached).
+
 **Not built yet:** parsha + haftara scopes (no parsha data in the corpus;
 haftaros vary by custom), Hebrew dates, the name-pasuk custom, ranking tuning
 with Joshua, and any AI.
@@ -1720,6 +1737,7 @@ visible in production.
 
 ## Session Log (2026-09-29)
 
+- `0e69512` Occasion search **context framework** (tags set aside, never hide)
 - `14c4f2a` Tab 1 no-nikud warning uses the shared `NIKUD_CIPHERS`
 - `3615460` **Occasion search** (WIP, PIN-gated), built on `search_value`
 - `1fe1554` README no longer refers to HF
