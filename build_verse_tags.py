@@ -357,6 +357,32 @@ def ask_gemini(model: str, prompt: str, key: str) -> dict:
             raise Unavailable(f"{model}: {e}")
 
 
+def _pid_alive(pid: int) -> bool:
+    """Is process `pid` running?
+
+    ⚠️ NOT os.kill(pid, 0): on Windows signal 0 is CTRL_C_EVENT, so that call
+    does not probe anything — it raised, every lock looked stale, and on
+    2026-09-30 two runs went at once. Ask Windows directly instead.
+    """
+    if os.name != "nt":
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
+    import ctypes
+    k32 = ctypes.windll.kernel32
+    h = k32.OpenProcess(0x1000, False, pid)   # PROCESS_QUERY_LIMITED_INFORMATION
+    if not h:
+        return False
+    code = ctypes.c_ulong()
+    try:
+        ok = k32.GetExitCodeProcess(h, ctypes.byref(code))
+        return bool(ok) and code.value == 259    # STILL_ACTIVE
+    finally:
+        k32.CloseHandle(h)
+
+
 def next_reset(now: datetime.datetime) -> datetime.datetime:
     """The next midnight Pacific after `now` (Google's documented RPD reset)."""
     local = now.astimezone(PT)
@@ -380,11 +406,11 @@ def run_gemini(a, verses, english):
     if os.path.exists(lock_path):
         try:
             pid = int(open(lock_path).read().split()[0])
-            os.kill(pid, 0)
+        except (OSError, ValueError, IndexError):
+            pid = 0
+        if pid and _pid_alive(pid):
             print("another run is active; exiting")
             return
-        except (OSError, ValueError, IndexError):
-            pass      # stale lock
     with open(lock_path, "w") as fh:
         fh.write(f"{os.getpid()}\n")
     try:
