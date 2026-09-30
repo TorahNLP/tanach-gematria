@@ -3634,6 +3634,277 @@ def _xm_count_matrix(
 
 
 # ---------------------------------------------------------------------------
+# SECTION 7b.  OCCASION SEARCH  (WIP — PIN-gated page; PLAN_ai_search.md on docs)
+# ---------------------------------------------------------------------------
+# The user names the people behind an occasion (a birth, a wedding, a yahrzeit
+# ...). This layer builds the customary name forms, values each one under every
+# method in the chosen depth, and finds FIXED units whose value matches under the
+# same method or a different one (cross-method: "your name in Standard = this
+# verse in Atbash"). Nothing here touches Streamlit; the ?page=occasion page only
+# renders it.
+#
+# ⚠️ Fixed units only: verse, the halves at the אתנחתא, and the זקף / טפחא
+# phrases. Free word spans are excluded on purpose (Joshua, 2026-09-29): a random
+# run of words is the least likely place for a coherent match. Single words are
+# excluded too — a name's value matching one word is too common to mean much.
+
+# A soft WIP lock, NOT security: this file is in a public repo.
+OCCASION_PIN = "5786"
+
+OCC_BOUNDARIES: List[str] = ["Verse", "FirstHalf", "SecondHalf",
+                             "ZakefPhrase", "TiphchaPhrase"]
+OCC_UNIT_RANK: Dict[str, int] = {"Verse": 3, "FirstHalf": 2, "SecondHalf": 2,
+                                 "ZakefPhrase": 1, "TiphchaPhrase": 1}
+OCC_UNIT_LABEL: Dict[str, str] = {
+    "Verse": "whole verse", "FirstHalf": "first half of the verse",
+    "SecondHalf": "second half of the verse",
+    "ZakefPhrase": "zakef phrase", "TiphchaPhrase": "tipcha phrase"}
+
+# Depth: which methods take part, on EITHER side of a match. Chazal-attested is
+# TALMUD_CIPHERS, whose sources are documented where it is defined.
+OCC_DEPTHS: Dict[str, List[str]] = {
+    "Chazal-attested methods": TALMUD_CIPHERS,
+    "Chazal-attested + common (Katan, Siduri)": BASIC_CIPHERS,
+    "All methods except the 231 gates":
+        [c for c in CIPHER_DISPLAY_ORDER if c not in GATE_CIPHER_NAMES],
+    "All methods": list(CIPHER_DISPLAY_ORDER),
+}
+
+
+def occ_method_tier(method: str) -> int:
+    """3 Chazal-attested, 2 common, 1 the rest, 0 the gates."""
+    if method in TALMUD_CIPHERS:
+        return 3
+    if method in COMMON_CIPHERS:
+        return 2
+    return 0 if method in GATE_CIPHER_NAMES else 1
+
+
+# Each occasion is configuration, not code: who is asked for, which parent the
+# default `בן/בת` form uses, and any fixed extra forms. `gender` None means
+# "ask"; "m"/"f" fixes it (chosson / kallah). The defaults follow common custom —
+# mother's name for tefillah, father's elsewhere — and are Joshua's to change.
+OCCASIONS: Dict[str, Dict] = {
+    "Birth · bris": {
+        "people": [("child", "Child", None)], "parent": "father"},
+    "Pidyon haben": {
+        "people": [("child", "Child", "m")], "parent": "father"},
+    "Upsherin": {
+        "people": [("child", "Child", "m")], "parent": "father"},
+    "Bar / bat mitzvah": {
+        "people": [("child", "Child", None)], "parent": "father"},
+    "Engagement · wedding · sheva brachos": {
+        "people": [("chosson", "Chosson", "m"), ("kallah", "Kallah", "f")],
+        "parent": "father", "couple": True},
+    "Anniversary": {
+        "people": [("husband", "Husband", "m"), ("wife", "Wife", "f")],
+        "parent": "father", "couple": True},
+    "Yahrzeit · hesped · matzeivah": {
+        "people": [("niftar", "The niftar", None)], "parent": "father"},
+    "Refuah shleimah · tefillah": {
+        "people": [("person", "The person", None)], "parent": "mother"},
+    "Birthday": {
+        "people": [("person", "The person", None)], "parent": "father"},
+    "Siyum": {
+        "people": [("person", "Making the siyum", None)], "parent": "father",
+        "extra_label": "Masechta / sefer (Hebrew)"},
+    "Chanukas habayis · business · dedication": {
+        "people": [], "parent": None,
+        "extra_label": "Family or business name (Hebrew)"},
+    "Conversion (new Hebrew name)": {
+        "people": [("person", "New name", None)], "parent": "avraham"},
+}
+
+
+def _occ_form(label: str, raw: str, weight: int) -> Optional[Dict]:
+    """One searchable name form, valued under every method.
+
+    Valued exactly as a typed search is (see the nikud tool's hand-off to Tab
+    1), so a value here always agrees with the rest of the app. A form with any
+    unpointed word is kept out of the four vowel-mark methods, as elsewhere.
+    """
+    raw = " ".join(raw.split())
+    cons = strip_to_consonants(raw)
+    if not cons:
+        return None
+    wcons = " ".join(tokenize_words(raw)) or cons
+    return {"label": label, "text": raw, "weight": weight,
+            "cons": cons, "wcons": wcons,
+            "vals": compute_all_ciphers(cons, raw, wcons),
+            # Tab 1's query-side gate, reused: any bare word keeps the form
+            # out of the four vowel-mark methods.
+            "nikud_ok": not has_unpointed_word(raw)}
+
+
+def _occ_vav(word: str) -> str:
+    """Prefix the conjunctive ו, pointed by the standard rule when `word` is.
+
+    וּ before ב/מ/פ and before a letter carrying a sheva; וְ otherwise. An
+    unpointed word gets a bare ו, so the form stays out of the vowel-mark
+    methods exactly as the word itself would. (The rarer וָ/וַ/וֶ cases before a
+    chataf are not handled: those names take the plain וְ here.)
+    """
+    word = word.strip()
+    if not word or not _NIKUD_RANGE_RE.search(word):
+        return "ו" + word
+    first = word[0]
+    marks = word[1:3]
+    return ("וּ" if first in "במפ" or "ְ" in marks else "וְ") + word
+
+
+def occasion_name_forms(occasion: str, people: Dict[str, Dict[str, str]],
+                        surname: str = "", extra: str = "") -> List[Dict]:
+    """The labelled name forms to search, most natural first.
+
+    `people` maps a role key to {"name", "father", "mother", "gender"}. Weights
+    (3 natural … 1 unusual) feed the ranking; labels say which form matched.
+    Duplicate texts are dropped, keeping the first (better-weighted) label.
+    """
+    cfg = OCCASIONS[occasion]
+    forms: List[Dict] = []
+    for key, role, fixed_gender in cfg["people"]:
+        p = people.get(key) or {}
+        name = (p.get("name") or "").strip()
+        if not name:
+            continue
+        ben = "בַּת" if (fixed_gender or p.get("gender")) == "f" else "בֶּן"
+        father = (p.get("father") or "").strip()
+        mother = (p.get("mother") or "").strip()
+        default = cfg["parent"]
+        forms.append(_occ_form(f"{role}'s name", name, 3))
+        if default == "avraham":
+            forms.append(_occ_form(f"{role} + Avraham Avinu",
+                                   f"{name} {ben} אַבְרָהָם אָבִינוּ", 3))
+        if father:
+            forms.append(_occ_form(f"{role} + father",
+                                   f"{name} {ben} {father}",
+                                   3 if default == "father" else 2))
+        if mother:
+            forms.append(_occ_form(f"{role} + mother",
+                                   f"{name} {ben} {mother}",
+                                   3 if default == "mother" else 2))
+        if father and mother:
+            forms.append(_occ_form(f"{role} + father & mother",
+                                   f"{name} {ben} {father} {_occ_vav(mother)}", 2))
+        if surname:
+            forms.append(_occ_form(f"{role}'s name + surname",
+                                   f"{name} {surname}", 2))
+            lead = father if default != "mother" else mother
+            if lead:
+                forms.append(_occ_form(
+                    f"{role} + {'mother' if default == 'mother' else 'father'} + surname",
+                    f"{name} {ben} {lead} {surname}", 1))
+    if cfg.get("couple"):
+        names = [(people.get(k) or {}).get("name", "").strip()
+                 for k, _, _ in cfg["people"]]
+        if all(names):
+            forms.append(_occ_form("Both names together",
+                                   f"{names[0]} {_occ_vav(names[1])}", 3))
+    if extra.strip():
+        forms.append(_occ_form(cfg.get("extra_label", "Text"), extra, 3))
+        if surname and not cfg["people"]:
+            forms.append(_occ_form("Name + surname", f"{extra} {surname}", 2))
+    out, seen = [], set()
+    for f in forms:
+        if f and f["text"] not in seen:
+            seen.add(f["text"])
+            out.append(f)
+    return out
+
+
+def occasion_search(conn: sqlite3.Connection, forms: List[Dict],
+                    methods: List[str], per_value_cap: int = 30
+                    ) -> pd.DataFrame:
+    """Every fixed unit matching any form, same-method or cross-method.
+
+    ⚠️ Built ON the app's own search, not beside it: every lookup is
+    `search_value` and every total is `count_value`, so the track, boundary
+    and nikud_partial rules cannot drift from the rest of the app. Each
+    distinct (unit method, value) pair is searched once, however many
+    (form, query method) pairs produce it. Measured 2026-09-29: ~2 ms per
+    pair, so the Chazal-attested depth takes about a second and all 57
+    methods about a minute.
+
+    Returns one row per (unit, form, query method A, unit method B), with
+    `Total` = the true number of units carrying that value under B, so the
+    page can say how common a match is instead of implying it is rare.
+    """
+    wanted: Dict[Tuple[str, int], List[Tuple[int, str]]] = {}
+    for fi, f in enumerate(forms):
+        for ma in methods:
+            if ma in NIKUD_CIPHERS and not f["nikud_ok"]:
+                continue
+            v = int(f["vals"][ma])
+            if v <= 0:
+                continue
+            for mb in methods:
+                wanted.setdefault((mb, v), []).append((fi, ma))
+    frames = []
+    for (mb, v), sources in wanted.items():
+        found = search_value(conn, mb, v, tracks=["Ksiv"],
+                             boundaries=OCC_BOUNDARIES, limit=per_value_cap)
+        if found.empty:
+            continue
+        total = count_value(conn, mb, v, tracks=["Ksiv"],
+                            boundaries=OCC_BOUNDARIES)
+        for fi, ma in sources:
+            frames.append(found.assign(Form=fi, QMethod=ma, UMethod=mb,
+                                       Total=total))
+    return pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+
+
+def occasion_rank(hits: pd.DataFrame, forms: List[Dict],
+                  top: int = 20) -> List[Dict]:
+    """Score hits and group them by VERSE, best first.
+
+    Per hit: both methods' tiers (Chazal-attested highest), same method over
+    cross-method, whole verse over smaller units, natural name form over an
+    unusual one, and rarity (fewer units with that value = more notable). Per
+    verse: its best hit, plus a small bonus when several independent hits land
+    in the same verse. Grouping by verse, not sub-unit, keeps one verse from
+    filling the list once per phrase.
+
+    Vectorised: a common name produces thousands of hits, and a per-row Python
+    loop here cost 12 s where the searches themselves took under 1 s.
+    """
+    if hits.empty:
+        return []
+    # A זקף / טפחא "phrase" can be a single word, which is a word match in
+    # disguise — the kind this search leaves out as too common to mean much.
+    hits = hits[hits["Text"].str.strip().str.contains(" ")]
+    if hits.empty:
+        return []
+    tier = {m: occ_method_tier(m) for m in CIPHER_NAMES}
+    total = hits["Total"]
+    h = hits.assign(
+        Score=(10 * (hits["QMethod"].map(tier) + hits["UMethod"].map(tier))
+               + 12 * (hits["QMethod"] == hits["UMethod"])
+               + 6 * hits["Boundary"].map(OCC_UNIT_RANK).fillna(0)
+               + 4 * hits["Form"].map(lambda i: forms[i]["weight"])
+               + 12 * (total <= 3) + 8 * ((total > 3) & (total <= 10))
+               + 4 * ((total > 10) & (total <= 30))))
+    key = ["Book", "Chapter", "Verse"]
+    h = h.sort_values("Score", ascending=False, kind="stable")
+    best = h.drop_duplicates(key).set_index(key)
+    n_hits = h.drop_duplicates(key + ["Form", "QMethod", "UMethod", "Text"]
+                               ).groupby(key).size()
+    best["Score"] = best["Score"] + (n_hits.reindex(best.index) - 1).clip(upper=3) * 3
+    best = best.sort_values("Score", ascending=False, kind="stable").head(top)
+    out = []
+    for (bk, ch, vs), row in best.iterrows():
+        sel = h[(h["Book"] == bk) & (h["Chapter"] == ch) & (h["Verse"] == vs)]
+        # Keyed on the unit's TEXT, not its id: a verse with no אתנחתא has a
+        # "first half" identical to the whole verse, and that is one match, not
+        # two. `h` is score-ordered, so the larger unit is the one kept.
+        sel = sel.drop_duplicates(["Form", "QMethod", "UMethod", "Text"])
+        out.append({"Book": bk, "Chapter": int(ch), "Verse": int(vs),
+                    "Score": float(row["Score"]),
+                    "Hits": sel.head(8).to_dict("records"),
+                    "HitCount": len(sel)})
+    return out
+
+
+# ---------------------------------------------------------------------------
 # SECTION 8.  STATISTICS & VISUALIZATION HELPERS
 # ---------------------------------------------------------------------------
 
@@ -5069,6 +5340,19 @@ def run_app() -> None:
                                 list(tracks) if tracks else None,
                                 list(boundaries) if boundaries else None)
 
+    # Bounded like every cache here (see HANDOFF "Search hangs forever"): a deep
+    # search holds tens of thousands of hit rows until it is ranked, but only the
+    # ranked top is returned and kept.
+    @st.cache_data(show_spinner=False, max_entries=30, ttl=3600)
+    def cached_occasion(_conn, corpus_key, occasion, people_items, surname,
+                        extra, depth, top=20):
+        people = {k: dict(v) for k, v in people_items}
+        forms = occasion_name_forms(occasion, people, surname, extra)
+        hits = occasion_search(_conn, forms, OCC_DEPTHS[depth])
+        n_verses = (0 if hits.empty else
+                    len(hits[["Book", "Chapter", "Verse"]].drop_duplicates()))
+        return forms, occasion_rank(hits, forms, top), n_verses
+
     # Verse-mode lookups. These MUST be cached functions taking the connection
     # as `_conn`, not ad-hoc queries in the script body: an earlier version ran
     # raw_conn(conn).execute(...) at Tab-1 script level, so they re-executed on
@@ -5390,6 +5674,29 @@ def run_app() -> None:
                     return "".join(result)
         return cantillated
 
+    def render_breakdown_caption(method, cons, w_cons, cantillated, label=None):
+        """Show how `cons` reaches its value under `method`, as one caption.
+
+        Shared by the verse-detail panel and the Occasion search page, so the
+        two can never show a value's working differently. Returns
+        (breakdown_rows, derivation) for callers that also export them.
+        """
+        head = f"**{label or method}:** "
+        rows = cipher_breakdown(method, cons, w_cons, cantillated=cantillated)
+        steps = None
+        if rows:
+            parts = " + ".join(f"{lbl}({val})" for lbl, val in rows)
+            st.caption(f"{head}{parts} = {sum(val for _, val in rows)}")
+        else:
+            # Not a per-letter sum, but not opaque either: these four are
+            # named operations on the Standard total and the steps are the
+            # whole answer. Showing "Total value: 8" alone gave the reader
+            # nothing to check.
+            steps = derivation_steps(method, cons)
+            if steps:
+                st.caption(head + " → ".join(f"{lbl} = {v}" for lbl, v in steps))
+        return rows, steps
+
     def render_verse_detail(book, chapter, verse, boundary, matched_text=None,
                             active_method=None, query_info=None, colel=False,
                             span_range=None, track=None, end_ref=None,
@@ -5632,21 +5939,8 @@ def run_app() -> None:
         breakdown_rows = None
         derivation = None
         if active_method and active_method in CIPHERS and not ksiv_unpointed:
-            breakdown_rows = cipher_breakdown(active_method, cons, w_cons,
-                                              cantillated=cantillated_src)
-            if breakdown_rows:
-                parts = " + ".join(f"{lbl}({val})" for lbl, val in breakdown_rows)
-                total = sum(val for _, val in breakdown_rows)
-                st.caption(f"**{active_method}:** {parts} = {total}")
-            else:
-                # Not a per-letter sum, but not opaque either: these four are
-                # named operations on the Standard total and the steps are the
-                # whole answer. Showing "Total value: 8" alone gave the reader
-                # nothing to check.
-                derivation = derivation_steps(active_method, cons)
-                if derivation:
-                    st.caption(f"**{active_method}:** " + " → ".join(
-                        f"{lbl} = {v}" for lbl, v in derivation))
+            breakdown_rows, derivation = render_breakdown_caption(
+                active_method, cons, w_cons, cantillated_src)
         if boundary in ("Petucha", "Setuma"):
             run = _paragraph_run(book, chapter, verse)
             if run and len(run) > 1:
@@ -5815,15 +6109,16 @@ def run_app() -> None:
     if app_view:
         tab2 = tab3 = tab4 = None
         _page = st.query_params.get("page")
-        if _page in ("guide", "nikud"):
+        if _page in ("guide", "nikud", "occasion"):
             tab1 = None
             if st.button("← Back to Gematria Search"):
                 st.query_params["page"] = "search"
                 st.rerun()
             tab_guide = st.container() if _page == "guide" else None
             tab_nikud = st.container() if _page == "nikud" else None
+            tab_occ = st.container() if _page == "occasion" else None
         else:
-            tab_guide = tab_nikud = None
+            tab_guide = tab_nikud = tab_occ = None
             _hd_l, _hd_r = st.columns([3, 1])
             with _hd_l:
                 st.title("Tanach Gematria Search")
@@ -5833,6 +6128,10 @@ def run_app() -> None:
                     st.rerun()
                 if st.button("נִקּוּד Nikud tool"):
                     st.query_params["page"] = "nikud"
+                    st.rerun()
+                # WIP, PIN-gated (see OCCASION_PIN). App view only for now.
+                if st.button("🔒 Occasion search (WIP)"):
+                    st.query_params["page"] = "occasion"
                     st.rerun()
             tab1 = st.container()
     else:
@@ -5844,6 +6143,7 @@ def run_app() -> None:
             "4 · Macro Statistical Dashboard",
             "נִקּוּד Nikud tool",
         ])
+        tab_occ = None   # Occasion search is app-view only while it is WIP
 
     # ======================= NIKUD TOOL =================================
     # Type a word or phrase, get it back vocalized, edit any word from its
@@ -6041,6 +6341,133 @@ def run_app() -> None:
                     f"**{st.session_state['nk_sent']}** sent to the search.")
 
             st.caption("Select the result text above to copy it.")
+
+    # ======================= OCCASION SEARCH (WIP) ======================
+    # Names for an occasion in, ranked verse matches out. The engine is
+    # SECTION 7b, built on search_value / count_value; this block only renders.
+    # PIN-gated while unfinished (OCCASION_PIN, a soft lock, not security).
+    if tab_occ is not None:
+      with tab_occ:
+        st.title("Occasion search")
+        st.warning("🚧 **Work in progress.** Unfinished and locked; results "
+                   "and their order will change.")
+        if not st.session_state.get("occ_unlocked"):
+            _pin = st.text_input("PIN", type="password", key="occ_pin_in")
+            if _pin:
+                if _pin == OCCASION_PIN:
+                    st.session_state["occ_unlocked"] = True
+                    st.rerun()
+                st.error("Wrong PIN.")
+        else:
+            _occ = st.selectbox("Occasion", list(OCCASIONS), key="occ_kind")
+            _cfg = OCCASIONS[_occ]
+            with st.form("occ_form"):
+                st.caption("Hebrew names. Add nikud (the Nikud tool can help) "
+                           "to include the vowel-mark methods.")
+                _people = {}
+                for _key, _role, _fixed in _cfg["people"]:
+                    st.markdown(f"**{_role}**")
+                    _c1, _c2, _c3 = st.columns(3)
+                    _nm = _c1.text_input("Name", key=f"occ_{_key}_name")
+                    _fa = _c2.text_input("Father's name", key=f"occ_{_key}_father")
+                    _mo = _c3.text_input("Mother's name", key=f"occ_{_key}_mother")
+                    _g = _fixed
+                    if _g is None:
+                        _g = "f" if st.radio(
+                            "בן / בת", ["בן", "בת"], horizontal=True,
+                            key=f"occ_{_key}_g") == "בת" else "m"
+                    _people[_key] = {"name": _nm, "father": _fa,
+                                     "mother": _mo, "gender": _g}
+                _extra = (st.text_input(_cfg["extra_label"], key="occ_extra")
+                          if _cfg.get("extra_label") else "")
+                _surname = st.text_input("Surname (optional)", key="occ_surname")
+                _depth = st.selectbox(
+                    "Methods", list(OCC_DEPTHS), key="occ_depth",
+                    help=_tip("Which methods take part, on either side of a "
+                              "match. The deeper settings are slow: about a "
+                              "minute for all but the gates, two for all."))
+                _go = st.form_submit_button("Search", type="primary")
+            if _go:
+                with st.spinner("Searching…"):
+                    st.session_state["occ_result"] = cached_occasion(
+                        conn, corpus_key, _occ,
+                        tuple(sorted((k, tuple(sorted(v.items())))
+                                     for k, v in _people.items())),
+                        _surname.strip(), _extra.strip(), _depth)
+
+            _res = st.session_state.get("occ_result")
+            if _res:
+                _forms, _top, _n_verses = _res
+                if not _forms:
+                    st.info("Enter at least one name.")
+                elif not _top:
+                    st.info("No matches in the fixed units (verse, half verse, "
+                            "זקף / טפחא phrase).")
+                else:
+                    st.markdown(f"**{_n_verses:,} verses** have at least one "
+                                f"match; the best {len(_top)} are shown.")
+                    with st.expander("Name forms searched"):
+                        for _f in _forms:
+                            st.markdown(rtl_wrap(
+                                f"{_f['label']}: {_f['text']} "
+                                f"(Standard {_f['vals']['Standard']})"),
+                                unsafe_allow_html=True)
+                    _show_en = st.checkbox("Show translation", key="occ_en")
+                    _en = _english_index() if _show_en else {}
+                    for _i, _u in enumerate(_top):
+                        _h0 = _u["Hits"][0]
+                        _txt = vocalize_result_text(pd.DataFrame([{
+                            "Book": _u["Book"], "Chapter": _u["Chapter"],
+                            "Verse": _u["Verse"], "Text": _h0["Text"],
+                            "Track": "Ksiv"}]), verse_index).iloc[0]["Text"]
+                        st.markdown(
+                            f"**{_i + 1}. {_u['Book']} {_u['Chapter']}:{_u['Verse']}**"
+                            f" · {OCC_UNIT_LABEL.get(_h0['Boundary'], _h0['Boundary'])}"
+                            f" · {_u['HitCount']} match"
+                            f"{'es' if _u['HitCount'] != 1 else ''}")
+                        st.markdown(f'<div dir="rtl" style="font-size:1.25em">'
+                                    f'{rtl_wrap(_txt)}</div>',
+                                    unsafe_allow_html=True)
+                        for _h in _u["Hits"][:3]:
+                            _f = _forms[_h["Form"]]
+                            # One shape for every line, same-method or cross,
+                            # with ONE Hebrew run (the name form): mixing more
+                            # Hebrew into an English line is what scrambled the
+                            # Guide's bidi. The unit is named on every line so
+                            # two phrases of one verse stay distinguishable.
+                            _q = CIPHER_DISPLAY_NAMES.get(_h["QMethod"], _h["QMethod"]).split(" — ")[0]
+                            _b = CIPHER_DISPLAY_NAMES.get(_h["UMethod"], _h["UMethod"]).split(" — ")[0]
+                            _line = (f"**{_h['Value']}** · {_f['label']} "
+                                     f"{rtl_wrap(_f['text'])} in {_q} = the "
+                                     f"{OCC_UNIT_LABEL.get(_h['Boundary'], _h['Boundary'])}"
+                                     f" in {_b} · {_h['Total']:,} units share this value")
+                            st.markdown("- " + _line, unsafe_allow_html=True)
+                        if _show_en:
+                            _t = _en.get((_u["Book"], _u["Chapter"], _u["Verse"]))
+                            if _t:
+                                st.caption(_t)
+                    # Detail for ONE chosen result, rendered on demand: expander
+                    # bodies run even when collapsed (HANDOFF "Performance").
+                    _pick = st.selectbox(
+                        "Show the full working for", ["—"] + [
+                            f"{i + 1}. {u['Book']} {u['Chapter']}:{u['Verse']}"
+                            for i, u in enumerate(_top)], key="occ_pick")
+                    if _pick != "—":
+                        _u = _top[int(_pick.split(".")[0]) - 1]
+                        _h0 = _u["Hits"][0]
+                        _f = _forms[_h0["Form"]]
+                        st.markdown(f"**{_f['label']}** " + rtl_wrap(_f["text"]),
+                                    unsafe_allow_html=True)
+                        render_breakdown_caption(_h0["QMethod"], _f["cons"],
+                                                 _f["wcons"], _f["text"])
+                        render_verse_detail(
+                            _u["Book"], _u["Chapter"], _u["Verse"],
+                            _h0["Boundary"], matched_text=_h0["Text"],
+                            active_method=_h0["UMethod"],
+                            query_info={"cons": _f["cons"], "raw": _f["text"],
+                                        "wcons": _f["wcons"],
+                                        "label": _f["label"]},
+                            query_method=_h0["QMethod"])
 
     # ===================== TAB GUIDE: GUIDE & SOURCES ==================
     # Guarded: tab_guide is None on the app-view search page.
