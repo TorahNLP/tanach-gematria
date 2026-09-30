@@ -15,3 +15,11 @@ talmud-gematria-findings.pdf
 # Local self-hosting: hidden launcher + watchdog that keep the app running on
 # this PC and served over Tailscale Funnel. Machine-specific, not part of the app.
 host/
+
+# Verse-tagging job (build_verse_tags.py, run hourly by host/): its log, quota
+# state and run lock. verse_tags.jsonl itself is data and is committed once
+# the run completes.
+verse_tags.log
+verse_tags.state.json
+verse_tags.lock
+verse_tags_requests.csv

@@ -3830,10 +3830,16 @@ def occ_context_verdict(tag: Optional[Dict], profile: Dict
     """
     if not tag:
         return 0, []
+    # Two model judgments, either one sets aside: "would jar at this kind of
+    # occasion", or a HARSH tone as the Torah sees it. On the 40-verse sample
+    # (Flash-Lite, Torah-view prompt) jars_at alone scored 34/40; adding the
+    # model's own harsh call caught the metzora, the bears and the ben sorer
+    # and scored 37/40. Both are the model reading the verse, not a rule.
     aside = []
-    if profile["fit"] in tag.get("jars_at", []):
-        aside = [f"judged unsuitable for a {profile['fit']}"
-                 + (f" ({', '.join(tag['themes'])})" if tag["themes"] else "")]
+    if profile["fit"] in tag.get("jars_at", []) or tag["tone"] == "harsh":
+        why = ("judged unsuitable for a " + profile["fit"]
+               if profile["fit"] in tag.get("jars_at", []) else "harsh in tone")
+        aside = [why + (f" ({', '.join(tag['themes'])})" if tag["themes"] else "")]
     bonus = 15 * min(2, sum(t in profile["promote"] for t in tag["themes"]))
     bonus += 5 if tag["tone"] == "uplifting" else 0
     return bonus, aside
@@ -5491,7 +5497,8 @@ def run_app() -> None:
     # ranked top is returned and kept.
     @st.cache_data(show_spinner=False, max_entries=30, ttl=3600)
     def cached_occasion(_conn, corpus_key, occasion, people_items, surname,
-                        extra, depth, top=20):
+                        extra, depth, tags_mtime, top=20):
+        # tags_mtime is only a cache key: new tags must re-rank a cached search.
         people = {k: dict(v) for k, v in people_items}
         forms = occasion_name_forms(occasion, people, surname, extra)
         hits = occasion_search(_conn, forms, OCC_DEPTHS[depth])
@@ -5625,11 +5632,21 @@ def run_app() -> None:
     def _english_index() -> Dict[Tuple[str, int, int], str]:
         return load_english()
 
-    # Same reasoning as the translation: one argument-free entry, loaded once.
-    # Restart the app after regenerating verse_tags.jsonl.
-    @st.cache_resource(show_spinner=False)
-    def _verse_tags_index() -> Dict[Tuple[str, int, int], Dict]:
+    # Keyed on the file's modification time, so tags written by the hourly
+    # tagging job (build_verse_tags.py) show up without a restart. One entry:
+    # a new mtime replaces the old index rather than accumulating beside it.
+    @st.cache_resource(show_spinner=False, max_entries=1)
+    # ⚠️ `mtime`, not `_mtime`: Streamlit leaves underscore-prefixed arguments
+    # OUT of the cache key, which would pin the first index forever.
+    def _verse_tags_cached(mtime: float) -> Dict[Tuple[str, int, int], Dict]:
         return load_verse_tags()
+
+    def _verse_tags_index() -> Dict[Tuple[str, int, int], Dict]:
+        try:
+            mtime = VERSE_TAGS_FILE.stat().st_mtime
+        except OSError:
+            return {}
+        return _verse_tags_cached(mtime)
 
     def verse_english(book, chapter, verse) -> str:
         """Translation for one verse, or "" when unavailable."""
@@ -6547,7 +6564,9 @@ def run_app() -> None:
                         conn, corpus_key, _occ,
                         tuple(sorted((k, tuple(sorted(v.items())))
                                      for k, v in _people.items())),
-                        _surname.strip(), _extra.strip(), _depth)
+                        _surname.strip(), _extra.strip(), _depth,
+                        VERSE_TAGS_FILE.stat().st_mtime
+                        if VERSE_TAGS_FILE.exists() else 0.0)
 
             _res = st.session_state.get("occ_result")
             if _res:
