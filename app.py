@@ -7329,12 +7329,14 @@ This principle appears throughout Kabbalistic and Hasidic commentary and is invo
             # renders before a search is committed. App view orders all methods
             # with the classical (Talmud-attested) ones first. The computed-values
             # table itself now renders lower down, just above cross-method.
-            _NIKUD_CIPHERS = {"HaNekudot", "ImHaNekudot", "MiluiNekudot", "ImMiluiNekudot"}
+            # The shared NIKUD_CIPHERS, not a local copy: a hand-kept set here
+            # had fallen behind at four and never warned for the fifth
+            # (MiluiImMiluiNekudot).
             _has_nikud = any(ch in NIKUD_VALS for ch in _c_raw)
-            if any(c in _NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
+            if any(c in NIKUD_CIPHERS for c in active_ciphers) and not _has_nikud:
                 st.warning(
-                    "One or more selected methods (HaNekudot / ImHaNekudot / "
-                    "MiluiNekudot / ImMiluiNekudot) count vowel marks. "
+                    "One or more selected methods ("
+                    + " / ".join(NIKUD_CIPHERS) + ") count vowel marks. "
                     "Your input has no nikud, so their values will be 0 or equal to Standard. "
                     "Add nikud for accurate results.")
             for _ci, cipher in enumerate(active_ciphers):
