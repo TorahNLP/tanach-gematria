@@ -1,6 +1,9 @@
 # Plan: Occasion Search (AI assistant optional, later)
 
-**Status:** approved in outline, 2026-09-29. Nothing built. **Build the form
+**Status:** approved in outline, 2026-09-29. **Phase 0 and a first slice of
+Phase 1 are live, PIN-gated** (`3615460`; see HANDOFF "Occasion search"): the
+form, name forms, same- and cross-method matching, ranking v1. Next up: parsha
+and haftara data, dates, and tuning the ranking with Joshua. **Build the form
 first** (Joshua: "this may be most of what we need"). The AI chat is Phase 3,
 and may never be needed.
 **Scope:** a new page on the Tailscale copy, the one maintained deployment
@@ -229,7 +232,8 @@ rarer than it is.
    perk of an AI, not a need for the target audience.
 4. **Which name forms count**, e.g. mother's name in `בן` forms (as for
    tefillah), surname, kinnuim? Your call on custom.
-5. **Which cross-method pairs are "classic"** for ranking?
+5. ✅ **Classic pairs** = both methods in `TALMUD_CIPHERS` (Joshua: "the Chazal
+   sourced ones", 2026-09-29). Ranking scores each side by tier.
 6. **Default haftara custom**, if any, and Israel vs chutz la'aretz default.
 
 ## Future, separate project: Hebrew / yeshiva-facing UI

@@ -3,7 +3,7 @@
 **Project:** `C:\Users\joshu.AKIVA\Desktop\tanakh-gematria`
 **Live URL (the ONE deployment, since 2026-09-29):** https://joshua.tail0b28c4.ts.net/gematria/ (app / PWA: `?view=app`)
 **Source of record:** GitHub `TorahNLP/tanach-gematria`, branch `main`
-**Last code commit:** `7e32569` (Achas Beta tail evidence, comments only)
+**Last code commit:** `14c4f2a` (Occasion search WIP + Tab 1 nikud-warning fix, 2026-09-29)
 **Last data commit:** `ffa9cfb` (name-index review lists — no app code)
 **Last DB-affecting commit:** `9e553ab` — **rebuild `tanach.db` if you are older than this**
 **Handoff date:** 2026-08-18 (corrected 2026-09-29: Nikud tool status, method count, funnel URL)
@@ -1526,6 +1526,55 @@ The ONNX-model fallback in the original design was **not** built.
 
 ---
 
+## Occasion search — WIP, PIN-gated (`3615460`, 2026-09-29)
+
+`?view=app&page=occasion`, reached from the **🔒 Occasion search (WIP)** button
+beside the title. App view only (site view has no tab: `tab_occ = None`).
+**PIN `5786`** (`OCCASION_PIN`). It is a soft lock, not security: the repo is
+public. Plan and open decisions: `PLAN_ai_search.md` on this branch.
+
+**What it does:** pick an occasion, enter names (child/parents, chosson/kallah
+…, surname), and pick a depth: Chazal-attested (`TALMUD_CIPHERS`), + common,
+all but the gates, or all. It builds the name forms and finds **fixed units**
+(verse, half verse, zakef/tipcha phrase) matching under the same method **or a
+different one** (cross-method). Results are ranked and grouped by verse, each
+with the true count of units sharing that value.
+
+**⚠️ DRY, by Joshua's instruction:** the engine (SECTION 7b) calls
+`search_value` / `count_value` for every lookup and never has its own SQL, so
+the track, boundary and `nikud_partial` rules cannot drift. The name's working
+is shown by `render_breakdown_caption`, extracted from the verse panel and
+shared with it. Keep it that way: extend the shared functions rather than
+copying them.
+
+**Design choices worth knowing:**
+- Free spans are out (Joshua: random runs rarely give coherent matches), and
+  so are single-word units, including a one-word zakef phrase. Both are too
+  common to mean much.
+- Connectors are pointed (`בֶּן`/`בַּת`, `וְ`/`וּ` by rule in `_occ_vav`), so a
+  fully pointed name keeps the vowel-mark methods. Any bare word excludes them,
+  by Tab 1's `has_unpointed_word` gate.
+- Duplicate units are keyed on TEXT: a verse with no אתנחתא has a "first half"
+  equal to the whole verse.
+- Timing (David/Yishai/Nitzeves): Chazal 1.2 s, + common 4 s, all but the gates
+  ~50 s, all ~2 min. The DB queries are cheap (~2 ms each). The deep settings
+  are slow because of the hit volume (400k rows), and the help text says so.
+  Speed up by improving the SHARED search, never with a private copy.
+
+**Not built yet:** parsha + haftara scopes (no parsha data in the corpus;
+haftaros vary by custom), Hebrew dates, the name-pasuk custom, ranking tuning
+with Joshua, and any AI.
+
+**Development happens in `../tanakh-dev`** (worktree, branch `occasion-search`,
+with its own copy of `tanach.db`). It is merged into `main` in the served
+directory when ready, and the merge restarts the live app.
+
+**Also fixed (`14c4f2a`):** Tab 1's no-nikud warning used a hand-kept local
+set of four vowel methods and never warned for `MiluiImMiluiNekudot`. It now
+uses the shared `NIKUD_CIPHERS`.
+
+---
+
 ## Known Issues / Gotchas
 
 | Item | Status |
@@ -1668,6 +1717,14 @@ that gap but the app-view DOM differences that broke CSS tab hiding were only ev
 visible in production.
 
 ---
+
+## Session Log (2026-09-29)
+
+- `14c4f2a` Tab 1 no-nikud warning uses the shared `NIKUD_CIPHERS`
+- `3615460` **Occasion search** (WIP, PIN-gated), built on `search_value`
+- `1fe1554` README no longer refers to HF
+- Docs: **one deployment** (Tailscale); HF paused, Streamlit Cloud and Pages
+  retired; auto-restart hooks installed; Nikud tool recorded as shipped
 
 ## Session Log (2026-08-12 → 08-18, newest first)
 
